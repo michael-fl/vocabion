@@ -1,0 +1,121 @@
+/**
+ * SQLite-backed implementation of `SessionRepository`.
+ *
+ * All operations are synchronous (better-sqlite3). The `words` array is
+ * serialised as a JSON TEXT column and deserialised on read. Column names
+ * follow snake_case (database convention) and are mapped to camelCase on the
+ * way out.
+ *
+ * @example
+ * ```ts
+ * import { openDatabase } from './database.ts'
+ * import { SqliteSessionRepository } from './SqliteSessionRepository.ts'
+ *
+ * const db = openDatabase('./vocabion.db', migrationsDir)
+ * const repo = new SqliteSessionRepository(db)
+ * ```
+ */
+import type Database from 'better-sqlite3'
+
+import type { Session, SessionDirection, SessionType, SessionWord } from '../../shared/types/Session.ts'
+import type { SessionRepository } from '../features/session/SessionRepository.ts'
+
+interface SessionRow {
+  id: string
+  direction: string
+  type: string
+  words: string        // JSON-encoded SessionWord[]
+  status: string
+  created_at: string
+}
+
+function rowToSession(row: SessionRow): Session {
+  return {
+    id: row.id,
+    direction: row.direction as SessionDirection,
+    type: row.type as SessionType,
+    words: JSON.parse(row.words) as SessionWord[],
+    status: row.status as 'open' | 'completed',
+    createdAt: row.created_at,
+  }
+}
+
+export class SqliteSessionRepository implements SessionRepository {
+  constructor(private readonly db: Database.Database) {}
+
+  findOpen(): Session | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM sessions WHERE status = 'open' LIMIT 1")
+      .get() as SessionRow | undefined
+
+    return row !== undefined ? rowToSession(row) : undefined
+  }
+
+  findById(id: string): Session | undefined {
+    const row = this.db
+      .prepare('SELECT * FROM sessions WHERE id = ?')
+      .get(id) as SessionRow | undefined
+
+    return row !== undefined ? rowToSession(row) : undefined
+  }
+
+  findLastCompleted(): Session | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM sessions WHERE status = 'completed' ORDER BY created_at DESC LIMIT 1")
+      .get() as SessionRow | undefined
+
+    return row !== undefined ? rowToSession(row) : undefined
+  }
+
+  findLastCompletedNonFocus(): Session | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM sessions WHERE status = 'completed' AND type != 'focus' ORDER BY created_at DESC LIMIT 1")
+      .get() as SessionRow | undefined
+
+    return row !== undefined ? rowToSession(row) : undefined
+  }
+
+  insert(session: Session): void {
+    this.db
+      .prepare(
+        `INSERT INTO sessions (id, direction, type, words, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        session.id,
+        session.direction,
+        session.type,
+        JSON.stringify(session.words),
+        session.status,
+        session.createdAt,
+      )
+  }
+
+  update(session: Session): void {
+    this.db
+      .prepare('UPDATE sessions SET words = ?, status = ? WHERE id = ?')
+      .run(JSON.stringify(session.words), session.status, session.id)
+  }
+
+  countRecentErrors(vocabId: string, sessionLimit: number): number {
+    // Among the N most recent completed sessions (globally), count how many
+    // contain an incorrect answer for the given word.
+    const result = this.db
+      .prepare(
+        `SELECT COUNT(*) AS cnt
+         FROM sessions s, json_each(s.words) jw
+         WHERE s.status = 'completed'
+           AND json_extract(jw.value, '$.vocabId') = ?
+           AND json_extract(jw.value, '$.status') = 'incorrect'
+           AND s.id IN (
+             SELECT id FROM sessions
+             WHERE status = 'completed'
+             ORDER BY created_at DESC
+             LIMIT ?
+           )`,
+      )
+      .get(vocabId, sessionLimit) as { cnt: number }
+
+    return result.cnt
+  }
+}

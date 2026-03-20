@@ -1,0 +1,1 @@
+ALTER TABLE vocab_entries ADD COLUMN max_bucket INTEGER NOT NULL DEFAULT 0;
