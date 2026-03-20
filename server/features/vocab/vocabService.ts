@@ -52,7 +52,7 @@ function mergeUnique(existing: string[], incoming: string[]): string[] {
 
 /** A single entry in the export file — only the user-editable fields. */
 export interface ExportEntry {
-  de: string[]
+  de: string
   en: string[]
   bucket: number
 }
@@ -163,10 +163,7 @@ export class VocabService {
     let merged = 0
 
     for (const item of data.entries) {
-      const incomingDeSet = new Set(item.de)
-      const existing = allEntries.find((e) =>
-        e.de.some((w) => incomingDeSet.has(w)),
-      )
+      const existing = allEntries.find((e) => e.de === item.de)
 
       if (existing === undefined) {
         const newMaxBucket = item.bucket ?? 0
@@ -193,7 +190,6 @@ export class VocabService {
         const creditDelta = Math.max(0, newMaxBucket - 3) - Math.max(0, existing.maxBucket - 3)
         const updated: VocabEntry = {
           ...existing,
-          de: mergeUnique(existing.de, item.de),
           en: mergeUnique(existing.en, item.en),
           bucket: mergedBucket,
           maxBucket: newMaxBucket,
@@ -215,34 +211,35 @@ export class VocabService {
   }
 
   /**
-   * Adds a new vocabulary entry or merges translations into an existing one.
+   * Adds or merges one vocabulary entry per German word in `data.de`.
    *
-   * If any of the submitted German words already exists (case-sensitive) in
-   * an existing entry, the new DE and EN variants are merged into that entry
-   * (duplicates filtered out). Otherwise a new entry is created.
+   * For each word in `data.de`:
+   * - If no existing entry has that German word → a new entry is created.
+   * - If an existing entry matches (case-sensitive) → the EN translations
+   *   are merged into it (duplicates filtered out); the DE word is unchanged.
    *
-   * Matching is case-sensitive so that e.g. "turnen" and "Turnen" are
-   * treated as distinct entries.
-   *
-   * Returns the created or updated entry and a `merged` flag.
+   * Returns one result object per input word, each carrying the created/updated
+   * entry and a `merged` flag.
    */
-  addOrMerge(data: AddOrMergeVocabRequest): { entry: VocabEntry; merged: boolean } {
-    const incomingDeSet = new Set(data.de)
-    const existing = this.repo.findAll().find((e) =>
-      e.de.some((w) => incomingDeSet.has(w)),
-    )
+  addOrMerge(data: AddOrMergeVocabRequest): { entry: VocabEntry; merged: boolean }[] {
+    const results: { entry: VocabEntry; merged: boolean }[] = []
 
-    if (existing === undefined) {
-      const entry = this.create({ de: data.de, en: data.en })
+    for (const word of data.de) {
+      const existing = this.repo.findAll().find((e) => e.de === word)
 
-      return { entry, merged: false }
+      if (existing === undefined) {
+        const entry = this.create({ de: word, en: data.en })
+
+        results.push({ entry, merged: false })
+      } else {
+        const mergedEn = mergeUnique(existing.en, data.en)
+        const entry = this.update(existing.id, { de: existing.de, en: mergedEn })
+
+        results.push({ entry, merged: true })
+      }
     }
 
-    const mergedDe = mergeUnique(existing.de, data.de)
-    const mergedEn = mergeUnique(existing.en, data.en)
-    const entry = this.update(existing.id, { de: mergedDe, en: mergedEn })
-
-    return { entry, merged: true }
+    return results
   }
 
   /**

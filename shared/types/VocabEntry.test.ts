@@ -10,7 +10,7 @@ import type { VocabEntry, SessionWord } from './VocabEntry.ts'
 function validEntry(): VocabEntry {
   return {
     id: 'abc-123',
-    de: ['Tisch'],
+    de: 'Tisch',
     en: ['table'],
     bucket: 0,
     maxBucket: 0,
@@ -40,8 +40,8 @@ describe('isVocabEntry', () => {
     expect(isVocabEntry(entry)).toBe(true)
   })
 
-  it('returns true when de and en each have multiple translations', () => {
-    const entry = { ...validEntry(), de: ['Fahrrad', 'Rad'], en: ['bicycle', 'bike'] }
+  it('returns true when en has multiple translations', () => {
+    const entry = { ...validEntry(), en: ['bicycle', 'bike'] }
 
     expect(isVocabEntry(entry)).toBe(true)
   })
@@ -82,12 +82,12 @@ describe('isVocabEntry', () => {
     expect(isVocabEntry(rest)).toBe(false)
   })
 
-  it('returns false when de is not an array', () => {
-    expect(isVocabEntry({ ...validEntry(), de: 'Tisch' })).toBe(false)
+  it('returns false when de is not a string', () => {
+    expect(isVocabEntry({ ...validEntry(), de: ['Tisch'] })).toBe(false)
   })
 
-  it('returns false when de contains a non-string element', () => {
-    expect(isVocabEntry({ ...validEntry(), de: ['Tisch', 42] })).toBe(false)
+  it('returns false when de is an empty string', () => {
+    expect(isVocabEntry({ ...validEntry(), de: '' })).toBe(false)
   })
 
   it('returns false when en is not an array', () => {

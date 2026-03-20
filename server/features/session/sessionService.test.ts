@@ -30,7 +30,7 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   idCounter++
   return {
     id: `entry-${idCounter}`,
-    de: ['Wort'],
+    de: 'Wort',
     en: ['word'],
     bucket: 0,
     lastAskedAt: null,
@@ -1592,7 +1592,7 @@ describe('createSession — focus session', () => {
   })
 
   it('records last_focus_session_date when focus session completes', () => {
-    const entry = makeEntry({ bucket: 1, score: 2, de: ['Tisch'], en: ['table'] })
+    const entry = makeEntry({ bucket: 1, score: 2, de: 'Tisch', en: ['table'] })
 
     vocabRepo.insert(entry)
 
@@ -1620,7 +1620,7 @@ describe('createSession — focus session', () => {
 
   it('does not record focus date while session is still open', () => {
     for (let i = 0; i < 5; i++) {
-      vocabRepo.insert(makeHighScoreEntry({ de: ['Wort'], en: ['word'] }))
+      vocabRepo.insert(makeHighScoreEntry({ de: 'Wort', en: ['word'] }))
     }
 
     const session = service.createSession({ direction: 'DE_TO_EN', size: 5 })
@@ -1955,7 +1955,7 @@ describe('pushBackWord', () => {
 
 describe('submitAnswer — discovery session is free', () => {
   it('does not charge credits for a wrong answer in a discovery session', () => {
-    const entry = makeEntry({ bucket: 0, de: ['Hund'], en: ['dog'] })
+    const entry = makeEntry({ bucket: 0, de: 'Hund', en: ['dog'] })
 
     vocabRepo.insert(entry)
 

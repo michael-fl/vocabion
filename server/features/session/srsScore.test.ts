@@ -12,7 +12,7 @@ import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: 'entry-1',
-    de: ['Wort'],
+    de: 'Wort',
     en: ['word'],
     bucket: 0,
     maxBucket: 0,

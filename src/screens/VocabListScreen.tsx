@@ -42,7 +42,7 @@ function groupByBucket(entries: VocabEntry[]): Map<number, VocabEntry[]> {
   }
 
   for (const group of map.values()) {
-    group.sort((a, b) => a.de[0].localeCompare(b.de[0], 'de'))
+    group.sort((a, b) => a.de.localeCompare(b.de, 'de'))
   }
 
   return map
@@ -85,7 +85,7 @@ function VocabTable({ words, now, showBucket, togglingIds, onToggleMark }: Vocab
       <tbody>
         {words.map((entry) => (
           <tr key={entry.id}>
-            <td>{entry.de.map((w, i) => <span key={w}>{i > 0 && ' / '}<a href={dictUrl(w)} target="_blank" rel="noreferrer">{w}</a></span>)}</td>
+            <td><a href={dictUrl(entry.de)} target="_blank" rel="noreferrer">{entry.de}</a></td>
             <td>{entry.en.map((w, i) => <span key={w}>{i > 0 && ' / '}<a href={dictUrl(w)} target="_blank" rel="noreferrer">{w}</a></span>)}</td>
             {showBucket && <td>{entry.bucket}</td>}
             {showDueInColumn && <td>{entry.bucket >= 4 ? formatDueIn(entry, now) : null}</td>}
@@ -155,14 +155,14 @@ export function VocabListScreen({ onBack }: VocabListScreenProps) {
 
   const markedWords =
     entries !== null
-      ? [...entries].filter((e) => e.marked).sort((a, b) => a.de[0].localeCompare(b.de[0], 'de'))
+      ? [...entries].filter((e) => e.marked).sort((a, b) => a.de.localeCompare(b.de, 'de'))
       : []
 
   const scoredWords =
     entries !== null
       ? [...entries]
           .filter((e) => e.score > 0)
-          .sort((a, b) => b.score - a.score || a.de[0].localeCompare(b.de[0], 'de'))
+          .sort((a, b) => b.score - a.score || a.de.localeCompare(b.de, 'de'))
       : []
 
   return (

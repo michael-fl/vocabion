@@ -13,12 +13,15 @@ import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 
 const BASE = '/api/v1/vocab'
 
-/** Returned by `addOrMergeVocab`. */
-export interface AddOrMergeResult {
+/** One result per German word submitted to `addOrMergeVocab`. */
+export interface AddOrMergeResultItem {
   entry: VocabEntry
-  /** `true` if variants were merged into an existing entry; `false` if a new entry was created. */
+  /** `true` if translations were merged into an existing entry; `false` if a new entry was created. */
   merged: boolean
 }
+
+/** Returned by `addOrMergeVocab` — one item per German word. */
+export type AddOrMergeResult = AddOrMergeResultItem[]
 
 /** Fetches all vocabulary entries from the server. */
 export async function listVocab(): Promise<VocabEntry[]> {

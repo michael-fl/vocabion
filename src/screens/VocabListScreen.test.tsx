@@ -20,7 +20,7 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   idSeq++
   return {
     id: `entry-${idSeq}`,
-    de: ['Tisch'],
+    de: 'Tisch',
     en: ['table'],
     bucket: 0,
     lastAskedAt: null,
@@ -132,8 +132,8 @@ describe('VocabListScreen', () => {
   it('sorts words alphabetically within a bucket', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 }),
-      makeEntry({ de: ['Apfel'], en: ['apple'], bucket: 0 }),
-      makeEntry({ de: ['Buch'], en: ['book'], bucket: 0 }),
+      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 0 }),
+      makeEntry({ de: 'Buch', en: ['book'], bucket: 0 }),
     ])
 
     render(<VocabListScreen onBack={vi.fn()} />)
@@ -150,7 +150,7 @@ describe('VocabListScreen', () => {
 
   it('renders each German or English variant as a separate dictionary link', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Gemüse', 'das Gemüse'], en: ['vegetable', 'vegetables'], bucket: 0 }),
+      makeEntry({ de: 'Gemüse', en: ['vegetable', 'vegetables'], bucket: 0 }),
     ])
 
     render(<VocabListScreen onBack={vi.fn()} />)
@@ -158,7 +158,6 @@ describe('VocabListScreen', () => {
     fireEvent.click(await screen.findByText(/Bucket 0/))
 
     expect(screen.getByRole('link', { name: 'Gemüse' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'das Gemüse' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'vegetable' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'vegetables' })).toBeInTheDocument()
   })
@@ -272,7 +271,7 @@ describe('Marked section', () => {
   it('shows word count in the Marked section summary', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
-      makeEntry({ de: ['Apfel'], en: ['apple'], bucket: 1, marked: true }),
+      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, marked: true }),
     ])
 
     render(<VocabListScreen onBack={vi.fn()} />)
@@ -283,8 +282,8 @@ describe('Marked section', () => {
   it('sorts marked words alphabetically', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
-      makeEntry({ de: ['Apfel'], en: ['apple'], bucket: 1, marked: true }),
-      makeEntry({ de: ['Buch'], en: ['book'], bucket: 2, marked: true }),
+      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, marked: true }),
+      makeEntry({ de: 'Buch', en: ['book'], bucket: 2, marked: true }),
     ])
 
     render(<VocabListScreen onBack={vi.fn()} />)
@@ -370,7 +369,7 @@ describe('Scored section', () => {
   it('shows word count in the Scored section summary', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 2 }),
-      makeEntry({ de: ['Apfel'], en: ['apple'], bucket: 1, score: 1 }),
+      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, score: 1 }),
     ])
 
     render(<VocabListScreen onBack={vi.fn()} />)
@@ -381,8 +380,8 @@ describe('Scored section', () => {
   it('sorts scored words by score descending, then alphabetically on ties', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 1 }),
-      makeEntry({ de: ['Apfel'], en: ['apple'], bucket: 0, score: 3 }),
-      makeEntry({ de: ['Buch'], en: ['book'], bucket: 0, score: 1 }),
+      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 0, score: 3 }),
+      makeEntry({ de: 'Buch', en: ['book'], bucket: 0, score: 1 }),
     ])
 
     render(<VocabListScreen onBack={vi.fn()} />)

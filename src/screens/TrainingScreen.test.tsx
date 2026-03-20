@@ -33,7 +33,7 @@ vi.mock('../api/creditsApi.ts', () => ({
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: 'entry-1',
-    de: ['Tisch'],
+    de: 'Tisch',
     en: ['table'],
     bucket: 0,
     lastAskedAt: null,
@@ -41,6 +41,7 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     updatedAt: '2026-01-01T00:00:00Z',
     maxBucket: 0,
     marked: false,
+    manuallyAdded: false,
     score: 0,
     ...overrides,
   }
@@ -94,7 +95,7 @@ describe('TrainingScreen', () => {
   })
 
   it('shows the prompt word', () => {
-    const entry = makeEntry({ de: ['Hund'], en: ['dog'] })
+    const entry = makeEntry({ de: 'Hund', en: ['dog'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     render(
@@ -267,8 +268,8 @@ describe('TrainingScreen', () => {
   })
 
   it('advances the form immediately to the next word after a wrong answer', async () => {
-    const entry1 = makeEntry({ id: 'e1', de: ['Tisch'], en: ['table'] })
-    const entry2 = makeEntry({ id: 'e2', de: ['Stuhl'], en: ['chair'] })
+    const entry1 = makeEntry({ id: 'e1', de: 'Tisch', en: ['table'] })
+    const entry2 = makeEntry({ id: 'e2', de: 'Stuhl', en: ['chair'] })
     const session = makeSession({
       words: [
         { vocabId: 'e1', status: 'pending' },
@@ -317,8 +318,8 @@ describe('TrainingScreen', () => {
   })
 
   it('clears the wrong status banner when the next answer is submitted', async () => {
-    const entry1 = makeEntry({ id: 'e1', de: ['Tisch'], en: ['table'] })
-    const entry2 = makeEntry({ id: 'e2', de: ['Stuhl'], en: ['chair'] })
+    const entry1 = makeEntry({ id: 'e1', de: 'Tisch', en: ['table'] })
+    const entry2 = makeEntry({ id: 'e2', de: 'Stuhl', en: ['chair'] })
     const session = makeSession({
       words: [
         { vocabId: 'e1', status: 'pending' },
@@ -364,8 +365,8 @@ describe('TrainingScreen', () => {
   })
 
   it('advances to the next word automatically after a correct answer', async () => {
-    const entry1 = makeEntry({ id: 'e1', de: ['Tisch'], en: ['table'] })
-    const entry2 = makeEntry({ id: 'e2', de: ['Stuhl'], en: ['chair'] })
+    const entry1 = makeEntry({ id: 'e1', de: 'Tisch', en: ['table'] })
+    const entry2 = makeEntry({ id: 'e2', de: 'Stuhl', en: ['chair'] })
     const session = makeSession({
       words: [
         { vocabId: 'e1', status: 'pending' },
@@ -412,8 +413,8 @@ describe('TrainingScreen', () => {
   })
 
   it('shows a second-chance notice when outcome is second_chance', async () => {
-    const entry1 = makeEntry({ id: 'e1', de: ['Tisch'], en: ['table'], bucket: 4 })
-    const entry2 = makeEntry({ id: 'e2', de: ['Stuhl'], en: ['chair'], bucket: 4 })
+    const entry1 = makeEntry({ id: 'e1', de: 'Tisch', en: ['table'], bucket: 4 })
+    const entry2 = makeEntry({ id: 'e2', de: 'Stuhl', en: ['chair'], bucket: 4 })
     const session = makeSession({ words: [{ vocabId: 'e1', status: 'pending' }] })
     const sessionWithSecondChance: Session = {
       ...session,
@@ -475,7 +476,7 @@ describe('TrainingScreen', () => {
 
 describe('auto-hint', () => {
   it('shows a hint placeholder for a bucket-0 word (up to 2 chars revealed)', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 0 })
     const session = makeSession()
 
     render(
@@ -487,7 +488,7 @@ describe('auto-hint', () => {
   })
 
   it('shows a hint placeholder for a bucket-1 word (only 1 char revealed)', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 1 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 1 })
     const session = makeSession()
 
     render(
@@ -499,7 +500,7 @@ describe('auto-hint', () => {
   })
 
   it('shows "Hint (auto)" button label and disables it for bucket-0 word', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 0 })
     const session = makeSession()
 
     render(
@@ -511,7 +512,7 @@ describe('auto-hint', () => {
   })
 
   it('shows "Hint (10 credits)" button label and enables it for bucket-1 word', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 1 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 1 })
     const session = makeSession()
 
     render(
@@ -533,7 +534,7 @@ describe('add alternative button', () => {
   })
 
   it('shows the add-alternative button after an incorrect answer', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'] })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'] })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -568,7 +569,7 @@ describe('add alternative button', () => {
   })
 
   it('shows the add-alternative button after a partial answer', async () => {
-    const entry = makeEntry({ de: ['Akku'], en: ['battery', 'rechargeable battery'] })
+    const entry = makeEntry({ de: 'Akku', en: ['battery', 'rechargeable battery'] })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -639,7 +640,7 @@ describe('add alternative button', () => {
   })
 
   it('calls addOrMergeVocab with the entry DE and the typed answer', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'] })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'] })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -682,7 +683,7 @@ describe('add alternative button', () => {
   })
 
   it('shows "Alternative added. Word restored to bucket X." after a successful add', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 3 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 3 })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -723,7 +724,7 @@ describe('add alternative button', () => {
   })
 
   it('hides the add button and shows confirmation after adding', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'] })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'] })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -767,7 +768,7 @@ describe('add alternative button', () => {
   })
 
   it('calls setVocabBucket with originalBucket + 1 after adding an alternative', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 2 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 2 })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -807,7 +808,7 @@ describe('add alternative button', () => {
   })
 
   it('refunds 1 credit when adding an alternative that had answerCost = 1', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 1 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 1 })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -856,7 +857,7 @@ describe('add alternative button', () => {
   })
 
   it('does not call refundCredits when answerCost is 0', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 1 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 1 })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -897,7 +898,7 @@ describe('add alternative button', () => {
   })
 
   it('calls markWordCorrect so the session summary counts the word as correct', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 1 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 1 })
     const session = makeSession()
     const updatedSession: Session = {
       ...session,
@@ -961,8 +962,8 @@ describe('add alternative button', () => {
   })
 
   it('clears the add button when the next answer is submitted', async () => {
-    const entry1 = makeEntry({ id: 'e1', de: ['Tisch'], en: ['table'] })
-    const entry2 = makeEntry({ id: 'e2', de: ['Stuhl'], en: ['chair'] })
+    const entry1 = makeEntry({ id: 'e1', de: 'Tisch', en: ['table'] })
+    const entry2 = makeEntry({ id: 'e2', de: 'Stuhl', en: ['chair'] })
     const session = makeSession({
       words: [
         { vocabId: 'e1', status: 'pending' },
@@ -1094,7 +1095,7 @@ describe('TrainingScreen — typo feedback', () => {
 
 describe('mark word', () => {
   it('shows an unstarred mark button for an unmarked word', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: false })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: false })
     const session = makeSession()
 
     render(
@@ -1105,7 +1106,7 @@ describe('mark word', () => {
   })
 
   it('shows a filled star for an already-marked word', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: true })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: true })
     const session = makeSession()
 
     render(
@@ -1116,7 +1117,7 @@ describe('mark word', () => {
   })
 
   it('calls setVocabMarked with true when clicking the unstarred button', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: false })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: false })
     const session = makeSession()
 
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: true })
@@ -1133,7 +1134,7 @@ describe('mark word', () => {
   })
 
   it('toggles the star to filled after marking', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: false })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: false })
     const session = makeSession()
 
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: true })
@@ -1150,7 +1151,7 @@ describe('mark word', () => {
   })
 
   it('calls setVocabMarked with false when clicking the filled star', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: true })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: true })
     const session = makeSession()
 
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: false })
@@ -1191,7 +1192,7 @@ describe('mark word from wrong-answer line', () => {
   }
 
   it('shows an unstarred mark button on the wrong-answer line for an unmarked word', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: false })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: false })
     const session = makeSession()
 
     vi.mocked(sessionApi.submitAnswer).mockResolvedValue(makeWrongAnswerResult(entry, session))
@@ -1208,7 +1209,7 @@ describe('mark word from wrong-answer line', () => {
   })
 
   it('shows a filled star on the wrong-answer line for an already-marked word', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: true })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: true })
     const session = makeSession()
 
     vi.mocked(sessionApi.submitAnswer).mockResolvedValue(makeWrongAnswerResult(entry, session))
@@ -1225,7 +1226,7 @@ describe('mark word from wrong-answer line', () => {
   })
 
   it('calls setVocabMarked when clicking the star on the wrong-answer line', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: false })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: false })
     const session = makeSession()
 
     vi.mocked(sessionApi.submitAnswer).mockResolvedValue(makeWrongAnswerResult(entry, session))
@@ -1247,7 +1248,7 @@ describe('mark word from wrong-answer line', () => {
   })
 
   it('toggles the wrong-answer star to filled after marking', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], marked: false })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], marked: false })
     const session = makeSession()
 
     vi.mocked(sessionApi.submitAnswer).mockResolvedValue(makeWrongAnswerResult(entry, session))
@@ -1294,7 +1295,7 @@ describe('mark word on partial answer without new alternatives', () => {
 
   it('shows a star button even when the typed answer already exists (no Add button)', async () => {
     // entry has two translations; user typed one of them → newAnswers is empty
-    const entry = makeEntry({ de: ['Feierabend'], en: ['end of shift', 'knock-off time'], marked: false })
+    const entry = makeEntry({ de: 'Feierabend', en: ['end of shift', 'knock-off time'], marked: false })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vi.mocked(sessionApi.submitAnswer).mockResolvedValue(makePartialResult(entry, session))
@@ -1311,7 +1312,7 @@ describe('mark word on partial answer without new alternatives', () => {
   })
 
   it('does not show an "Add" button when there are no new answers', async () => {
-    const entry = makeEntry({ de: ['Feierabend'], en: ['end of shift', 'knock-off time'], marked: false })
+    const entry = makeEntry({ de: 'Feierabend', en: ['end of shift', 'knock-off time'], marked: false })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vi.mocked(sessionApi.submitAnswer).mockResolvedValue(makePartialResult(entry, session))

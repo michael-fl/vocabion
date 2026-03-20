@@ -17,7 +17,7 @@ import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: crypto.randomUUID(),
-    de: ['Tisch'],
+    de: 'Tisch',
     en: ['table'],
     bucket: 0,
     lastAskedAt: null,

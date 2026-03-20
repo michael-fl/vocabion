@@ -43,7 +43,7 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   idCounter++
   return {
     id: `entry-${idCounter}`,
-    de: ['Wort'],
+    de: 'Wort',
     en: ['word'],
     bucket: 0,
     lastAskedAt: null,

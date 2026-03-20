@@ -51,13 +51,26 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
     setSubmitting(true)
 
     try {
-      const result = await vocabApi.addOrMergeVocab(deVariants, enVariants)
+      const results = await vocabApi.addOrMergeVocab(deVariants, enVariants)
 
-      setSuccessMessage(
-        result.merged
-          ? `Merged into existing entry: ${result.entry.de.join(', ')} — ${result.entry.en.join(', ')}`
-          : `Word added: ${result.entry.de.join(', ')} — ${result.entry.en.join(', ')}`,
-      )
+      const addedCount = results.filter((r) => !r.merged).length
+      const mergedCount = results.filter((r) => r.merged).length
+
+      if (results.length === 1) {
+        const { entry, merged } = results[0]
+        setSuccessMessage(
+          merged
+            ? `Merged into existing entry: ${entry.de} — ${entry.en.join(', ')}`
+            : `Word added: ${entry.de} — ${entry.en.join(', ')}`,
+        )
+      } else {
+        const parts: string[] = []
+
+        if (addedCount > 0) { parts.push(`${addedCount} added`) }
+        if (mergedCount > 0) { parts.push(`${mergedCount} merged`) }
+
+        setSuccessMessage(`${results.length} words saved (${parts.join(', ')})`)
+      }
       setDe('')
       setEn('')
       onSuccess()
@@ -78,7 +91,7 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
           <input
             type="text"
             value={de}
-            placeholder="e.g. Auto, Automobil"
+            placeholder="e.g. bessern, revidieren"
             onChange={(e) => { setDe(e.target.value) }}
           />
         </label>

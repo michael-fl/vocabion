@@ -14,7 +14,7 @@ import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: 'e1',
-    de: ['Tisch'],
+    de: 'Tisch',
     en: ['table'],
     bucket: 0,
     lastAskedAt: null,
@@ -102,7 +102,7 @@ describe('checkAnswer — single translation', () => {
   })
 
   it('uses DE translations for EN_TO_DE direction', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'] })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'] })
 
     expect(checkAnswer(entry, 'EN_TO_DE', ['Tisch'])).toBe(true)
     expect(checkAnswer(entry, 'EN_TO_DE', ['table'])).toBe(false)

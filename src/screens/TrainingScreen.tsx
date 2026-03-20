@@ -213,7 +213,7 @@ export function TrainingScreen({
 
     if (bucket <= 1) {
       const wordTranslations = deduplicateTranslations(
-        currentSession.direction === 'DE_TO_EN' ? currentWord.entry.en : currentWord.entry.de,
+        currentSession.direction === 'DE_TO_EN' ? currentWord.entry.en : [currentWord.entry.de],
       )
       const count = Math.min(wordTranslations.length, 2)
       // Bucket 0: reveal up to 2 chars per word; bucket 1: reveal only 1 char per word
@@ -250,7 +250,7 @@ export function TrainingScreen({
       return ''
     }
 
-    const words = currentSession.direction === 'DE_TO_EN' ? currentWord.entry.de : currentWord.entry.en
+    const words = currentSession.direction === 'DE_TO_EN' ? [currentWord.entry.de] : currentWord.entry.en
 
     return words[Math.floor(Math.random() * words.length)] ?? ''
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,7 +263,7 @@ export function TrainingScreen({
   const { entry, isSecondChance, w1Entry } = currentWord
   const displayedBucket = (w1Entry ?? entry).bucket
   const hintCost = getHintCost(displayedBucket)
-  const translations = deduplicateTranslations(currentSession.direction === 'DE_TO_EN' ? entry.en : entry.de)
+  const translations = deduplicateTranslations(currentSession.direction === 'DE_TO_EN' ? entry.en : [entry.de])
   const requiredCount = Math.min(translations.length, 2)
 
   const answered = currentSession.words.filter((w) => w.status !== 'pending').length
@@ -434,9 +434,9 @@ export function TrainingScreen({
 
     try {
       if (currentSession.direction === 'DE_TO_EN') {
-        await vocabApi.addOrMergeVocab(answeredEntry.de, [answerText])
+        await vocabApi.addOrMergeVocab([answeredEntry.de], [answerText])
       } else {
-        await vocabApi.addOrMergeVocab([...answeredEntry.de, answerText], answeredEntry.en)
+        await vocabApi.addOrMergeVocab([answerText], answeredEntry.en)
       }
 
       if (!pendingAlternative.bucketRestored) {
@@ -513,7 +513,7 @@ export function TrainingScreen({
           {(() => {
             const altEntry = vocabMap.get(pendingAlternative.vocabId)
             const altWords = altEntry !== undefined
-              ? (currentSession.direction === 'DE_TO_EN' ? altEntry.de : altEntry.en)
+              ? (currentSession.direction === 'DE_TO_EN' ? [altEntry.de] : altEntry.en)
               : pendingAlternative.answers.map((a) => a.text)
             const altPrompt = altWords.join(' / ')
 

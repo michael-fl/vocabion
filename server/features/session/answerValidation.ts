@@ -69,7 +69,7 @@ export function checkAnswerDetailed(
   direction: SessionDirection,
   answers: string[],
 ): AnswerCheckResult {
-  const translations = deduplicateTranslations(direction === 'DE_TO_EN' ? entry.en : entry.de)
+  const translations = deduplicateTranslations(direction === 'DE_TO_EN' ? entry.en : [entry.de])
   const requiredCount = Math.min(translations.length, 2)
 
   let matchedCount = 0

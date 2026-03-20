@@ -25,7 +25,7 @@ function expectApiError(fn: () => unknown, status: number): void {
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: crypto.randomUUID(),
-    de: ['Tisch'],
+    de: 'Tisch',
     en: ['table'],
     bucket: 0,
     lastAskedAt: null,
@@ -92,23 +92,23 @@ describe('getById', () => {
 
 describe('create', () => {
   it('returns a VocabEntry with a generated id', () => {
-    const entry = service.create({ de: ['Hund'], en: ['dog'] })
+    const entry = service.create({ de: 'Hund', en: ['dog'] })
 
     expect(typeof entry.id).toBe('string')
     expect(entry.id.length).toBeGreaterThan(0)
   })
 
   it('starts with bucket 0 and null lastAskedAt', () => {
-    const entry = service.create({ de: ['Hund'], en: ['dog'] })
+    const entry = service.create({ de: 'Hund', en: ['dog'] })
 
     expect(entry.bucket).toBe(0)
     expect(entry.lastAskedAt).toBeNull()
   })
 
   it('stores the provided translations', () => {
-    const entry = service.create({ de: ['Fahrrad', 'Rad'], en: ['bicycle', 'bike'] })
+    const entry = service.create({ de: 'Fahrrad', en: ['bicycle', 'bike'] })
 
-    expect(entry.de).toEqual(['Fahrrad', 'Rad'])
+    expect(entry.de).toBe('Fahrrad')
     expect(entry.en).toEqual(['bicycle', 'bike'])
   })
 
@@ -119,13 +119,13 @@ describe('create', () => {
   })
 
   it('sets createdAt and updatedAt to the same timestamp', () => {
-    const entry = service.create({ de: ['Hund'], en: ['dog'] })
+    const entry = service.create({ de: 'Hund', en: ['dog'] })
 
     expect(entry.createdAt).toBe(entry.updatedAt)
   })
 
   it('sets manuallyAdded to true', () => {
-    const entry = service.create({ de: ['Hund'], en: ['dog'] })
+    const entry = service.create({ de: 'Hund', en: ['dog'] })
 
     expect(entry.manuallyAdded).toBe(true)
   })
@@ -139,9 +139,9 @@ describe('update', () => {
 
     repo.insert(entry)
 
-    const updated = service.update(entry.id, { de: ['Stuhl'], en: ['chair'] })
+    const updated = service.update(entry.id, { de: 'Stuhl', en: ['chair'] })
 
-    expect(updated.de).toEqual(['Stuhl'])
+    expect(updated.de).toBe('Stuhl')
     expect(updated.en).toEqual(['chair'])
   })
 
@@ -150,7 +150,7 @@ describe('update', () => {
 
     repo.insert(entry)
 
-    const updated = service.update(entry.id, { de: ['Stuhl'], en: ['chair'] })
+    const updated = service.update(entry.id, { de: 'Stuhl', en: ['chair'] })
 
     expect(updated.bucket).toBe(3)
     expect(updated.lastAskedAt).toBe('2026-05-01T00:00:00Z')
@@ -186,8 +186,8 @@ describe('importEntries', () => {
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
       entries: [
-        { de: ['Tisch'], en: ['table'], bucket: 0 },
-        { de: ['Hund'], en: ['dog'], bucket: 2 },
+        { de: 'Tisch', en: ['table'], bucket: 0 },
+        { de: 'Hund', en: ['dog'], bucket: 2 },
       ],
     })
 
@@ -200,8 +200,8 @@ describe('importEntries', () => {
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
       entries: [
-        { de: ['Tisch'], en: ['table'], bucket: 0 },
-        { de: ['Hund'], en: ['dog'], bucket: 2 },
+        { de: 'Tisch', en: ['table'], bucket: 0 },
+        { de: 'Hund', en: ['dog'], bucket: 2 },
       ],
     })
 
@@ -212,7 +212,7 @@ describe('importEntries', () => {
     service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
-      entries: [{ de: ['Tisch'], en: ['table'], bucket: 5 }],
+      entries: [{ de: 'Tisch', en: ['table'], bucket: 5 }],
     })
 
     expect(service.listAll()[0].bucket).toBe(5)
@@ -222,7 +222,7 @@ describe('importEntries', () => {
     service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
-      entries: [{ de: ['Tisch'], en: ['table'] }],
+      entries: [{ de: 'Tisch', en: ['table'] }],
     })
 
     expect(service.listAll()[0].bucket).toBe(0)
@@ -238,64 +238,64 @@ describe('importEntries', () => {
     expect(service.listAll()[0].lastAskedAt).toBeNull()
   })
 
-  it('merges DE and EN into an existing entry when a German word matches', () => {
-    const existing = makeEntry({ de: ['Auto'], en: ['car'], bucket: 3 })
+  it('merges EN into an existing entry when the German word matches', () => {
+    const existing = makeEntry({ de: 'Auto', en: ['car'], bucket: 3 })
 
     repo.insert(existing)
 
     service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
-      entries: [{ de: ['Auto', 'Automobil'], en: ['car', 'automobile'], bucket: 3 }],
+      entries: [{ de: 'Auto', en: ['car', 'automobile'], bucket: 3 }],
     })
 
     expect(service.listAll()).toHaveLength(1)
 
     const entry = service.listAll()[0]
 
-    expect(entry.de).toEqual(['Auto', 'Automobil'])
+    expect(entry.de).toBe('Auto')
     expect(entry.en).toEqual(['car', 'automobile'])
   })
 
   it('moves the existing entry to the bucket from the import file on merge', () => {
-    const existing = makeEntry({ de: ['Auto'], en: ['car'], bucket: 3 })
+    const existing = makeEntry({ de: 'Auto', en: ['car'], bucket: 3 })
 
     repo.insert(existing)
 
     service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
-      entries: [{ de: ['Auto'], en: ['car'], bucket: 5 }],
+      entries: [{ de: 'Auto', en: ['car'], bucket: 5 }],
     })
 
     expect(service.listAll()[0].bucket).toBe(5)
   })
 
   it('keeps the existing bucket when bucket is not specified in the import file', () => {
-    const existing = makeEntry({ de: ['Auto'], en: ['car'], bucket: 3 })
+    const existing = makeEntry({ de: 'Auto', en: ['car'], bucket: 3 })
 
     repo.insert(existing)
 
     service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
-      entries: [{ de: ['Auto'], en: ['car'] }],
+      entries: [{ de: 'Auto', en: ['car'] }],
     })
 
     expect(service.listAll()[0].bucket).toBe(3)
   })
 
   it('counts merged entries in the returned merged field', () => {
-    repo.insert(makeEntry({ de: ['Auto'], en: ['car'] }))
-    repo.insert(makeEntry({ de: ['Hund'], en: ['dog'] }))
+    repo.insert(makeEntry({ de: 'Auto', en: ['car'] }))
+    repo.insert(makeEntry({ de: 'Hund', en: ['dog'] }))
 
     const result = service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
       entries: [
-        { de: ['Auto'], en: ['car'] },
-        { de: ['Katze'], en: ['cat'] },
-        { de: ['Hund'], en: ['dog'] },
+        { de: 'Auto', en: ['car'] },
+        { de: 'Katze', en: ['cat'] },
+        { de: 'Hund', en: ['dog'] },
       ],
     })
 
@@ -315,14 +315,14 @@ describe('exportAll', () => {
   })
 
   it('includes all entries with de, en, and bucket only', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 3 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 3 })
 
     repo.insert(entry)
 
     const result = service.exportAll()
 
     expect(result.entries).toHaveLength(1)
-    expect(result.entries[0]).toEqual({ de: ['Tisch'], en: ['table'], bucket: 3 })
+    expect(result.entries[0]).toEqual({ de: 'Tisch', en: ['table'], bucket: 3 })
   })
 
   it('does not include id, lastAskedAt, or timestamps', () => {
@@ -338,68 +338,78 @@ describe('exportAll', () => {
 
 describe('addOrMerge', () => {
   it('creates a new entry when no German word matches', () => {
-    const result = service.addOrMerge({ de: ['Auto'], en: ['car'] })
+    const results = service.addOrMerge({ de: ['Auto'], en: ['car'] })
 
-    expect(result.merged).toBe(false)
-    expect(result.entry.de).toEqual(['Auto'])
-    expect(result.entry.en).toEqual(['car'])
+    expect(results).toHaveLength(1)
+    expect(results[0].merged).toBe(false)
+    expect(results[0].entry.de).toBe('Auto')
+    expect(results[0].entry.en).toEqual(['car'])
     expect(repo.findAll()).toHaveLength(1)
   })
 
-  it('merges into an existing entry when a German word matches', () => {
-    repo.insert(makeEntry({ de: ['Auto'], en: ['car'] }))
+  it('creates one entry per German word', () => {
+    const results = service.addOrMerge({ de: ['Auto', 'Automobil'], en: ['car'] })
 
-    const result = service.addOrMerge({ de: ['Auto', 'Automobil'], en: ['car', 'automobile'] })
-
-    expect(result.merged).toBe(true)
-    expect(result.entry.de).toContain('Auto')
-    expect(result.entry.de).toContain('Automobil')
-    expect(result.entry.en).toContain('car')
-    expect(result.entry.en).toContain('automobile')
-    expect(repo.findAll()).toHaveLength(1)
-  })
-
-  it('matches existing entries case-sensitively (different case → new entry)', () => {
-    repo.insert(makeEntry({ de: ['Turnen'], en: ['gymnastics'] }))
-
-    const result = service.addOrMerge({ de: ['turnen'], en: ['to do gymnastics'] })
-
-    expect(result.merged).toBe(false)
+    expect(results).toHaveLength(2)
+    expect(results[0].entry.de).toBe('Auto')
+    expect(results[1].entry.de).toBe('Automobil')
     expect(repo.findAll()).toHaveLength(2)
   })
 
-  it('merges when German word matches exactly (same case)', () => {
-    repo.insert(makeEntry({ de: ['auto'], en: ['car'] }))
+  it('each created entry carries all EN translations', () => {
+    const results = service.addOrMerge({ de: ['bessern', 'revidieren'], en: ['amend'] })
 
-    const result = service.addOrMerge({ de: ['auto'], en: ['vehicle'] })
+    expect(results[0].entry.en).toEqual(['amend'])
+    expect(results[1].entry.en).toEqual(['amend'])
+  })
 
-    expect(result.merged).toBe(true)
+  it('merges EN into an existing entry when the German word matches', () => {
+    repo.insert(makeEntry({ de: 'Auto', en: ['car'] }))
+
+    const results = service.addOrMerge({ de: ['Auto'], en: ['car', 'automobile'] })
+
+    expect(results).toHaveLength(1)
+    expect(results[0].merged).toBe(true)
+    expect(results[0].entry.de).toBe('Auto')
+    expect(results[0].entry.en).toContain('car')
+    expect(results[0].entry.en).toContain('automobile')
     expect(repo.findAll()).toHaveLength(1)
   })
 
-  it('does not add duplicate DE variants', () => {
-    repo.insert(makeEntry({ de: ['Auto'], en: ['car'] }))
+  it('merges some words and creates others in one call', () => {
+    repo.insert(makeEntry({ de: 'Auto', en: ['car'] }))
 
-    const result = service.addOrMerge({ de: ['Auto', 'Automobil'], en: ['car'] })
+    const results = service.addOrMerge({ de: ['Auto', 'Automobil'], en: ['car'] })
 
-    expect(result.entry.de.filter((w) => w === 'Auto')).toHaveLength(1)
+    expect(results[0].merged).toBe(true)
+    expect(results[1].merged).toBe(false)
+    expect(repo.findAll()).toHaveLength(2)
+  })
+
+  it('matches existing entries case-sensitively (different case → new entry)', () => {
+    repo.insert(makeEntry({ de: 'Turnen', en: ['gymnastics'] }))
+
+    const results = service.addOrMerge({ de: ['turnen'], en: ['to do gymnastics'] })
+
+    expect(results[0].merged).toBe(false)
+    expect(repo.findAll()).toHaveLength(2)
   })
 
   it('does not add duplicate EN variants', () => {
-    repo.insert(makeEntry({ de: ['Auto'], en: ['car'] }))
+    repo.insert(makeEntry({ de: 'Auto', en: ['car'] }))
 
-    const result = service.addOrMerge({ de: ['Auto'], en: ['car', 'vehicle'] })
+    const results = service.addOrMerge({ de: ['Auto'], en: ['car', 'vehicle'] })
 
-    expect(result.entry.en.filter((w) => w === 'car')).toHaveLength(1)
-    expect(result.entry.en).toContain('vehicle')
+    expect(results[0].entry.en.filter((w) => w === 'car')).toHaveLength(1)
+    expect(results[0].entry.en).toContain('vehicle')
   })
 
   it('preserves the existing bucket and SRS state when merging', () => {
-    repo.insert(makeEntry({ de: ['Auto'], en: ['car'], bucket: 5 }))
+    repo.insert(makeEntry({ de: 'Auto', en: ['car'], bucket: 5 }))
 
-    const result = service.addOrMerge({ de: ['Auto'], en: ['vehicle'] })
+    const results = service.addOrMerge({ de: ['Auto'], en: ['vehicle'] })
 
-    expect(result.entry.bucket).toBe(5)
+    expect(results[0].entry.bucket).toBe(5)
   })
 })
 
@@ -419,12 +429,12 @@ describe('setBucket', () => {
   })
 
   it('preserves all other fields when setting the bucket', () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 1 })
+    const entry = makeEntry({ de: 'Tisch', en: ['table'], bucket: 1 })
 
     repo.insert(entry)
     const updated = service.setBucket(entry.id, { bucket: 5 })
 
-    expect(updated.de).toEqual(['Tisch'])
+    expect(updated.de).toBe('Tisch')
     expect(updated.en).toEqual(['table'])
     expect(updated.id).toBe(entry.id)
   })
@@ -456,8 +466,8 @@ describe('importEntries — credits', () => {
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
       entries: [
-        { de: ['Tisch'], en: ['table'], bucket: 0 },
-        { de: ['Hund'], en: ['dog'], bucket: 3 },
+        { de: 'Tisch', en: ['table'], bucket: 0 },
+        { de: 'Hund', en: ['dog'], bucket: 3 },
       ],
     })
 
@@ -469,8 +479,8 @@ describe('importEntries — credits', () => {
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
       entries: [
-        { de: ['Tisch'], en: ['table'], bucket: 4 }, // 1 credit
-        { de: ['Hund'], en: ['dog'], bucket: 6 },    // 3 credits
+        { de: 'Tisch', en: ['table'], bucket: 4 }, // 1 credit
+        { de: 'Hund', en: ['dog'], bucket: 6 },    // 3 credits
       ],
     })
 
@@ -478,12 +488,12 @@ describe('importEntries — credits', () => {
   })
 
   it('adds the credit delta when a merge raises maxBucket into a time-based bucket', () => {
-    repo.insert(makeEntry({ de: ['Auto'], en: ['car'], bucket: 3, maxBucket: 3 }))
+    repo.insert(makeEntry({ de: 'Auto', en: ['car'], bucket: 3, maxBucket: 3 }))
 
     service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
-      entries: [{ de: ['Auto'], en: ['car'], bucket: 5 }],
+      entries: [{ de: 'Auto', en: ['car'], bucket: 5 }],
     })
 
     // maxBucket goes from 3 → 5: max(0,5−3) − max(0,3−3) = 2 − 0 = 2 credits
@@ -491,12 +501,12 @@ describe('importEntries — credits', () => {
   })
 
   it('does not add credits when a merge does not raise maxBucket', () => {
-    repo.insert(makeEntry({ de: ['Auto'], en: ['car'], bucket: 5, maxBucket: 5 }))
+    repo.insert(makeEntry({ de: 'Auto', en: ['car'], bucket: 5, maxBucket: 5 }))
 
     service.importEntries({
       version: 1,
       exportedAt: '2026-01-01T00:00:00Z',
-      entries: [{ de: ['Auto'], en: ['car'], bucket: 4 }],
+      entries: [{ de: 'Auto', en: ['car'], bucket: 4 }],
     })
 
     expect(creditsRepo.getBalance()).toBe(0)

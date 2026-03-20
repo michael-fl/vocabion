@@ -114,7 +114,7 @@ describe('openDatabase — migration tracking', () => {
 
     const rows = db.prepare('SELECT name FROM migrations').all() as { name: string }[]
 
-    expect(rows).toHaveLength(16)
+    expect(rows).toHaveLength(17)
     expect(rows[0].name).toBe('001_initial.sql')
     expect(rows[1].name).toBe('002_session_type.sql')
 
@@ -165,7 +165,7 @@ describe('openDatabase — idempotency', () => {
       db.prepare('SELECT COUNT(*) as n FROM migrations').get() as { n: number }
     ).n
 
-    expect(count).toBe(16)
+    expect(count).toBe(17)
 
     db.close()
   })

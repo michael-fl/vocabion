@@ -21,7 +21,7 @@ import type { VocabRepository } from '../features/vocab/VocabRepository.ts'
 
 interface VocabEntryRow {
   id: string
-  de: string           // JSON-encoded string[]
+  de: string           // plain German word
   en: string           // JSON-encoded string[]
   bucket: number
   max_bucket: number
@@ -36,7 +36,7 @@ interface VocabEntryRow {
 function rowToEntry(row: VocabEntryRow): VocabEntry {
   return {
     id: row.id,
-    de: JSON.parse(row.de) as string[],
+    de: row.de,
     en: JSON.parse(row.en) as string[],
     bucket: row.bucket,
     maxBucket: row.max_bucket,
@@ -84,7 +84,7 @@ export class SqliteVocabRepository implements VocabRepository {
       )
       .run(
         entry.id,
-        JSON.stringify(entry.de),
+        entry.de,
         JSON.stringify(entry.en),
         entry.bucket,
         entry.maxBucket,
@@ -105,7 +105,7 @@ export class SqliteVocabRepository implements VocabRepository {
          WHERE id = ?`,
       )
       .run(
-        JSON.stringify(entry.de),
+        entry.de,
         JSON.stringify(entry.en),
         entry.bucket,
         entry.maxBucket,

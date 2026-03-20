@@ -16,7 +16,7 @@ vi.mock('../api/vocabApi.ts', () => ({
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: 'entry-1',
-    de: ['Auto'],
+    de: 'Auto',
     en: ['car'],
     bucket: 0,
     lastAskedAt: null,
@@ -24,6 +24,8 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     updatedAt: '2026-01-01T00:00:00Z',
     maxBucket: 0,
     marked: false,
+    manuallyAdded: false,
+    score: 0,
     ...overrides,
   }
 }
@@ -64,22 +66,22 @@ describe('AddWordForm', () => {
     )
   })
 
-  it('calls addOrMergeVocab with parsed arrays on submit', async () => {
-    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue({ entry: makeEntry(), merged: false })
+  it('calls addOrMergeVocab with parsed DE array and EN array on submit', async () => {
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([{ entry: makeEntry(), merged: false }])
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'Auto, Automobil' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'car, auto' } })
+    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'bessern, revidieren' } })
+    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'amend' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     await waitFor(() => {
-      expect(vocabApi.addOrMergeVocab).toHaveBeenCalledWith(['Auto', 'Automobil'], ['car', 'auto'])
+      expect(vocabApi.addOrMergeVocab).toHaveBeenCalledWith(['bessern', 'revidieren'], ['amend'])
     })
   })
 
-  it('shows "Word added" status on successful create', async () => {
-    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue({ entry: makeEntry(), merged: false })
+  it('shows "Word added" status when a single new entry is created', async () => {
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([{ entry: makeEntry(), merged: false }])
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
@@ -90,10 +92,10 @@ describe('AddWordForm', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Word added: Auto — car')
   })
 
-  it('shows "Merged" status on successful merge', async () => {
-    const merged = makeEntry({ de: ['Auto', 'Automobil'], en: ['car', 'automobile'] })
+  it('shows "Merged" status when a single entry is merged', async () => {
+    const merged = makeEntry({ de: 'Auto', en: ['car', 'automobile'] })
 
-    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue({ entry: merged, merged: true })
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([{ entry: merged, merged: true }])
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
@@ -102,12 +104,27 @@ describe('AddWordForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Merged into existing entry: Auto, Automobil — car, automobile',
+      'Merged into existing entry: Auto — car, automobile',
     )
   })
 
+  it('shows summary when multiple words are submitted', async () => {
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([
+      { entry: makeEntry({ de: 'bessern' }), merged: false },
+      { entry: makeEntry({ de: 'revidieren' }), merged: false },
+    ])
+
+    render(<AddWordForm onSuccess={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'bessern, revidieren' } })
+    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'amend' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('2 words saved (2 added)')
+  })
+
   it('clears the inputs after a successful submit', async () => {
-    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue({ entry: makeEntry(), merged: false })
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([{ entry: makeEntry(), merged: false }])
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
@@ -122,7 +139,7 @@ describe('AddWordForm', () => {
   })
 
   it('calls onSuccess after a successful submit', async () => {
-    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue({ entry: makeEntry(), merged: false })
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([{ entry: makeEntry(), merged: false }])
 
     const onSuccess = vi.fn()
 

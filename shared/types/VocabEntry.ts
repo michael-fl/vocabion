@@ -17,8 +17,8 @@ export interface VocabEntry {
   /** UUID */
   id: string
 
-  /** One or more German forms. */
-  de: string[]
+  /** The German word. */
+  de: string
 
   /** One or more English forms. */
   en: string[]
@@ -123,7 +123,7 @@ export function isVocabEntry(value: unknown): value is VocabEntry {
     return false
   }
 
-  if (!Array.isArray(de) || !de.every((s) => typeof s === 'string')) {
+  if (typeof de !== 'string' || de.length === 0) {
     return false
   }
 

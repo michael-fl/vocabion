@@ -19,7 +19,7 @@ const MIGRATIONS_DIR = join(import.meta.dirname, 'migrations')
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: crypto.randomUUID(),
-    de: ['Tisch'],
+    de: 'Tisch',
     en: ['table'],
     bucket: 0,
     lastAskedAt: null,
@@ -100,7 +100,7 @@ describe('findByBucket', () => {
 describe('insert', () => {
   it('round-trips all fields when lastAskedAt is null', () => {
     const entry = makeEntry({
-      de: ['Fahrrad', 'Rad'],
+      de: 'Fahrrad',
       en: ['bicycle', 'bike'],
       bucket: 3,
       lastAskedAt: null,
@@ -119,15 +119,15 @@ describe('insert', () => {
     expect(repo.findById(entry.id)?.lastAskedAt).toBe('2026-06-01T12:00:00Z')
   })
 
-  it('preserves de and en as proper arrays, not JSON strings', () => {
-    const entry = makeEntry({ de: ['Hund', 'Köter'], en: ['dog', 'hound'] })
+  it('preserves de as a plain string and en as a proper array', () => {
+    const entry = makeEntry({ de: 'Hund', en: ['dog', 'hound'] })
 
     repo.insert(entry)
 
     const found = repo.findById(entry.id)
 
-    expect(Array.isArray(found?.de)).toBe(true)
-    expect(found?.de).toEqual(['Hund', 'Köter'])
+    expect(typeof found?.de).toBe('string')
+    expect(found?.de).toBe('Hund')
     expect(found?.en).toEqual(['dog', 'hound'])
   })
 })
@@ -160,11 +160,11 @@ describe('update', () => {
     const entry = makeEntry()
 
     repo.insert(entry)
-    repo.update({ ...entry, de: ['Stuhl'], en: ['chair'] })
+    repo.update({ ...entry, de: 'Stuhl', en: ['chair'] })
 
     const updated = repo.findById(entry.id)
 
-    expect(updated?.de).toEqual(['Stuhl'])
+    expect(updated?.de).toBe('Stuhl')
     expect(updated?.en).toEqual(['chair'])
   })
 
