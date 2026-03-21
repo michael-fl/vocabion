@@ -15,6 +15,10 @@
         var mode = localStorage.getItem('vocabion-mode');
         if (mode === 'dark') {
           document.documentElement.dataset.mode = 'dark';
+        } else if (mode === 'auto' || mode === null) {
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.dataset.mode = 'dark';
+          }
         }
       })();
     </script>

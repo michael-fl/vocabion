@@ -9,7 +9,7 @@ import type { Theme, Mode } from '../hooks/useTheme.ts'
 const defaultProps = {
   theme: 'scholar' as Theme,
   onThemeChange: () => undefined,
-  mode: 'light' as Mode,
+  mode: 'auto' as Mode,
   onModeChange: () => undefined,
 }
 
@@ -48,18 +48,20 @@ describe('SettingsScreen — theme picker', () => {
 })
 
 describe('SettingsScreen — mode toggle', () => {
-  it('renders Light and Dark buttons', () => {
+  it('renders Light, Auto and Dark buttons', () => {
     render(<SettingsScreen {...defaultProps} />)
 
     expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Auto' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Dark' })).toBeInTheDocument()
   })
 
   it('marks the current mode as active', () => {
-    render(<SettingsScreen {...defaultProps} mode="dark" />)
+    render(<SettingsScreen {...defaultProps} mode="auto" />)
 
-    expect(screen.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('calls onModeChange when Dark is clicked', () => {
@@ -80,5 +82,15 @@ describe('SettingsScreen — mode toggle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Light' }))
 
     expect(onModeChange).toHaveBeenCalledWith('light')
+  })
+
+  it('calls onModeChange when Auto is clicked', () => {
+    const onModeChange = vi.fn<(mode: Mode) => void>()
+
+    render(<SettingsScreen {...defaultProps} mode="dark" onModeChange={onModeChange} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Auto' }))
+
+    expect(onModeChange).toHaveBeenCalledWith('auto')
   })
 })

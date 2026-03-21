@@ -9,6 +9,14 @@ import { render, screen } from '@testing-library/react'
 import App from './App.tsx'
 import * as sessionApi from '../api/sessionApi.ts'
 
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(prefers-color-scheme: dark)' && false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }))
+})
+
 vi.mock('../api/sessionApi.ts', () => ({
   getOpenSession: vi.fn(),
   createSession: vi.fn(),

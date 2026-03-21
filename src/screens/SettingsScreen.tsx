@@ -114,6 +114,13 @@ export function SettingsScreen({ theme, onThemeChange, mode, onModeChange }: Set
             Light
           </button>
           <button
+            className={`${styles.modeBtn}${mode === 'auto' ? ` ${styles.modeBtnActive}` : ''}`}
+            aria-pressed={mode === 'auto'}
+            onClick={() => { onModeChange('auto') }}
+          >
+            Auto
+          </button>
+          <button
             className={`${styles.modeBtn}${mode === 'dark' ? ` ${styles.modeBtnActive}` : ''}`}
             aria-pressed={mode === 'dark'}
             onClick={() => { onModeChange('dark') }}

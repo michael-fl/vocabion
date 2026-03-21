@@ -8,10 +8,27 @@ import { useTheme, THEMES, MODES } from './useTheme.ts'
 const STORAGE_KEY_THEME = 'vocabion-theme'
 const STORAGE_KEY_MODE  = 'vocabion-mode'
 
+// Stub matchMedia — jsdom does not implement it.
+const mockMatchMedia = (dark: boolean) => {
+  const listeners: (() => void)[] = []
+
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(prefers-color-scheme: dark)' && dark,
+    addEventListener: (_: string, fn: () => void) => { listeners.push(fn) },
+    removeEventListener: (_: string, fn: () => void) => {
+      const idx = listeners.indexOf(fn)
+      if (idx !== -1) { listeners.splice(idx, 1) }
+    },
+  }))
+
+  return { triggerChange: () => { listeners.forEach((fn) => { fn() }) } }
+}
+
 beforeEach(() => {
   localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
   document.documentElement.removeAttribute('data-mode')
+  mockMatchMedia(false) // default: OS is light
 })
 
 describe('useTheme — theme', () => {
@@ -79,10 +96,10 @@ describe('useTheme — theme', () => {
 })
 
 describe('useTheme — mode', () => {
-  it('defaults to light when localStorage is empty', () => {
+  it('defaults to auto when localStorage is empty', () => {
     const { result } = renderHook(() => useTheme())
 
-    expect(result.current.mode).toBe('light')
+    expect(result.current.mode).toBe('auto')
   })
 
   it('reads an existing valid mode from localStorage', () => {
@@ -93,15 +110,15 @@ describe('useTheme — mode', () => {
     expect(result.current.mode).toBe('dark')
   })
 
-  it('falls back to light for an unknown stored mode', () => {
+  it('falls back to auto for an unknown stored mode', () => {
     localStorage.setItem(STORAGE_KEY_MODE, 'night')
 
     const { result } = renderHook(() => useTheme())
 
-    expect(result.current.mode).toBe('light')
+    expect(result.current.mode).toBe('auto')
   })
 
-  it('exposes both modes', () => {
+  it('exposes all three modes', () => {
     const { result } = renderHook(() => useTheme())
 
     expect(result.current.modes).toEqual(MODES)
@@ -123,7 +140,15 @@ describe('useTheme — mode', () => {
     expect(localStorage.getItem(STORAGE_KEY_MODE)).toBe('dark')
   })
 
-  it('setMode applies data-mode on the html element', () => {
+  it('setMode("light") applies data-mode="light"', () => {
+    const { result } = renderHook(() => useTheme())
+
+    act(() => { result.current.setMode('light') })
+
+    expect(document.documentElement.dataset.mode).toBe('light')
+  })
+
+  it('setMode("dark") applies data-mode="dark"', () => {
     const { result } = renderHook(() => useTheme())
 
     act(() => { result.current.setMode('dark') })
@@ -131,13 +156,49 @@ describe('useTheme — mode', () => {
     expect(document.documentElement.dataset.mode).toBe('dark')
   })
 
-  it('setMode can switch between all modes', () => {
+  it('setMode("auto") applies data-mode="light" when OS is light', () => {
+    mockMatchMedia(false)
+
     const { result } = renderHook(() => useTheme())
 
-    for (const m of MODES) {
-      act(() => { result.current.setMode(m) })
-      expect(result.current.mode).toBe(m)
-      expect(document.documentElement.dataset.mode).toBe(m)
-    }
+    act(() => { result.current.setMode('auto') })
+
+    expect(document.documentElement.dataset.mode).toBe('light')
+  })
+
+  it('setMode("auto") applies data-mode="dark" when OS is dark', () => {
+    mockMatchMedia(true)
+
+    const { result } = renderHook(() => useTheme())
+
+    act(() => { result.current.setMode('auto') })
+
+    expect(document.documentElement.dataset.mode).toBe('dark')
+  })
+
+  it('auto mode updates data-mode when the OS preference changes', () => {
+    const { triggerChange } = mockMatchMedia(false)
+
+    localStorage.setItem(STORAGE_KEY_MODE, 'auto')
+
+    renderHook(() => useTheme())
+
+    expect(document.documentElement.dataset.mode).toBe('light')
+
+    mockMatchMedia(true)
+    act(() => { triggerChange() })
+
+    expect(document.documentElement.dataset.mode).toBe('dark')
+  })
+
+  it('switching away from auto removes the OS listener', () => {
+    const { result } = renderHook(() => useTheme())
+
+    act(() => { result.current.setMode('auto') })
+    act(() => { result.current.setMode('light') })
+
+    // After switching to light, OS changes should no longer affect data-mode.
+    mockMatchMedia(true)
+    expect(document.documentElement.dataset.mode).toBe('light')
   })
 })
