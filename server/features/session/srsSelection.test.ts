@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords } from './srsSelection.ts'
+import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords } from './srsSelection.ts'
 import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -779,5 +779,50 @@ describe('selectDiscoveryWords', () => {
     const highIds = new Set(highScore.map((e) => e.id))
 
     expect(result?.every((e) => highIds.has(e.id))).toBe(true)
+  })
+})
+
+// ── selectStarredWords ────────────────────────────────────────────────────────
+
+describe('selectStarredWords', () => {
+  it('returns null when no words are marked', () => {
+    const all = makeEntries(10, { marked: false })
+
+    expect(selectStarredWords(all, 100)).toBeNull()
+  })
+
+  it('returns all marked words when count is below the limit', () => {
+    const marked = makeEntries(5, { marked: true })
+    const unmarked = makeEntries(10, { marked: false })
+    const result = selectStarredWords([...marked, ...unmarked], 100)
+
+    expect(result).toHaveLength(5)
+    expect(result?.every((e) => e.marked)).toBe(true)
+  })
+
+  it('caps the result at the given limit', () => {
+    const marked = makeEntries(120, { marked: true })
+    const result = selectStarredWords(marked, 100)
+
+    expect(result).toHaveLength(100)
+  })
+
+  it('prioritises highest-score words when capping', () => {
+    const lowScore = makeEntries(60, { marked: true, score: 1 })
+    const highScore = makeEntries(60, { marked: true, score: 5 })
+    const result = selectStarredWords([...lowScore, ...highScore], 60)
+
+    const highIds = new Set(highScore.map((e) => e.id))
+
+    expect(result?.every((e) => highIds.has(e.id))).toBe(true)
+  })
+
+  it('includes marked words from any bucket', () => {
+    const b0 = makeEntry({ marked: true, bucket: 0 })
+    const b3 = makeEntry({ marked: true, bucket: 3 })
+    const b5 = makeEntry({ marked: true, bucket: 5 })
+    const result = selectStarredWords([b0, b3, b5], 100)
+
+    expect(result).toHaveLength(3)
   })
 })

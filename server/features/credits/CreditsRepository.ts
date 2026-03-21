@@ -104,6 +104,27 @@ export interface CreditsRepository {
   /** Records that a discovery session was completed on the given date (YYYY-MM-DD). */
   setLastDiscoverySessionDate(date: string): void
 
+  /**
+   * Returns the date (YYYY-MM-DD) on which the last starred session was completed,
+   * or `null` if no starred session has ever been completed.
+   */
+  getLastStarredSessionDate(): string | null
+
+  /** Records that a starred session was completed on the given date (YYYY-MM-DD). */
+  setLastStarredSessionDate(date: string): void
+
+  /**
+   * Returns the number of stars the user has earned.
+   * Stars are a persistent watermark that never decreases.
+   */
+  getEarnedStars(): number
+
+  /**
+   * Awards stars to the user if `n` exceeds the current count.
+   * No-op when `n` is ≤ the current value.
+   */
+  awardStars(n: number): void
+
   /** Returns the current pause state. */
   getPauseState(): PauseState
 

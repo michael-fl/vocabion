@@ -43,9 +43,11 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
   const secondChanceCorrect = secondChanceWords.filter((w) => w.status === 'correct').length
   const secondChanceIncorrect = secondChanceWords.filter((w) => w.status === 'incorrect').length
 
+  const total = creditsEarned - creditsSpent - sessionCost + perfectBonus + streakCredit
+
   return (
-    <div>
-      <h1>Session complete</h1>
+    <div className={styles.screen}>
+      <h1 className={styles.heading}>Session complete</h1>
 
       {bucketMilestoneBonus > 0 && (
         <div className={styles.bucketMilestoneBanner} role="status">
@@ -67,59 +69,67 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
         </div>
       )}
 
-      <h2>Results</h2>
+      <div className={styles.card}>
+        <h2 className={styles.cardHeading}>Results</h2>
 
-      <p>
-        Correct: {originalCorrect} / {originalWords.length}
-      </p>
-
-      <p>
-        Incorrect: {originalIncorrect} / {originalWords.length}
-      </p>
-
-      <p>
-        Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
-      </p>
-
-      <p>
-        Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
-      </p>
-
-      <p>
-        Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
-      </p>
-
-      {streakCredit > 0 && milestoneLabel !== undefined && (
-        <p>
-          Streak milestone: {milestoneLabel}! +{streakCredit} credits
+        <p className={styles.statRow}>
+          Correct: {originalCorrect} / {originalWords.length}
         </p>
-      )}
 
-      {streakCredit > 0 && milestoneLabel === undefined && (
-        <p>
-          Daily streak bonus: +{streakCredit} credits
+        <p className={styles.statRow}>
+          Incorrect: {originalIncorrect} / {originalWords.length}
         </p>
-      )}
+      </div>
 
-      <p>
-        Total: {creditsEarned - creditsSpent - sessionCost + perfectBonus + streakCredit} credit{(creditsEarned - creditsSpent - sessionCost + perfectBonus + streakCredit) !== 1 ? 's' : ''}
-      </p>
+      <div className={styles.card}>
+        <h2 className={styles.cardHeading}>Credits</h2>
+
+        <p className={styles.statRow}>
+          Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
+        </p>
+
+        <p className={styles.statRow}>
+          Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
+        </p>
+
+        <p className={styles.statRow}>
+          Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
+        </p>
+
+        {streakCredit > 0 && milestoneLabel !== undefined && (
+          <p className={styles.statRow}>
+            Streak milestone: {milestoneLabel}! +{streakCredit} credits
+          </p>
+        )}
+
+        {streakCredit > 0 && milestoneLabel === undefined && (
+          <p className={styles.statRow}>
+            Daily streak bonus: +{streakCredit} credits
+          </p>
+        )}
+
+        <hr className={styles.divider} />
+
+        <p className={styles.statRowTotal}>
+          Total: {total} credit{total !== 1 ? 's' : ''}
+        </p>
+      </div>
 
       {secondChanceWords.length > 0 && (
-        <div>
-          <h2>Second-chance words</h2>
+        <div className={styles.card}>
+          <h2 className={styles.cardHeading}>Second-chance words</h2>
 
-          <p>
+          <p className={styles.statRow}>
             Correct: {secondChanceCorrect} / {secondChanceWords.length}
           </p>
 
-          <p>
+          <p className={styles.statRow}>
             Incorrect: {secondChanceIncorrect} / {secondChanceWords.length}
           </p>
         </div>
       )}
 
-      <button onClick={onBack}>Back to home</button>
+      <button className={styles.backButton} onClick={onBack}>Back to home</button>
     </div>
   )
 }

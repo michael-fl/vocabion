@@ -50,12 +50,16 @@ export class FakeSessionRepository implements SessionRepository {
 
   findLastCompletedNonFocus(): Session | undefined {
     const completed = [...this.store.values()]
-      .filter((s) => s.status === 'completed' && s.type !== 'focus')
+      .filter((s) => s.status === 'completed' && s.type !== 'focus' && s.type !== 'starred')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
     const last = completed.at(0)
 
     return last !== undefined ? { ...last, words: [...last.words] } : undefined
+  }
+
+  delete(id: string): void {
+    this.store.delete(id)
   }
 
   insert(session: Session): void {

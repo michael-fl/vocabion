@@ -291,6 +291,11 @@ export class VocabService {
     return this.creditsRepo.getBalance()
   }
 
+  /** Returns the number of stars the user has earned (all-time watermark). */
+  getEarnedStars(): number {
+    return this.creditsRepo.getEarnedStars()
+  }
+
   /**
    * Deducts `amount` credits from the balance.
    * Returns the new balance after deduction.

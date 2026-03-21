@@ -157,6 +157,34 @@ export class SqliteCreditsRepository implements CreditsRepository {
       .run(date)
   }
 
+  getLastStarredSessionDate(): string | null {
+    const row = this.db
+      .prepare('SELECT last_starred_session_date FROM credits WHERE id = 1')
+      .get() as { last_starred_session_date: string | null } | undefined
+
+    return row?.last_starred_session_date ?? null
+  }
+
+  setLastStarredSessionDate(date: string): void {
+    this.db
+      .prepare('UPDATE credits SET last_starred_session_date = ? WHERE id = 1')
+      .run(date)
+  }
+
+  getEarnedStars(): number {
+    const row = this.db
+      .prepare('SELECT earned_stars FROM credits WHERE id = 1')
+      .get() as { earned_stars: number } | undefined
+
+    return row?.earned_stars ?? 0
+  }
+
+  awardStars(n: number): void {
+    this.db
+      .prepare('UPDATE credits SET earned_stars = MAX(earned_stars, ?) WHERE id = 1')
+      .run(n)
+  }
+
   getPauseState(): PauseState {
     const row = this.db
       .prepare('SELECT pause_active, pause_start_date, pause_days_used, pause_budget_year FROM credits WHERE id = 1')

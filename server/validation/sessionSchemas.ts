@@ -23,6 +23,14 @@ export const createSessionSchema = z.object({
 
 export type CreateSessionRequest = z.infer<typeof createSessionSchema>
 
+// ── Create starred session ─────────────────────────────────────────────────────
+
+export const createStarredSessionSchema = z.object({
+  direction: z.enum(['DE_TO_EN', 'EN_TO_DE']).default('DE_TO_EN'),
+})
+
+export type CreateStarredSessionRequest = z.infer<typeof createStarredSessionSchema>
+
 // ── Submit answer ─────────────────────────────────────────────────────────────
 
 export const submitAnswerSchema = z.object({

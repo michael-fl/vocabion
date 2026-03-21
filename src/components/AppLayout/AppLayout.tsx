@@ -34,6 +34,7 @@ import styles from './AppLayout.module.css'
 export interface AppLayoutProps {
   children: ReactNode
   credits: number | null
+  stars: number | null
   streak: StreakInfo | null
   activeNav: NavItem
   rightPanelOpen: boolean
@@ -46,6 +47,7 @@ export interface AppLayoutProps {
 export function AppLayout({
   children,
   credits,
+  stars,
   streak,
   activeNav,
   rightPanelOpen,
@@ -57,6 +59,7 @@ export function AppLayout({
     <div className={`${styles.shell}${rightPanelOpen ? ` ${styles.panelOpen}` : ''}`}>
       <Header
         credits={credits}
+        stars={stars}
         streak={streak}
         rightPanelOpen={rightPanelOpen}
         onToggleRightPanel={onToggleRightPanel}

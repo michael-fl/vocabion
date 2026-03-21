@@ -35,7 +35,7 @@ export function createVocabRouter(service: VocabService): Router {
 
   // GET /credits — must come before /:id
   router.get('/credits', (_req: Request, res: Response) => {
-    res.json({ credits: service.getCredits() })
+    res.json({ credits: service.getCredits(), stars: service.getEarnedStars() })
   })
 
   // POST /credits/spend — must come before /:id

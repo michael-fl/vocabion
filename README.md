@@ -234,6 +234,21 @@ Your balance is shown in the header on every screen and updated after each answe
 
 ---
 
+### Earned Stars
+
+Stars are a permanent achievement watermark displayed in the header. Once earned, a star can never be lost.
+
+| Stars | Requirement |
+|---|---|
+| ★ | Any word reaches bucket 4 for the first time |
+| ★★ | Any word reaches bucket 5 for the first time |
+| ★★★ | Any word reaches bucket 6 for the first time |
+| … | One additional star per new bucket level above 3 |
+
+Stars are derived from the all-time highest bucket ever reached across all your words. The mapping is: **stars = max(0, highest bucket ever − 3)**. Other ways to earn stars may be added in future.
+
+---
+
 ### Hints
 
 During a session you can reveal a hint for the current word. The hint shows the first 1–2 characters of each required answer, with the rest replaced by dots.

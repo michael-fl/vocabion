@@ -76,6 +76,41 @@ export async function getOpenSession(): Promise<Session | null> {
   return data.session
 }
 
+/** Availability info for a starred session. */
+export interface StarredAvailable {
+  available: boolean
+  markedCount: number
+  alreadyDoneToday: boolean
+}
+
+/** Returns whether a starred session can be started right now. */
+export async function getStarredAvailable(): Promise<StarredAvailable> {
+  const res = await fetch(`${BASE}/starred-available`)
+
+  if (!res.ok) {
+    throw new Error(`Failed to get starred session availability: ${res.status}`)
+  }
+
+  return res.json() as Promise<StarredAvailable>
+}
+
+/** Creates a new starred session (all marked words, up to 100). */
+export async function createStarredSession(
+  direction: SessionDirection = 'DE_TO_EN',
+): Promise<Session> {
+  const res = await fetch(`${BASE}/starred`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ direction }),
+  })
+
+  if (!res.ok) {
+    throw new Error(`Failed to create starred session: ${res.status}`)
+  }
+
+  return res.json() as Promise<Session>
+}
+
 /** Creates a new training session with the given direction and word count. */
 export async function createSession(
   direction: SessionDirection = 'DE_TO_EN',

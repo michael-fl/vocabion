@@ -12,17 +12,26 @@
 
 const BASE = '/api/v1/vocab'
 
-/** Fetches the total credit count for all vocabulary entries. */
-export async function getCredits(): Promise<number> {
+/** Full payload returned by `GET /credits`. */
+export interface CreditsInfo {
+  credits: number
+  stars: number
+}
+
+/** Fetches the credit balance and earned star count. */
+export async function getCreditsInfo(): Promise<CreditsInfo> {
   const res = await fetch(`${BASE}/credits`)
 
   if (!res.ok) {
     throw new Error(`Failed to fetch credits: ${res.status}`)
   }
 
-  const data = (await res.json()) as { credits: number }
+  return (await res.json()) as CreditsInfo
+}
 
-  return data.credits
+/** Fetches the current credit balance. */
+export async function getCredits(): Promise<number> {
+  return (await getCreditsInfo()).credits
 }
 
 /**

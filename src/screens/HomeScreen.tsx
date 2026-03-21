@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react'
 import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 import type { Session } from '../../shared/types/Session.ts'
 import * as sessionApi from '../api/sessionApi.ts'
+import type { StarredAvailable } from '../api/sessionApi.ts'
 import * as vocabApi from '../api/vocabApi.ts'
 import * as streakApi from '../api/streakApi.ts'
 import { isEveningStreakWarning } from '../utils/streakWarning.ts'
@@ -39,13 +40,18 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
   const [openSession, setOpenSession] = useState<Session | null | undefined>(undefined)
   // A session that exists but has 0 answered words — reused silently to avoid a 409 conflict
   const [unstartedSession, setUnstartedSession] = useState<Session | null>(null)
+  const [starredAvailable, setStarredAvailable] = useState<StarredAvailable | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    sessionApi
-      .getOpenSession()
-      .then((session) => {
+    Promise.all([
+      sessionApi.getOpenSession(),
+      sessionApi.getStarredAvailable(),
+    ])
+      .then(([session, starred]) => {
+        setStarredAvailable(starred)
+
         if (session === null) {
           setOpenSession(null)
           return
@@ -109,6 +115,25 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to resume game')
     } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleStartStarred() {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const [session, entries] = await Promise.all([
+        sessionApi.createStarredSession(),
+        vocabApi.listVocab(),
+      ])
+
+      const vocabMap = new Map(entries.map((e) => [e.id, e]))
+
+      onStartTraining(session, vocabMap)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to start starred session')
       setLoading(false)
     }
   }
@@ -204,18 +229,24 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
 
       {pause?.active !== true && (
         <div className={styles.actions}>
-          {openSession !== null ? (
-            <>
-              <p>You have a session in progress.</p>
+          {openSession !== null && <p>You have a session in progress.</p>}
+          <div className={styles.sessionButtons}>
+            {openSession !== null ? (
               <button onClick={() => void handleStart(openSession)} disabled={loading}>
                 Continue session
               </button>
-            </>
-          ) : (
-            <button onClick={() => void handleStart()} disabled={loading}>
-              Start new session
+            ) : (
+              <button onClick={() => void handleStart()} disabled={loading}>
+                Start new session
+              </button>
+            )}
+            <button
+              onClick={() => void handleStartStarred()}
+              disabled={loading || starredAvailable?.available !== true}
+            >
+              Start starred session
             </button>
-          )}
+          </div>
         </div>
       )}
     </div>

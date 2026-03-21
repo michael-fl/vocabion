@@ -1972,3 +1972,171 @@ describe('submitAnswer — discovery session is free', () => {
     expect(creditsRepo.getBalance()).toBe(50)
   })
 })
+
+// ── getStarredSessionAvailable ────────────────────────────────────────────────
+
+describe('getStarredSessionAvailable', () => {
+  it('returns available=false and markedCount=0 when no words are marked', () => {
+    vocabRepo.insert(makeEntry({ marked: false }))
+
+    const result = service.getStarredSessionAvailable()
+
+    expect(result.available).toBe(false)
+    expect(result.markedCount).toBe(0)
+    expect(result.alreadyDoneToday).toBe(false)
+  })
+
+  it('returns available=true when marked words exist and none done today', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+
+    const result = service.getStarredSessionAvailable()
+
+    expect(result.available).toBe(true)
+    expect(result.markedCount).toBe(1)
+  })
+
+  it('returns available=false and alreadyDoneToday=true when session completed today', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    creditsRepo.setLastStarredSessionDate(new Date().toISOString().slice(0, 10))
+
+    const result = service.getStarredSessionAvailable()
+
+    expect(result.available).toBe(false)
+    expect(result.alreadyDoneToday).toBe(true)
+  })
+
+  it('returns available=false when the game is paused', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    creditsRepo.setPauseActive('2026-01-01')
+
+    const result = service.getStarredSessionAvailable()
+
+    expect(result.available).toBe(false)
+  })
+
+  it('returns available=false when a session is in progress (has answered words)', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    sessionRepo.insert(makeSession({
+      status: 'open',
+      words: [{ vocabId: 'x', status: 'correct' }, { vocabId: 'y', status: 'pending' }],
+    }))
+
+    const result = service.getStarredSessionAvailable()
+
+    expect(result.available).toBe(false)
+  })
+
+  it('returns available=true when the only open session is unstarted (0 answered words)', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    sessionRepo.insert(makeSession({
+      status: 'open',
+      words: [{ vocabId: 'x', status: 'pending' }],
+    }))
+
+    const result = service.getStarredSessionAvailable()
+
+    expect(result.available).toBe(true)
+  })
+})
+
+// ── createStarredSession ──────────────────────────────────────────────────────
+
+describe('createStarredSession', () => {
+  it('creates a session of type "starred" from marked words', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    vocabRepo.insert(makeEntry({ marked: true }))
+    vocabRepo.insert(makeEntry({ marked: false }))
+
+    const session = service.createStarredSession('DE_TO_EN')
+
+    expect(session.type).toBe('starred')
+    expect(session.words).toHaveLength(2)
+  })
+
+  it('throws 400 when no words are marked', () => {
+    vocabRepo.insert(makeEntry({ marked: false }))
+
+    expectApiError(() => service.createStarredSession('DE_TO_EN'), 400)
+  })
+
+  it('throws 409 when a session is in progress (has answered words)', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    sessionRepo.insert(makeSession({
+      status: 'open',
+      words: [{ vocabId: 'x', status: 'correct' }, { vocabId: 'y', status: 'pending' }],
+    }))
+
+    expectApiError(() => service.createStarredSession('DE_TO_EN'), 409)
+  })
+
+  it('discards an unstarted open session and creates the starred session', () => {
+    const entry = makeEntry({ marked: true })
+
+    vocabRepo.insert(entry)
+
+    const unstarted = makeSession({ status: 'open', words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    sessionRepo.insert(unstarted)
+
+    const session = service.createStarredSession('DE_TO_EN')
+
+    expect(session.type).toBe('starred')
+    expect(sessionRepo.findById(unstarted.id)).toBeUndefined()
+  })
+
+  it('throws 409 when a starred session was already completed today', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    creditsRepo.setLastStarredSessionDate(new Date().toISOString().slice(0, 10))
+
+    expectApiError(() => service.createStarredSession('DE_TO_EN'), 409)
+  })
+
+  it('throws 423 when the game is paused', () => {
+    vocabRepo.insert(makeEntry({ marked: true }))
+    creditsRepo.setPauseActive('2026-01-01')
+
+    expectApiError(() => service.createStarredSession('DE_TO_EN'), 423)
+  })
+
+  it('caps the session at 100 words', () => {
+    for (let i = 0; i < 120; i++) {
+      vocabRepo.insert(makeEntry({ marked: true }))
+    }
+
+    const session = service.createStarredSession('DE_TO_EN')
+
+    expect(session.words).toHaveLength(100)
+  })
+
+  it('records the last starred session date when session completes', () => {
+    const entry = makeEntry({ marked: true, de: 'Hund', en: ['dog'] })
+
+    vocabRepo.insert(entry)
+
+    const session = service.createStarredSession('DE_TO_EN')
+
+    service.submitAnswer(session.id, entry.id, ['dog'])
+
+    const today = new Date().toISOString().slice(0, 10)
+
+    expect(creditsRepo.getLastStarredSessionDate()).toBe(today)
+  })
+
+  it('does not disrupt the normal/repetition alternation cycle', () => {
+    // After a normal session, the next non-special session should be repetition.
+    // If we complete a starred session in between, it should not affect this.
+    const entry = makeEntry({ marked: true, de: 'Hund', en: ['dog'] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({ type: 'normal', status: 'completed' }))
+
+    const starredSess = service.createStarredSession('DE_TO_EN')
+
+    service.submitAnswer(starredSess.id, entry.id, ['dog'])
+
+    // findLastCompletedNonFocus should still return the normal session
+    const last = sessionRepo.findLastCompletedNonFocus()
+
+    expect(last?.type).toBe('normal')
+  })
+})

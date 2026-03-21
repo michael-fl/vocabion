@@ -19,7 +19,7 @@ export type { SessionWord }
 export type SessionDirection = 'DE_TO_EN' | 'EN_TO_DE'
 
 /** The type of a training session. */
-export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery'
+export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery' | 'starred'
 
 /**
  * A training session. At most one session can be open at a time.
@@ -38,6 +38,8 @@ export interface Session {
    * - `focus` — targets the highest-priority words across all non-zero buckets.
    * - `discovery` — introduces new words exclusively from bucket 0; triggered when
    *   the active pool (buckets 1–4) falls below a threshold.
+   * - `starred` — reviews all words the user has starred (marked with ★), up to 100;
+   *   limited to once per day and started explicitly by the user.
    */
   type: SessionType
 
@@ -79,7 +81,7 @@ export function isSession(value: unknown): value is Session {
     return false
   }
 
-  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'discovery') {
+  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'discovery' && type !== 'starred') {
     return false
   }
 

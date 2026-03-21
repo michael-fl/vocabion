@@ -42,6 +42,13 @@
   margin-top: 1.5rem;
 }
 
+.sessionButtons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 3rem;
+}
+
 .error {
   margin-top: 0.75rem;
   color: var(--color-error);

@@ -49,6 +49,13 @@
   font-weight: 600;
 }
 
+.stars {
+  letter-spacing: 0.1em;
+  color: #f59e0b;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
 .panelToggle {
   background: transparent;
   color: var(--color-chrome-muted);

@@ -69,10 +69,14 @@ export class SqliteSessionRepository implements SessionRepository {
 
   findLastCompletedNonFocus(): Session | undefined {
     const row = this.db
-      .prepare("SELECT * FROM sessions WHERE status = 'completed' AND type != 'focus' ORDER BY created_at DESC LIMIT 1")
+      .prepare("SELECT * FROM sessions WHERE status = 'completed' AND type NOT IN ('focus', 'starred') ORDER BY created_at DESC LIMIT 1")
       .get() as SessionRow | undefined
 
     return row !== undefined ? rowToSession(row) : undefined
+  }
+
+  delete(id: string): void {
+    this.db.prepare('DELETE FROM sessions WHERE id = ?').run(id)
   }
 
   insert(session: Session): void {

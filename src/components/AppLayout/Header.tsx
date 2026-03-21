@@ -19,18 +19,25 @@ import styles from './Header.module.css'
 
 export interface HeaderProps {
   credits: number | null
+  stars: number | null
   streak: StreakInfo | null
   rightPanelOpen: boolean
   onToggleRightPanel: () => void
 }
 
 /** Renders the fixed top header of the app shell. */
-export function Header({ credits, streak, rightPanelOpen, onToggleRightPanel }: HeaderProps) {
+export function Header({ credits, stars, streak, rightPanelOpen, onToggleRightPanel }: HeaderProps) {
   return (
     <header className={styles.header}>
       <span className={styles.title}>Vocabion</span>
 
       <div className={styles.status}>
+        {stars !== null && stars > 0 && (
+          <span className={styles.stars} aria-label={`${stars} ${stars === 1 ? 'star' : 'stars'} earned`}>
+            {'★'.repeat(stars)}
+          </span>
+        )}
+
         {streak?.nextMilestone !== null && streak?.nextMilestone !== undefined && (
           <span className={styles.milestone}>
             Next: {streak.nextMilestone.label} (+{streak.nextMilestone.credits}) in {streak.nextMilestone.daysUntil} {streak.nextMilestone.daysUntil === 1 ? 'day' : 'days'}

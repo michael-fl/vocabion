@@ -23,7 +23,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 import type { Session } from '../../shared/types/Session.ts'
 import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
-import { getCredits } from '../api/creditsApi.ts'
+import { getCreditsInfo } from '../api/creditsApi.ts'
 import { getStreak } from '../api/streakApi.ts'
 import type { StreakInfo } from '../api/streakApi.ts'
 import { useTheme } from '../hooks/useTheme.ts'
@@ -54,13 +54,17 @@ function activeNav(screen: AppScreen): NavItem {
 function App() {
   const [screen, setScreen] = useState<AppScreen>({ name: 'home' })
   const [credits, setCredits] = useState<number | null>(null)
+  const [stars, setStars] = useState<number | null>(null)
   const [streak, setStreak] = useState<StreakInfo | null>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(false)
   const { theme, setTheme, mode, setMode } = useTheme()
 
   const refreshCredits = useCallback(() => {
-    getCredits()
-      .then((c) => { setCredits(c) })
+    getCreditsInfo()
+      .then(({ credits: c, stars: s }) => {
+        setCredits(c)
+        setStars(s)
+      })
       .catch(() => undefined)
   }, [])
 
@@ -148,6 +152,7 @@ function App() {
   return (
     <AppLayout
       credits={credits}
+      stars={stars}
       streak={streak}
       activeNav={activeNav(screen)}
       rightPanelOpen={rightPanelOpen}

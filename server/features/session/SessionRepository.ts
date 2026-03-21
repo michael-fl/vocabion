@@ -25,14 +25,18 @@ export interface SessionRepository {
   findLastCompleted(): Session | undefined
 
   /**
-   * Returns the most recently completed session whose type is not `'focus'`,
-   * or `undefined` if none exists. Used by the normal/repetition alternation
-   * logic so that a focus session does not disrupt the alternation state.
+   * Returns the most recently completed session whose type is not `'focus'` or
+   * `'starred'`, or `undefined` if none exists. Used by the normal/repetition
+   * alternation logic so that focus and starred sessions do not disrupt the
+   * alternation state.
    */
   findLastCompletedNonFocus(): Session | undefined
 
   /** Inserts a new session. Throws if a session with the same id already exists. */
   insert(session: Session): void
+
+  /** Permanently removes a session by id. No-op if it does not exist. */
+  delete(id: string): void
 
   /** Updates the `words` and `status` fields of an existing session. */
   update(session: Session): void

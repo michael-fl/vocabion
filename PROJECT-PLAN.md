@@ -960,6 +960,8 @@ Replace the current flat layout with a proper single-page app shell:
 | Daily practice streaks | done |
 | App shell layout (header, sidebar, right panel, footer) | done |
 | Theme system (Scholar / Slate / Forest, CSS variables, picker) | done |
+| Starred session (once-per-day session for all marked words, up to 100, score-sorted) | done |
+| Earned stars (watermark in header — 1 star per new bucket above 3, never decreases) | done |
 
 ---
 
@@ -971,6 +973,11 @@ Replace the current flat layout with a proper single-page app shell:
 - Score-based word selection: `score` column on `vocab_entries` (migration 006), backfill migration 008, `srsScore.ts` utility, `sortByScoreThenShuffle` in `srsSelection.ts`. VocabListScreen shows Score column; TrainingScreen shows `[score: N]` debug label.
 - Bucket milestone bonus: +100 credits the first time any word globally enters a bucket ≥ 6 that has never existed before. `max_bucket_ever` in credits table (migration 007). `CreditsRepository.getMaxBucketEver/setMaxBucketEver`. `bucketMilestoneBonus` field on `AnswerResult`; TrainingScreen shows celebration message.
 - Manually-added word priority: `manuallyAdded: boolean` on `VocabEntry` (migration 009). Words added via the UI "Add word" form are always drawn first in bucket 0 (all of them, overriding the normal 1-or-2 draw count). Flag is cleared after first session inclusion. JSON-imported words are never flagged.
+
+**Recently added**
+
+- Starred session: a new on-demand session type (`type = 'starred'`) that includes all marked (★) words, capped at 100, score-sorted. Accessible via a second button on the Home screen. Limited to one per calendar day; `last_starred_session_date` in the credits table. Migration `018_starred_session.sql` adds the column; migration `019_session_type_starred.sql` rebuilds the sessions table to add `'starred'` to the type CHECK constraint.
+- Earned stars: a persistent watermark (`earned_stars INTEGER` in the credits table, migration `020_earned_stars.sql`) displayed as amber ★ characters in the header. Stars only ever increase. Currently awarded when any word reaches a new personal-best bucket ≥ 4 (bucket 4 → 1 star, bucket 5 → 2 stars, …). The award logic is decoupled from the bucket number via `CreditsRepository.awardStars(n)` — other earning mechanisms can be added later without changing the storage model.
 
 **Phase 7 (continued) — Vocabulary CRUD + Import/Export**
 

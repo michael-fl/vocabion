@@ -187,6 +187,29 @@ export function selectFocusWords(all: VocabEntry[], sessionSize: number): VocabE
 }
 
 /**
+ * Selects vocabulary words for a starred session.
+ *
+ * Only picks words that the user has marked with ★. Words are sorted by score
+ * descending with ties broken randomly (same priority as focus sessions).
+ * At most `limit` words are returned.
+ *
+ * Returns `null` when no marked words exist — the caller should reject the request.
+ *
+ * @param all - All vocabulary entries.
+ * @param limit - Maximum number of words to include (e.g. 100).
+ * @returns Up to `limit` starred entries, or `null` if none are marked.
+ */
+export function selectStarredWords(all: VocabEntry[], limit: number): VocabEntry[] | null {
+  const marked = all.filter((e) => e.marked)
+
+  if (marked.length === 0) {
+    return null
+  }
+
+  return sortByScoreThenShuffle(marked).slice(0, limit)
+}
+
+/**
  * Selects vocabulary words for a discovery session.
  *
  * Only picks words from bucket 0. Manually added words are preferred (sorted

@@ -17,11 +17,32 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
 
-import { createSessionSchema, submitAnswerSchema } from '../../validation/sessionSchemas.ts'
+import { createSessionSchema, createStarredSessionSchema, submitAnswerSchema } from '../../validation/sessionSchemas.ts'
 import type { SessionService } from './sessionService.ts'
 
 export function createSessionRouter(service: SessionService): Router {
   const router = Router()
+
+  // GET /starred-available — must come before /:id routes to avoid param conflict
+  router.get('/starred-available', (_req: Request, res: Response) => {
+    res.json(service.getStarredSessionAvailable())
+  })
+
+  // POST /starred
+  router.post('/starred', (req: Request, res: Response, next: NextFunction) => {
+    const result = createStarredSessionSchema.safeParse(req.body)
+
+    if (!result.success) {
+      res.status(400).json({ error: 'Validation failed', details: result.error.issues })
+      return
+    }
+
+    try {
+      res.status(201).json(service.createStarredSession(result.data.direction))
+    } catch (err) {
+      next(err)
+    }
+  })
 
   // GET /open — must come before /:id/answer to avoid param conflict
   router.get('/open', (_req: Request, res: Response) => {

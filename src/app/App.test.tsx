@@ -15,11 +15,17 @@ beforeEach(() => {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   }))
+  vi.mocked(sessionApi.getStarredAvailable).mockResolvedValue({
+    available: false,
+    markedCount: 0,
+    alreadyDoneToday: false,
+  })
 })
 
 vi.mock('../api/sessionApi.ts', () => ({
   getOpenSession: vi.fn(),
   createSession: vi.fn(),
+  getStarredAvailable: vi.fn(),
 }))
 
 vi.mock('../api/vocabApi.ts', () => ({

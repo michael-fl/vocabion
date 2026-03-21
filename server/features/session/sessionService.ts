@@ -19,7 +19,7 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
 import { checkAnswerDetailed } from './answerValidation.ts'
 import type { TypoMatch } from './answerValidation.ts'
-import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, isDue } from './srsSelection.ts'
+import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, isDue } from './srsSelection.ts'
 import { getIntervalMs } from '../../../shared/utils/srsInterval.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
@@ -246,6 +246,82 @@ export class SessionService {
   }
 
   /**
+   * Returns whether a starred session can be started right now.
+   *
+   * A starred session is available when:
+   * - The game is not paused.
+   * - At least one word is marked (★).
+   * - No starred session has been completed today (UTC).
+   */
+  getStarredSessionAvailable(): { available: boolean; markedCount: number; alreadyDoneToday: boolean } {
+    const isPaused = this.creditsRepo.getPauseState().active
+    const sessionInProgress = this.isSessionInProgress()
+    const markedCount = this.vocabRepo.findAll().filter((e) => e.marked).length
+    const today = new Date().toISOString().slice(0, 10)
+    const alreadyDoneToday = this.creditsRepo.getLastStarredSessionDate() === today
+
+    return {
+      available: !isPaused && !sessionInProgress && markedCount > 0 && !alreadyDoneToday,
+      markedCount,
+      alreadyDoneToday,
+    }
+  }
+
+  /**
+   * Creates a new starred session from the user's marked (★) words.
+   *
+   * At most 100 words are included, prioritised by score descending (ties
+   * shuffled). The session type is `'starred'` and it does not affect the
+   * normal/repetition alternation cycle. Limited to one per calendar day (UTC).
+   *
+   * @throws {ApiError} 423 if the streak is paused.
+   * @throws {ApiError} 409 if a session is already open or one was already completed today.
+   * @throws {ApiError} 400 if no words are marked.
+   */
+  createStarredSession(direction: Session['direction']): Session {
+    if (this.creditsRepo.getPauseState().active) {
+      throw new ApiError(423, 'Cannot start a session while the streak is paused')
+    }
+
+    const existing = this.sessionRepo.findOpen()
+
+    if (existing !== undefined) {
+      if (this.isSessionInProgress(existing)) {
+        throw new ApiError(409, 'A training session is already open')
+      }
+
+      // Unstarted session — discard it so the starred session can be created.
+      this.sessionRepo.delete(existing.id)
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+
+    if (this.creditsRepo.getLastStarredSessionDate() === today) {
+      throw new ApiError(409, 'A starred session has already been completed today')
+    }
+
+    const selected = selectStarredWords(this.vocabRepo.findAll(), 100)
+
+    if (selected === null) {
+      throw new ApiError(400, 'No starred words available for a session')
+    }
+
+    const now = new Date()
+    const session: Session = {
+      id: crypto.randomUUID(),
+      direction,
+      type: 'starred',
+      words: selected.map((e) => ({ vocabId: e.id, status: 'pending' })),
+      status: 'open',
+      createdAt: now.toISOString(),
+    }
+
+    this.sessionRepo.insert(session)
+
+    return session
+  }
+
+  /**
    * Processes the user's answer for a word in the given session.
    *
    * Handles frequency-bucket answers (simple promote/demote), time-bucket
@@ -343,6 +419,10 @@ export class SessionService {
 
       if (updatedSession.type === 'discovery') {
         this.creditsRepo.setLastDiscoverySessionDate(now.slice(0, 10))
+      }
+
+      if (updatedSession.type === 'starred') {
+        this.creditsRepo.setLastStarredSessionDate(now.slice(0, 10))
       }
 
       const isPerfect =
@@ -562,6 +642,12 @@ export class SessionService {
       this.creditsRepo.addBalance(creditDelta)
     }
 
+    // Earned stars: 1 star per bucket above 3 (bucket 4 → 1 star, bucket 5 → 2 stars, …).
+    // Stars are a watermark — awardStars only increases the count, never decreases it.
+    if (creditDelta > 0 && newBucket >= 4) {
+      this.creditsRepo.awardStars(newBucket - 3)
+    }
+
     // New-bucket milestone bonus: scales linearly when a bucket ≥ 6 is created for the first time.
     // Bucket 6 → +100, bucket 7 → +200, bucket N → +(N − 5) × 100.
     let bucketMilestoneBonus = 0
@@ -654,6 +740,13 @@ export class SessionService {
     this.vocabRepo.update({ ...entry, bucket: 1, lastAskedAt: now })
 
     return { outcome: 'incorrect', answerCost }
+  }
+
+  /** Returns `true` when the open session exists and has at least one answered word. */
+  private isSessionInProgress(session?: Session): boolean {
+    const s = session ?? this.sessionRepo.findOpen()
+
+    return s?.words.some((w) => w.status !== 'pending') === true
   }
 
   private selectSecondChanceWord(

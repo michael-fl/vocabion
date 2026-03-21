@@ -11,6 +11,8 @@ import * as vocabApi from '../api/vocabApi.ts'
 vi.mock('../api/sessionApi.ts', () => ({
   getOpenSession: vi.fn(),
   createSession: vi.fn(),
+  getStarredAvailable: vi.fn(),
+  createStarredSession: vi.fn(),
 }))
 
 vi.mock('../api/streakApi.ts', () => ({
@@ -53,6 +55,12 @@ const mockEntry = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Default: starred session not available (no marked words)
+  vi.mocked(sessionApi.getStarredAvailable).mockResolvedValue({
+    available: false,
+    markedCount: 0,
+    alreadyDoneToday: false,
+  })
 })
 
 describe('HomeScreen', () => {
@@ -455,6 +463,88 @@ describe('HomeScreen — pause mode', () => {
     await waitFor(() => {
       expect(vi.mocked(streakApi.resumePause)).toHaveBeenCalledOnce()
       expect(onStreakRefresh).toHaveBeenCalledOnce()
+    })
+  })
+})
+
+// ── HomeScreen — starred session ──────────────────────────────────────────────
+
+const starredSession = {
+  id: 'starred-1',
+  direction: 'DE_TO_EN' as const,
+  type: 'starred' as const,
+  words: [{ vocabId: 'entry-1', status: 'pending' as const }],
+  status: 'open' as const,
+  createdAt: '2026-01-01T00:00:00Z',
+}
+
+describe('HomeScreen — starred session', () => {
+  it('renders the "Start starred session" button', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeInTheDocument()
+  })
+
+  it('disables the button when no words are marked', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(sessionApi.getStarredAvailable).mockResolvedValue({
+      available: false,
+      markedCount: 0,
+      alreadyDoneToday: false,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeDisabled()
+  })
+
+  it('disables the button when a starred session was already completed today', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(sessionApi.getStarredAvailable).mockResolvedValue({
+      available: false,
+      markedCount: 5,
+      alreadyDoneToday: true,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeDisabled()
+  })
+
+  it('enables the button when starred words exist and none done today', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(sessionApi.getStarredAvailable).mockResolvedValue({
+      available: true,
+      markedCount: 3,
+      alreadyDoneToday: false,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeEnabled()
+  })
+
+  it('calls onStartTraining with a starred session when the button is clicked', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(sessionApi.getStarredAvailable).mockResolvedValue({
+      available: true,
+      markedCount: 3,
+      alreadyDoneToday: false,
+    })
+    vi.mocked(sessionApi.createStarredSession).mockResolvedValue(starredSession)
+    vi.mocked(vocabApi.listVocab).mockResolvedValue([mockEntry])
+
+    const onStartTraining = vi.fn()
+
+    render(<HomeScreen onStartTraining={onStartTraining} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Start starred session' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(sessionApi.createStarredSession)).toHaveBeenCalledOnce()
+      expect(onStartTraining).toHaveBeenCalledWith(starredSession, expect.any(Map))
     })
   })
 })
