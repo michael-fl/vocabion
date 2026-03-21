@@ -160,7 +160,7 @@ are always identical:
 import { z } from 'zod'
 
 export const createVocabEntrySchema = z.object({
-  de: z.array(z.string()).min(1),
+  de: z.string().min(1),
   en: z.array(z.string()).min(1),
 })
 
@@ -320,6 +320,7 @@ All endpoints are prefixed with `/api/v1/`.
 | `GET` | `/api/v1/session/open` | Get the currently open session (if any) |
 | `POST` | `/api/v1/session` | Create a new session |
 | `POST` | `/api/v1/session/:id/answer` | Submit an answer for the current word |
+| `POST` | `/api/v1/vocab/add-or-merge` | Add one entry per DE word; merges EN into existing entries |
 | `POST` | `/api/v1/vocab/import` | Import vocabulary from JSON |
 | `GET` | `/api/v1/vocab/export` | Export all vocabulary as JSON |
 
@@ -331,8 +332,8 @@ Domain types are defined in `shared/types/` and imported by both frontend and ba
 // shared/types/VocabEntry.ts
 interface VocabEntry {
   id:          string        // UUID
-  de:          string[]      // one or more German forms (stored as JSON array in SQLite)
-  en:          string[]      // one or more English forms (stored as JSON array in SQLite)
+  de:          string        // exactly one German word (plain string in SQLite)
+  en:          string[]      // one or more English translations (stored as JSON array in SQLite)
   bucket:      number        // 0 = newest / least known; increases on correct answer
   lastAskedAt: string | null // ISO 8601; null = word has never appeared in a session
   createdAt:   string        // ISO 8601
