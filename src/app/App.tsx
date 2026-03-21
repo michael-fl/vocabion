@@ -56,7 +56,7 @@ function App() {
   const [credits, setCredits] = useState<number | null>(null)
   const [streak, setStreak] = useState<StreakInfo | null>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(false)
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, mode, setMode } = useTheme()
 
   const refreshCredits = useCallback(() => {
     getCredits()
@@ -129,7 +129,7 @@ function App() {
 
     if (screen.name === 'settings') {
       return (
-        <SettingsScreen theme={theme} onThemeChange={setTheme} />
+        <SettingsScreen theme={theme} onThemeChange={setTheme} mode={mode} onModeChange={setMode} />
       )
     }
 

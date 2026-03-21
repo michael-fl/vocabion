@@ -84,9 +84,11 @@
 /* ─── Table ──────────────────────────────────────────────────────────────── */
 
 .table {
-  /* No width: 100% — let fixed column widths determine the total table width so
-     all bucket sections share identical column widths regardless of which optional
-     columns are present. The tableWrapper's overflow-x: auto handles wider tables. */
+  /* width: 100% makes the table fill its container at any window size.
+     All columns except EN have explicit pixel widths — they stay perfectly
+     aligned across every bucket section. EN gets no explicit width so it
+     absorbs all remaining space, keeping the table gap-free at any viewport. */
+  width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.875rem;
@@ -124,6 +126,17 @@
   background: color-mix(in srgb, var(--color-chrome-bg) 10%, var(--color-card-bg));
 }
 
+/* In dark mode both chrome-bg and card-bg are very dark, making the 5%/10%
+   chrome-bg mix nearly indistinguishable. Switch to the accent colour, which
+   has real contrast against dark backgrounds. */
+:global(html[data-mode='dark']) .tr:nth-child(even) .td {
+  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-card-bg));
+}
+
+:global(html[data-mode='dark']) .tr:hover .td {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-card-bg));
+}
+
 /* ─── Column widths (applied to <th> in fixed-layout table) ─────────────── */
 
 .colDE {
@@ -131,7 +144,7 @@
 }
 
 .colEN {
-  width: 340px;
+  /* No explicit width — grows to fill all space not claimed by the other columns. */
 }
 
 .colBucket {

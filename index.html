@@ -5,13 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vocabion</title>
-    <!-- Apply stored theme before first render to avoid a flash of the wrong theme -->
+    <!-- Apply stored theme and mode before first render to avoid a flash -->
     <script>
       (function () {
-        var stored = localStorage.getItem('vocabion-theme');
-        var valid = ['scholar', 'slate', 'forest'];
-        if (stored && valid.indexOf(stored) !== -1) {
-          document.documentElement.dataset.theme = stored;
+        var theme = localStorage.getItem('vocabion-theme');
+        if (theme && ['scholar', 'slate', 'forest'].indexOf(theme) !== -1) {
+          document.documentElement.dataset.theme = theme;
+        }
+        var mode = localStorage.getItem('vocabion-mode');
+        if (mode === 'dark') {
+          document.documentElement.dataset.mode = 'dark';
         }
       })();
     </script>

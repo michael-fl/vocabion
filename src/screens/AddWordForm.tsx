@@ -93,7 +93,7 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
           className={styles.fieldInput}
           type="text"
           value={de}
-          placeholder="e.g. bessern, revidieren"
+          placeholder="e.g. sprechen, reden"
           onChange={(e) => { setDe(e.target.value) }}
         />
       </div>
@@ -105,7 +105,7 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
           className={styles.fieldInput}
           type="text"
           value={en}
-          placeholder="e.g. car, auto"
+          placeholder="e.g. to speak, to talk"
           onChange={(e) => { setEn(e.target.value) }}
         />
       </div>

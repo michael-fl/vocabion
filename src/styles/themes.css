@@ -25,6 +25,12 @@
  *   --color-input-border     form input border
  */
 
+/*
+ * Dark mode overrides use html[data-theme='X'][data-mode='dark'].
+ * Only content-area tokens are overridden — chrome colours (header/sidebar)
+ * are already dark in every theme and remain unchanged.
+ */
+
 /* ─── Scholar: Deep Navy + Warm Amber ─────────────────────────────────────── */
 html[data-theme='scholar'] {
   --color-chrome-bg:       #1e2d5a;
@@ -44,6 +50,16 @@ html[data-theme='scholar'] {
   --color-card-bg:         #ffffff;
   --color-input-bg:        #ffffff;
   --color-input-border:    #cbd5e1;
+}
+
+html[data-theme='scholar'][data-mode='dark'] {
+  --color-content-bg:   #0c1625;
+  --color-content-text: #dde5f4;
+  --color-card-bg:      #162540;
+  --color-muted:        #8fa3c8;
+  --color-border:       #253a58;
+  --color-input-bg:     #1a2d48;
+  --color-input-border: #2e4472;
 }
 
 /* ─── Slate: Dark Slate + Indigo ──────────────────────────────────────────── */
@@ -67,6 +83,16 @@ html[data-theme='slate'] {
   --color-input-border:    #cbd5e1;
 }
 
+html[data-theme='slate'][data-mode='dark'] {
+  --color-content-bg:   #0f172a;
+  --color-content-text: #e2e8f0;
+  --color-card-bg:      #1e293b;
+  --color-muted:        #94a3b8;
+  --color-border:       #2d3f55;
+  --color-input-bg:     #243447;
+  --color-input-border: #3a5068;
+}
+
 /* ─── Forest: Deep Green + Gold ───────────────────────────────────────────── */
 html[data-theme='forest'] {
   --color-chrome-bg:       #1a3a2a;
@@ -86,4 +112,14 @@ html[data-theme='forest'] {
   --color-card-bg:         #ffffff;
   --color-input-bg:        #ffffff;
   --color-input-border:    #d6d3d1;
+}
+
+html[data-theme='forest'][data-mode='dark'] {
+  --color-content-bg:   #0a150d;
+  --color-content-text: #e0ebe2;
+  --color-card-bg:      #132218;
+  --color-muted:        #7aab8a;
+  --color-border:       #1e3828;
+  --color-input-bg:     #162518;
+  --color-input-border: #2a4d36;
 }

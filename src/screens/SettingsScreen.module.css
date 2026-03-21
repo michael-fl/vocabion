@@ -78,6 +78,44 @@
   margin-top: 0.1rem;
 }
 
+/* ─── Light / Dark mode toggle ───────────────────────────────────────────── */
+
+.modeToggle {
+  display: inline-flex;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.modeBtn {
+  padding: 0.45rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--color-card-bg);
+  color: var(--color-muted);
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.modeBtn + .modeBtn {
+  border-left: 1.5px solid var(--color-border);
+}
+
+.modeBtn:hover:not(.modeBtnActive) {
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-card-bg));
+  color: var(--color-content-text);
+}
+
+.modeBtnActive {
+  background: var(--color-accent);
+  color: var(--color-chrome-bg);
+  font-weight: 600;
+}
+
+/* ─── Active check badge ─────────────────────────────────────────────────── */
+
 .activeCheck {
   position: absolute;
   top: 0.45rem;
