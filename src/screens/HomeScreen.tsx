@@ -167,12 +167,6 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
     <div className={styles.screen}>
       <h1 className={styles.title}>Home</h1>
 
-      {streak !== null && (
-        <p className={styles.streakLine}>
-          Current streak: {streak.count} {streak.count === 1 ? 'day' : 'days'}
-        </p>
-      )}
-
       {pause?.active === true && (
         <div className={styles.statusBanner}>
           <p role="status">
@@ -182,28 +176,6 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
           <button onClick={() => void handleResumePause()} disabled={loading}>
             Resume game
           </button>
-        </div>
-      )}
-
-      {pause !== null && !pause.active && streak !== null && streak.count > 0 && (
-        <div className={styles.infoBanner}>
-          <p>
-            Pause budget: {pause.budgetRemaining} of {streakApi.PAUSE_BUDGET_DAYS} days remaining this year
-            {pause.daysToCharge > 0 && <> — activating now will charge {pause.daysToCharge} {pause.daysToCharge === 1 ? 'day' : 'days'} retroactively</>}
-          </p>
-          <div>
-            <button
-              onClick={() => void handleActivatePause()}
-              disabled={loading || pause.daysToCharge > pause.budgetRemaining}
-            >
-              {pause.daysToCharge > 0
-                ? `Pause game (charges ${pause.daysToCharge} ${pause.daysToCharge === 1 ? 'day' : 'days'})`
-                : 'Pause game'}
-            </button>
-          </div>
-          {pause.daysToCharge > pause.budgetRemaining && (
-            <p role="alert">Insufficient pause budget: need {pause.daysToCharge} days, have {pause.budgetRemaining} remaining.</p>
-          )}
         </div>
       )}
 
@@ -232,21 +204,44 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
           {openSession !== null && <p>You have a session in progress.</p>}
           <div className={styles.sessionButtons}>
             {openSession !== null ? (
-              <button onClick={() => void handleStart(openSession)} disabled={loading}>
+              <button className={styles.primaryButton} onClick={() => void handleStart(openSession)} disabled={loading}>
                 Continue session
               </button>
             ) : (
-              <button onClick={() => void handleStart()} disabled={loading}>
+              <button className={styles.primaryButton} onClick={() => void handleStart()} disabled={loading}>
                 Start new session
               </button>
             )}
             <button
+              className={styles.secondaryButton}
               onClick={() => void handleStartStarred()}
               disabled={loading || starredAvailable?.available !== true}
             >
-              Start starred session
+              Start ★ session
             </button>
           </div>
+        </div>
+      )}
+
+      {pause !== null && !pause.active && streak !== null && streak.count > 0 && (
+        <div className={styles.pauseBox}>
+          <p>
+            Pause budget: {pause.budgetRemaining} of {streakApi.PAUSE_BUDGET_DAYS} days remaining this year
+            {pause.daysToCharge > 0 && <> — activating now will charge {pause.daysToCharge} {pause.daysToCharge === 1 ? 'day' : 'days'} retroactively</>}
+          </p>
+          <div>
+            <button
+              onClick={() => void handleActivatePause()}
+              disabled={loading || pause.daysToCharge > pause.budgetRemaining}
+            >
+              {pause.daysToCharge > 0
+                ? `Pause game (charges ${pause.daysToCharge} ${pause.daysToCharge === 1 ? 'day' : 'days'})`
+                : 'Pause game'}
+            </button>
+          </div>
+          {pause.daysToCharge > pause.budgetRemaining && (
+            <p role="alert">Insufficient pause budget: need {pause.daysToCharge} days, have {pause.budgetRemaining} remaining.</p>
+          )}
         </div>
       )}
     </div>

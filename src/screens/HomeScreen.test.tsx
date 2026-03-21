@@ -169,20 +169,14 @@ describe('HomeScreen', () => {
 })
 
 describe('HomeScreen — streak display', () => {
-  it('shows the current streak count when streak is provided', async () => {
+  it('does not show the streak count on the home screen (shown in the header instead)', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
     render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 7, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
 
-    expect(await screen.findByText('Current streak: 7 days')).toBeInTheDocument()
-  })
+    await screen.findByRole('button', { name: 'Start new session' })
 
-  it('uses singular "day" when streak count is 1', async () => {
-    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
-
-    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 1, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
-
-    expect(await screen.findByText('Current streak: 1 day')).toBeInTheDocument()
+    expect(screen.queryByText(/Current streak/)).not.toBeInTheDocument()
   })
 
   it('does not show next milestone info (milestone is shown in the header, not in HomeScreen)', async () => {
@@ -479,12 +473,12 @@ const starredSession = {
 }
 
 describe('HomeScreen — starred session', () => {
-  it('renders the "Start starred session" button', async () => {
+  it('renders the "Start ★ session" button', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
     render(<HomeScreen onStartTraining={vi.fn()} />)
 
-    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Start ★ session' })).toBeInTheDocument()
   })
 
   it('disables the button when no words are marked', async () => {
@@ -497,7 +491,7 @@ describe('HomeScreen — starred session', () => {
 
     render(<HomeScreen onStartTraining={vi.fn()} />)
 
-    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Start ★ session' })).toBeDisabled()
   })
 
   it('disables the button when a starred session was already completed today', async () => {
@@ -510,7 +504,7 @@ describe('HomeScreen — starred session', () => {
 
     render(<HomeScreen onStartTraining={vi.fn()} />)
 
-    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Start ★ session' })).toBeDisabled()
   })
 
   it('enables the button when starred words exist and none done today', async () => {
@@ -523,7 +517,7 @@ describe('HomeScreen — starred session', () => {
 
     render(<HomeScreen onStartTraining={vi.fn()} />)
 
-    expect(await screen.findByRole('button', { name: 'Start starred session' })).toBeEnabled()
+    expect(await screen.findByRole('button', { name: 'Start ★ session' })).toBeEnabled()
   })
 
   it('calls onStartTraining with a starred session when the button is clicked', async () => {
@@ -540,7 +534,7 @@ describe('HomeScreen — starred session', () => {
 
     render(<HomeScreen onStartTraining={onStartTraining} />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Start starred session' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start ★ session' }))
 
     await waitFor(() => {
       expect(vi.mocked(sessionApi.createStarredSession)).toHaveBeenCalledOnce()

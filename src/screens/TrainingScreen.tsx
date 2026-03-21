@@ -220,7 +220,8 @@ export function TrainingScreen({
       const count = Math.min(wordTranslations.length, 2)
       // Bucket 0: reveal up to 2 chars per word; bucket 1: reveal only 1 char per word
       const maxShown = bucket === 0 ? 2 : 1
-      setHints(wordTranslations.slice(0, count).map((t) => ({ text: generateHint(t, maxShown), totalChars: countSignificantChars(t) })))
+      const shuffled = [...wordTranslations].sort(() => Math.random() - 0.5)
+      setHints(shuffled.slice(0, count).map((t) => ({ text: generateHint(t, maxShown), totalChars: countSignificantChars(t) })))
     } else {
       setHints(null)
     }
@@ -309,7 +310,8 @@ export function TrainingScreen({
 
     try {
       await creditsApi.spendCredits(hintCost)
-      setHints(translations.slice(0, requiredCount).map((t) => ({ text: generateHint(t), totalChars: countSignificantChars(t) })))
+      const shuffledTranslations = [...translations].sort(() => Math.random() - 0.5)
+      setHints(shuffledTranslations.slice(0, requiredCount).map((t) => ({ text: generateHint(t), totalChars: countSignificantChars(t) })))
       setHintUpgraded(true)
       setAnswers(Array(requiredCount).fill('') as string[])
       setSessionCreditsSpent((prev) => prev + hintCost)

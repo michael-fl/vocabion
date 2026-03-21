@@ -107,7 +107,7 @@ There is no upper limit on buckets — the longer you practice a word without mi
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are four types, chosen in this priority order:
+The app picks the session type automatically each time you start a new session. There are four automatic types, chosen in this priority order. A fifth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
 #### 1. Discovery Session (highest priority)
 
@@ -148,7 +148,7 @@ The default session type. It draws from both frequency buckets and time-based bu
 
 Within every candidate pool, words are picked highest-score first (ties broken randomly).
 
-**Session type sequence summary:**
+**Session type sequence summary (automatic sessions):**
 
 | Situation | Session type |
 |---|---|
@@ -157,6 +157,15 @@ Within every candidate pool, words are picked highest-score first (ties broken r
 | Last session was normal (and enough due words) | Repetition |
 | Last session was repetition | Normal |
 | Last session was focus | Picks up the normal/repetition alternation where it left off |
+
+#### 5. ★ Session (manual, once per day)
+
+A **★ Session** lets you practice all your starred (★) words in one focused run. It is started manually via the **"Start ★ session"** button on the Home screen and is available at most once per calendar day.
+
+- Contains all words you have starred, up to a maximum of **100**.
+- Words are sorted highest-score first (ties broken randomly) — your trickiest starred words come first.
+- SRS rules are the same as a Focus Session: words in time-based buckets (4+) that are not yet due will not be promoted to the next bucket.
+- The button is disabled if you have no starred words, if a ★ session was already completed today, or if another session is currently in progress.
 
 ---
 

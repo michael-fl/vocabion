@@ -395,7 +395,7 @@ the frontend "Due in" display.
 
 **Session types:**
 
-There are four session types: `normal`, `repetition`, `focus`, and `discovery`. On each `createSession` call the type is chosen as follows:
+There are five session types: `normal`, `repetition`, `focus`, `discovery`, and `starred`. The first four are chosen automatically on each `createSession` call as follows:
 
 1. **Discovery session check (highest priority):** If the active pool (words in buckets 1–4) has fewer than `DISCOVERY_POOL_THRESHOLD` (80) words **and** at least `discoverySize` (24) bucket-0 words exist **and** no discovery session was already completed today (`last_discovery_session_date` in the credits table), a discovery session is created. At most one discovery session per calendar day.
 2. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket > 0` exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
@@ -433,7 +433,17 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 4. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
 5. `last_focus_session_date` is recorded when the session **completes**. Only one focus session per calendar day.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Discovery Session"** for discovery.
+*Starred sessions* — on-demand review of all words the user has starred (★), triggered manually via the "Start ★ session" button on the Home screen.
+1. All words with `marked = true` are included, capped at **100**.
+2. Words are sorted by score descending (ties shuffled randomly) — the trickiest starred words come first.
+3. SRS promotion rules mirror focus sessions: time-based words (bucket 4+) that are not yet due are not promoted.
+4. `last_starred_session_date` is recorded when the session **completes**. Only one starred session per calendar day.
+5. The button is disabled when: no marked words exist, a starred session was already completed today, or another session is currently in progress (has at least one answered word).
+6. An unstarted open session (0 answered words) is automatically discarded before the starred session is created.
+
+`createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
+
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Discovery Session"** for discovery, **"Starred Session"** for starred.
 
 **Session size — how many questions will be asked:**
 
