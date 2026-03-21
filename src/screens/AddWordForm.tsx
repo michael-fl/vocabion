@@ -13,6 +13,7 @@
 import { useState } from 'react'
 
 import * as vocabApi from '../api/vocabApi.ts'
+import styles from './AddWordForm.module.css'
 
 export interface AddWordFormProps {
   /** Called after a successful add or merge so the parent can refresh its list. */
@@ -82,40 +83,40 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
   }
 
   return (
-    <form onSubmit={(e) => void handleSubmit(e)}>
-      <h2>Add word</h2>
+    <form className={styles.form} onSubmit={(e) => void handleSubmit(e)}>
+      <h2 className={styles.title}>Add word</h2>
 
-      <div>
-        <label>
-          DE:
-          <input
-            type="text"
-            value={de}
-            placeholder="e.g. bessern, revidieren"
-            onChange={(e) => { setDe(e.target.value) }}
-          />
-        </label>
+      <div className={styles.fieldRow}>
+        <label htmlFor="add-word-de" className={styles.fieldLabel}>DE:</label>
+        <input
+          id="add-word-de"
+          className={styles.fieldInput}
+          type="text"
+          value={de}
+          placeholder="e.g. bessern, revidieren"
+          onChange={(e) => { setDe(e.target.value) }}
+        />
       </div>
 
-      <div>
-        <label>
-          EN:
-          <input
-            type="text"
-            value={en}
-            placeholder="e.g. car, auto"
-            onChange={(e) => { setEn(e.target.value) }}
-          />
-        </label>
+      <div className={styles.fieldRow}>
+        <label htmlFor="add-word-en" className={styles.fieldLabel}>EN:</label>
+        <input
+          id="add-word-en"
+          className={styles.fieldInput}
+          type="text"
+          value={en}
+          placeholder="e.g. car, auto"
+          onChange={(e) => { setEn(e.target.value) }}
+        />
       </div>
 
-      {error !== null && <p role="alert">{error}</p>}
-
-      {successMessage !== null && <p role="status">{successMessage}</p>}
-
-      <button type="submit" disabled={submitting}>
-        Add
-      </button>
+      <div className={styles.footer}>
+        <button type="submit" disabled={submitting}>
+          Add
+        </button>
+        {error !== null && <p className={styles.errorMessage} role="alert">{error}</p>}
+        {successMessage !== null && <p className={styles.successMessage} role="status">{successMessage}</p>}
+      </div>
     </form>
   )
 }

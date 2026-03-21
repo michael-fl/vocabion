@@ -249,7 +249,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
     expect(vocabRepo.findById(entry.id)?.lastAskedAt).not.toBeNull()
   })
 
-  it('updates maxBucket and earns 5 credits when promoted into bucket 4 for the first time', () => {
+  it('updates maxBucket and earns 1 credit when promoted into bucket 4 for the first time', () => {
     const entry = makeEntry({ bucket: 3, maxBucket: 3, en: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
@@ -259,7 +259,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
     const result = service.submitAnswer(session.id, entry.id, ['word'])
 
     expect(vocabRepo.findById(entry.id)?.maxBucket).toBe(4)
-    expect(result.creditsEarned).toBe(5)
+    expect(result.creditsEarned).toBe(1)
   })
 
   it('earns 1 credit when promoted into bucket 1 for the first time', () => {

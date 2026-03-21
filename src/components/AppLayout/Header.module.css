@@ -1,0 +1,77 @@
+.header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  background-color: var(--color-chrome-bg);
+  color: var(--color-chrome-text);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 1rem;
+  min-width: 0;
+}
+
+.title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--color-chrome-text);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--color-chrome-muted);
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.statusItem {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.milestone {
+  font-size: 0.8rem;
+  color: var(--color-nav-active-text);
+  white-space: nowrap;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  padding-left: 1.25rem;
+}
+
+.statusValue {
+  color: var(--color-chrome-text);
+  font-weight: 600;
+}
+
+.panelToggle {
+  background: transparent;
+  color: var(--color-chrome-muted);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.panelToggle:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-chrome-text);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.panelToggleActive {
+  color: var(--color-nav-active-text);
+  border-color: var(--color-nav-active-text);
+}
+
+.panelToggleActive:hover:not(:disabled) {
+  background-color: var(--color-nav-active-bg);
+}

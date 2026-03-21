@@ -11,6 +11,7 @@
  * ```
  */
 import type { Session } from '../../shared/types/Session.ts'
+import styles from './SummaryScreen.module.css'
 
 export interface SummaryScreenProps {
   session: Session
@@ -26,11 +27,13 @@ export interface SummaryScreenProps {
   streakCredit: number
   /** Label of the streak milestone reached this session, e.g. 'Week 1'. Absent if none. */
   milestoneLabel?: string
+  /** Bonus credits earned by promoting a word to a new maximum bucket ≥ 6. 0 if none. */
+  bucketMilestoneBonus?: number
   onBack: () => void
 }
 
 /** Renders a summary of a completed training session. */
-export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, onBack }: SummaryScreenProps) {
+export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onBack }: SummaryScreenProps) {
   const originalWords = session.words.filter((w) => w.secondChanceFor === undefined)
   const secondChanceWords = session.words.filter((w) => w.secondChanceFor !== undefined)
 
@@ -43,6 +46,26 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
   return (
     <div>
       <h1>Session complete</h1>
+
+      {bucketMilestoneBonus > 0 && (
+        <div className={styles.bucketMilestoneBanner} role="status">
+          <span className={styles.bucketMilestoneBadge}>New personal best!</span>
+          <p className={styles.bucketMilestoneText}>
+            You promoted a word to a record-high bucket for the first time.
+          </p>
+          <p className={styles.bucketMilestoneBonus}>+{bucketMilestoneBonus} bonus credits</p>
+        </div>
+      )}
+
+      {perfectBonus > 0 && (
+        <div className={styles.perfectBanner} role="status">
+          <span className={styles.perfectBadge}>Perfect session!</span>
+          <p className={styles.perfectText}>
+            All words answered correctly on the first try — no mistakes, no second chances.
+          </p>
+          <p className={styles.perfectBonus}>+{perfectBonus} bonus credits</p>
+        </div>
+      )}
 
       <h2>Results</h2>
 
@@ -65,12 +88,6 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
       <p>
         Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
       </p>
-
-      {perfectBonus > 0 && (
-        <p>
-          Perfect session bonus: +{perfectBonus} credits
-        </p>
-      )}
 
       {streakCredit > 0 && milestoneLabel !== undefined && (
         <p>

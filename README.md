@@ -213,8 +213,7 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 
 | How | Amount |
 |---|---|
-| Word reaches a new highest bucket for the first time (bucket < 4) | +1 per bucket level |
-| Word reaches a new highest bucket for the first time (bucket ≥ 4) | +5 per bucket level |
+| Word reaches a new highest bucket for the first time | +1 per bucket level |
 | Perfect session — normal/repetition/focus (no mistakes, no hints, no second-chance words) | +10 |
 | Perfect discovery session (all correct, no push-backs) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |

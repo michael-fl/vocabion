@@ -15,7 +15,7 @@
  *
  * @example
  * ```tsx
- * <VocabListScreen onBack={() => setScreen('home')} />
+ * <VocabListScreen />
  * ```
  */
 import { useState, useEffect, useCallback } from 'react'
@@ -25,10 +25,8 @@ import * as vocabApi from '../api/vocabApi.ts'
 import { formatDueIn } from '../utils/srsDisplay.ts'
 import { dictUrl } from '../utils/dictUrl.ts'
 import { AddWordForm } from './AddWordForm.tsx'
+import styles from './VocabListScreen.module.css'
 
-export interface VocabListScreenProps {
-  onBack: () => void
-}
 
 /** Groups entries by bucket number, sorted alphabetically within each bucket. */
 function groupByBucket(entries: VocabEntry[]): Map<number, VocabEntry[]> {
@@ -71,44 +69,56 @@ function VocabTable({ words, now, showBucket, togglingIds, onToggleMark }: Vocab
   const showDueInColumn = showBucket || words.some((e) => e.bucket >= 4)
 
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>German</th>
-          <th>English</th>
-          {showBucket && <th>Bucket</th>}
-          {showDueInColumn && <th>Due in</th>}
-          <th aria-label="Marked" />
-          <th>Score</th>
-        </tr>
-      </thead>
-      <tbody>
-        {words.map((entry) => (
-          <tr key={entry.id}>
-            <td><a href={dictUrl(entry.de)} target="_blank" rel="noreferrer">{entry.de}</a></td>
-            <td>{entry.en.map((w, i) => <span key={w}>{i > 0 && ' / '}<a href={dictUrl(w)} target="_blank" rel="noreferrer">{w}</a></span>)}</td>
-            {showBucket && <td>{entry.bucket}</td>}
-            {showDueInColumn && <td>{entry.bucket >= 4 ? formatDueIn(entry, now) : null}</td>}
-            <td>
-              <button
-                type="button"
-                aria-label={entry.marked ? 'Unmark' : 'Mark'}
-                disabled={togglingIds.has(entry.id)}
-                onClick={() => { onToggleMark(entry) }}
-              >
-                {entry.marked ? '★' : '☆'}
-              </button>
-            </td>
-            <td>{entry.score}</td>
+    <div className={styles.tableWrapper}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th className={`${styles.th} ${styles.colDE}`}>German</th>
+            <th className={`${styles.th} ${styles.colEN}`}>English</th>
+            {showBucket && <th className={`${styles.th} ${styles.colBucket}`}>Bucket</th>}
+            <th className={`${styles.th} ${styles.colStar}`} aria-label="Marked" />
+            <th className={`${styles.th} ${styles.colScore}`}>Score</th>
+            {showDueInColumn && <th className={`${styles.th} ${styles.colDueIn}`}>Due in</th>}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {words.map((entry) => (
+            <tr key={entry.id} className={styles.tr}>
+              <td className={styles.td}>
+                <a href={dictUrl(entry.de)} target="_blank" rel="noreferrer">{entry.de}</a>
+              </td>
+              <td className={`${styles.td} ${styles.enCell}`}>
+                {entry.en.map((w, i) => (
+                  <span key={w}>
+                    {i > 0 && <span className={styles.enSep}> / </span>}
+                    <a href={dictUrl(w)} target="_blank" rel="noreferrer">{w}</a>
+                  </span>
+                ))}
+              </td>
+              {showBucket && <td className={`${styles.td} ${styles.tdCenter}`}>{entry.bucket}</td>}
+              <td className={`${styles.td} ${styles.tdCenter}`}>
+                <button
+                  type="button"
+                  className={`${styles.starBtn}${entry.marked ? ` ${styles.starBtnMarked}` : ''}`}
+                  aria-label={entry.marked ? 'Unmark' : 'Mark'}
+                  disabled={togglingIds.has(entry.id)}
+                  onClick={() => { onToggleMark(entry) }}
+                >
+                  {entry.marked ? '★' : '☆'}
+                </button>
+              </td>
+              <td className={`${styles.td} ${styles.tdRight}`}>{entry.score}</td>
+              {showDueInColumn && <td className={styles.td}>{entry.bucket >= 4 ? formatDueIn(entry, now) : null}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
 /** Renders vocabulary entries in collapsible sections. */
-export function VocabListScreen({ onBack }: VocabListScreenProps) {
+export function VocabListScreen() {
   const [entries, setEntries] = useState<VocabEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -166,14 +176,14 @@ export function VocabListScreen({ onBack }: VocabListScreenProps) {
       : []
 
   return (
-    <div>
-      <h1>Vocabulary</h1>
+    <div className={styles.screen}>
+      <h1 className={styles.title}>Vocabulary</h1>
 
-      <button onClick={onBack}>Back to home</button>
+      <div className={styles.addWordSection}>
+        <AddWordForm onSuccess={() => { setRefreshKey((k) => k + 1) }} />
+      </div>
 
-      <AddWordForm onSuccess={() => { setRefreshKey((k) => k + 1) }} />
-
-      {error !== null && <p role="alert">{error}</p>}
+      {error !== null && <p className={styles.error} role="alert">{error}</p>}
 
       {entries === null && error === null && <p>Loading…</p>}
 
@@ -181,35 +191,34 @@ export function VocabListScreen({ onBack }: VocabListScreenProps) {
         <p>No vocabulary entries yet.</p>
       )}
 
-      {markedWords.length > 0 && (
-        <details>
-          <summary>
-            Marked — {markedWords.length} {markedWords.length === 1 ? 'word' : 'words'}
-          </summary>
+      <div className={styles.sections}>
+        {markedWords.length > 0 && (
+          <details className={styles.section}>
+            <summary className={styles.sectionSummary}>
+              Marked — {markedWords.length} {markedWords.length === 1 ? 'word' : 'words'}
+            </summary>
+            <VocabTable words={markedWords} now={now} showBucket={true} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
+          </details>
+        )}
 
-          <VocabTable words={markedWords} now={now} showBucket={true} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
-        </details>
-      )}
+        {scoredWords.length > 0 && (
+          <details className={styles.section}>
+            <summary className={styles.sectionSummary}>
+              Scored — {scoredWords.length} {scoredWords.length === 1 ? 'word' : 'words'}
+            </summary>
+            <VocabTable words={scoredWords} now={now} showBucket={true} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
+          </details>
+        )}
 
-      {scoredWords.length > 0 && (
-        <details>
-          <summary>
-            Scored — {scoredWords.length} {scoredWords.length === 1 ? 'word' : 'words'}
-          </summary>
-
-          <VocabTable words={scoredWords} now={now} showBucket={true} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
-        </details>
-      )}
-
-      {buckets.map(([bucket, words]) => (
-        <details key={bucket}>
-          <summary>
-            Bucket {bucket} — {words.length} {words.length === 1 ? 'word' : 'words'}
-          </summary>
-
-          <VocabTable words={words} now={now} showBucket={false} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
-        </details>
-      ))}
+        {buckets.map(([bucket, words]) => (
+          <details key={bucket} className={styles.section}>
+            <summary className={styles.sectionSummary}>
+              Bucket {bucket} — {words.length} {words.length === 1 ? 'word' : 'words'}
+            </summary>
+            <VocabTable words={words} now={now} showBucket={false} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
+          </details>
+        ))}
+      </div>
     </div>
   )
 }

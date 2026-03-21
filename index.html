@@ -1,10 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="scholar">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vocabion-temp</title>
+    <title>Vocabion</title>
+    <!-- Apply stored theme before first render to avoid a flash of the wrong theme -->
+    <script>
+      (function () {
+        var stored = localStorage.getItem('vocabion-theme');
+        var valid = ['scholar', 'slate', 'forest'];
+        if (stored && valid.indexOf(stored) !== -1) {
+          document.documentElement.dataset.theme = stored;
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

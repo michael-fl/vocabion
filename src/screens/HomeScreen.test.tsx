@@ -59,7 +59,7 @@ describe('HomeScreen', () => {
   it('shows loading state initially', () => {
     vi.mocked(sessionApi.getOpenSession).mockReturnValue(new Promise(() => undefined))
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={vi.fn()} />)
 
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
@@ -67,7 +67,7 @@ describe('HomeScreen', () => {
   it('shows "Start new session" when no session is open', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={vi.fn()} />)
 
     expect(await screen.findByRole('button', { name: 'Start new session' })).toBeInTheDocument()
   })
@@ -75,7 +75,7 @@ describe('HomeScreen', () => {
   it('shows "Continue session" when a session is in progress (at least one word answered)', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(mockSessionInProgress)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={vi.fn()} />)
 
     expect(await screen.findByRole('button', { name: 'Continue session' })).toBeInTheDocument()
   })
@@ -83,7 +83,7 @@ describe('HomeScreen', () => {
   it('shows "Start new session" when the open session has 0 answered words', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(mockSession)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={vi.fn()} />)
 
     expect(await screen.findByRole('button', { name: 'Start new session' })).toBeInTheDocument()
   })
@@ -94,7 +94,7 @@ describe('HomeScreen', () => {
 
     const onStartTraining = vi.fn()
 
-    render(<HomeScreen onStartTraining={onStartTraining} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={onStartTraining} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start new session' }))
 
@@ -110,7 +110,7 @@ describe('HomeScreen', () => {
 
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(staleSession)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={vi.fn()} />)
 
     expect(await screen.findByRole('button', { name: 'Start new session' })).toBeInTheDocument()
   })
@@ -118,7 +118,7 @@ describe('HomeScreen', () => {
   it('shows an error when getOpenSession fails', async () => {
     vi.mocked(sessionApi.getOpenSession).mockRejectedValue(new Error('Network error'))
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={vi.fn()} />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error')
   })
@@ -130,7 +130,7 @@ describe('HomeScreen', () => {
 
     const onStartTraining = vi.fn()
 
-    render(<HomeScreen onStartTraining={onStartTraining} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={onStartTraining} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start new session' }))
 
@@ -142,33 +142,13 @@ describe('HomeScreen', () => {
     })
   })
 
-  it('shows a "View vocabulary" button', async () => {
-    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
-
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} />)
-
-    expect(await screen.findByRole('button', { name: 'View vocabulary' })).toBeInTheDocument()
-  })
-
-  it('calls onViewVocab when "View vocabulary" is clicked', async () => {
-    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
-
-    const onViewVocab = vi.fn()
-
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={onViewVocab} />)
-
-    fireEvent.click(await screen.findByRole('button', { name: 'View vocabulary' }))
-
-    expect(onViewVocab).toHaveBeenCalledOnce()
-  })
-
   it('calls onStartTraining with the existing session after clicking "Continue session"', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(mockSessionInProgress)
     vi.mocked(vocabApi.listVocab).mockResolvedValue([mockEntry])
 
     const onStartTraining = vi.fn()
 
-    render(<HomeScreen onStartTraining={onStartTraining} onViewVocab={vi.fn()} />)
+    render(<HomeScreen onStartTraining={onStartTraining} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Continue session' }))
 
@@ -184,7 +164,7 @@ describe('HomeScreen — streak display', () => {
   it('shows the current streak count when streak is provided', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} streak={{ count: 7, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
+    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 7, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
 
     expect(await screen.findByText('Current streak: 7 days')).toBeInTheDocument()
   })
@@ -192,33 +172,18 @@ describe('HomeScreen — streak display', () => {
   it('uses singular "day" when streak count is 1', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} streak={{ count: 1, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
+    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 1, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
 
     expect(await screen.findByText('Current streak: 1 day')).toBeInTheDocument()
   })
 
-  it('shows next milestone info on the streak line when nextMilestone is set', async () => {
+  it('does not show next milestone info (milestone is shown in the header, not in HomeScreen)', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 3, saveAvailable: false, lastSessionDate: null, nextMilestone: { label: 'Week 1', credits: 10, daysUntil: 4 } }}
-      />,
-    )
-
-    expect(await screen.findByText(/Next: Week 1 \(10 credits\) in 4 days/)).toBeInTheDocument()
-  })
-
-  it('does not show next milestone info when nextMilestone is null', async () => {
-    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
-
-    render(
-      <HomeScreen
-        onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
-        streak={{ count: 3, saveAvailable: false, lastSessionDate: null, nextMilestone: null }}
       />,
     )
 
@@ -230,7 +195,7 @@ describe('HomeScreen — streak display', () => {
   it('does not show streak when streak prop is null', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} streak={null} />)
+    render(<HomeScreen onStartTraining={vi.fn()} streak={null} />)
 
     await screen.findByRole('button', { name: 'Start new session' })
 
@@ -240,7 +205,7 @@ describe('HomeScreen — streak display', () => {
   it('shows the save-streak warning when saveAvailable is true', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} streak={{ count: 5, saveAvailable: true, lastSessionDate: null, nextMilestone: null }} credits={100} />)
+    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 5, saveAvailable: true, lastSessionDate: null, nextMilestone: null }} credits={100} />)
 
     expect(await screen.findByRole('status')).toHaveTextContent('Your streak is at risk')
     expect(screen.getByRole('button', { name: /Save streak/ })).toBeInTheDocument()
@@ -249,7 +214,7 @@ describe('HomeScreen — streak display', () => {
   it('does not show the save-streak warning when saveAvailable is false', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} streak={{ count: 5, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
+    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 5, saveAvailable: false, lastSessionDate: null, nextMilestone: null }} />)
 
     await screen.findByRole('button', { name: 'Start new session' })
 
@@ -259,7 +224,7 @@ describe('HomeScreen — streak display', () => {
   it('disables the save-streak button when credits are below 50', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} onViewVocab={vi.fn()} streak={{ count: 5, saveAvailable: true, lastSessionDate: null, nextMilestone: null }} credits={40} />)
+    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 5, saveAvailable: true, lastSessionDate: null, nextMilestone: null }} credits={40} />)
 
     const saveBtn = await screen.findByRole('button', { name: /Save streak/ })
 
@@ -323,7 +288,6 @@ describe('HomeScreen — evening streak warning', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 3, saveAvailable: false, lastSessionDate: yesterday, nextMilestone: null }}
       />,
     )
@@ -342,7 +306,6 @@ describe('HomeScreen — evening streak warning', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 3, saveAvailable: false, lastSessionDate: yesterday, nextMilestone: null }}
       />,
     )
@@ -363,7 +326,6 @@ describe('HomeScreen — evening streak warning', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 3, saveAvailable: true, lastSessionDate: yesterday, nextMilestone: null }}
         credits={100}
       />,
@@ -389,7 +351,6 @@ describe('HomeScreen — pause mode', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-15', nextMilestone: null, pause: pauseOff }}
       />,
     )
@@ -404,7 +365,6 @@ describe('HomeScreen — pause mode', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-14', nextMilestone: null, pause: pauseWithRetro }}
       />,
     )
@@ -419,7 +379,6 @@ describe('HomeScreen — pause mode', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-13', nextMilestone: null, pause: noBudget }}
       />,
     )
@@ -435,7 +394,6 @@ describe('HomeScreen — pause mode', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         onStreakRefresh={onStreakRefresh}
         streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-15', nextMilestone: null, pause: pauseOff }}
       />,
@@ -455,7 +413,6 @@ describe('HomeScreen — pause mode', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 10, saveAvailable: false, lastSessionDate: '2026-03-10', nextMilestone: null, pause: pauseOn }}
       />,
     )
@@ -473,7 +430,6 @@ describe('HomeScreen — pause mode', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         streak={{ count: 10, saveAvailable: false, lastSessionDate: '2026-03-10', nextMilestone: null, pause: pauseOn }}
       />,
     )
@@ -489,7 +445,6 @@ describe('HomeScreen — pause mode', () => {
     render(
       <HomeScreen
         onStartTraining={vi.fn()}
-        onViewVocab={vi.fn()}
         onStreakRefresh={onStreakRefresh}
         streak={{ count: 10, saveAvailable: false, lastSessionDate: '2026-03-10', nextMilestone: null, pause: pauseOn }}
       />,

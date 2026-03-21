@@ -263,7 +263,7 @@ describe('TrainingScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalledWith(completedSession, 0, 0, 0, 0, 0, undefined)
+      expect(onComplete).toHaveBeenCalledWith(completedSession, 0, 0, 0, 0, 0, undefined, 0)
     })
   })
 
@@ -957,6 +957,7 @@ describe('add alternative button', () => {
         expect.anything(),
         expect.anything(),
         undefined,
+        expect.anything(),
       )
     })
   })

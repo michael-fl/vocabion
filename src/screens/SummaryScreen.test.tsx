@@ -73,16 +73,17 @@ describe('SummaryScreen', () => {
     expect(onBack).toHaveBeenCalledOnce()
   })
 
-  it('shows the perfect session bonus line when perfectBonus > 0', () => {
+  it('shows the perfect session celebration banner when perfectBonus > 0', () => {
     render(<SummaryScreen session={makeSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={10} streakCredit={0} onBack={vi.fn()} />)
 
-    expect(screen.getByText('Perfect session bonus: +10 credits')).toBeInTheDocument()
+    expect(screen.getByText('Perfect session!')).toBeInTheDocument()
+    expect(screen.getByText('+10 bonus credits')).toBeInTheDocument()
   })
 
-  it('does not show the perfect session bonus line when perfectBonus is 0', () => {
+  it('does not show the perfect session banner when perfectBonus is 0', () => {
     render(<SummaryScreen session={makeSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} />)
 
-    expect(screen.queryByText(/Perfect session bonus/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Perfect session!')).not.toBeInTheDocument()
   })
 
   it('includes the perfect bonus in the Total', () => {

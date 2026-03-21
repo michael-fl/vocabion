@@ -34,11 +34,12 @@ import * as creditsApi from '../api/creditsApi.ts'
 import { generateHint, getHintCost, countSignificantChars } from '../utils/hint.ts'
 import { deduplicateTranslations } from '../../shared/utils/translationUtils.ts'
 import { dictUrl } from '../utils/dictUrl.ts'
+import styles from './TrainingScreen.module.css'
 
 export interface TrainingScreenProps {
   session: Session
   vocabMap: Map<string, VocabEntry>
-  onComplete: (session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel?: string) => void
+  onComplete: (session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel: string | undefined, bucketMilestoneBonus: number) => void
   /** Called after each successful answer submission. Use to refresh external state such as credits. */
   onAnswerSubmitted?: () => void
   /** Current credit balance. When provided, enables the hint button when balance ≥ 10. */
@@ -186,6 +187,7 @@ export function TrainingScreen({
   const [sessionCreditsSpent, setSessionCreditsSpent] = useState(0)
   const [sessionPerfectBonus, setSessionPerfectBonus] = useState(0)
   const [bucketMilestoneBonus, setBucketMilestoneBonus] = useState(0)
+  const [sessionBucketMilestoneBonus, setSessionBucketMilestoneBonus] = useState(0)
   const [sessionStreakCredit, setSessionStreakCredit] = useState(0)
   const [sessionMilestoneLabel, setSessionMilestoneLabel] = useState<string | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
@@ -235,13 +237,13 @@ export function TrainingScreen({
       // Correct answers proceed immediately; wrong/partial answers pause so the user can read the feedback.
       const delay = statusMessage.isCorrect ? 0 : correctFeedbackDelayMs
       const timer = setTimeout(() => {
-        onComplete(currentSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel)
+        onComplete(currentSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus)
       }, delay)
       return () => { clearTimeout(timer) }
     }
 
     // All status messages stay visible until the next answer is submitted.
-  }, [statusMessage, currentSession, onComplete, correctFeedbackDelayMs, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel])
+  }, [statusMessage, currentSession, onComplete, correctFeedbackDelayMs, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus])
 
   // useMemo must be called unconditionally (before early return) — Rules of Hooks.
   // When currentWord is null the returned value is unused.
@@ -345,6 +347,7 @@ export function TrainingScreen({
       setSessionPerfectBonus(result.perfectBonus)
       if (result.bucketMilestoneBonus > 0) {
         setBucketMilestoneBonus(result.bucketMilestoneBonus)
+        setSessionBucketMilestoneBonus((prev) => prev + result.bucketMilestoneBonus)
       }
       if (result.streakCredit > 0) {
         setSessionStreakCredit(result.streakCredit)
@@ -464,36 +467,43 @@ export function TrainingScreen({
   }
 
   return (
-    <div>
-      <h2>
-        {currentSession.type === 'repetition'
-          ? 'Repetition Session'
-          : currentSession.type === 'focus'
-            ? 'Focus Session'
-            : currentSession.type === 'discovery'
-              ? 'Discovery Session'
-              : 'Learning Session'}
-      </h2>
-
-      <p>
-        {answered} of {total} answered
-      </p>
+    <div className={styles.screen}>
+      <div>
+        <h2>
+          {currentSession.type === 'repetition'
+            ? 'Repetition Session'
+            : currentSession.type === 'focus'
+              ? 'Focus Session'
+              : currentSession.type === 'discovery'
+                ? 'Discovery Session'
+                : 'Learning Session'}
+        </h2>
+        <p className={styles.meta}>{answered} of {total} answered</p>
+      </div>
 
       {statusMessage !== null && (
-        <p role="status">{statusMessage.text}</p>
+        <p
+          role="status"
+          className={`${styles.statusBanner} ${statusMessage.isCorrect ? styles.statusBannerCorrect : styles.statusBannerWrong}`}
+        >
+          {statusMessage.text}
+        </p>
       )}
 
       {bucketMilestoneBonus > 0 && (
-        <p role="status">New bucket reached! +{bucketMilestoneBonus} credits bonus!</p>
+        <p role="status" className={styles.milestoneBanner}>
+          New bucket reached! +{bucketMilestoneBonus} credits bonus!
+        </p>
       )}
 
       {pendingAlternative !== null && (
-        <>
+        <div className={styles.alternativeActions}>
           {pendingAlternative.answers.map((a) => (
             !a.added && (
-              <p key={a.text}>
-                Add &quot;<a href={dictUrl(a.text)} target="_blank" rel="noreferrer">{a.text}</a>&quot;
-                {' '}
+              <div key={a.text} className={styles.alternativeRow}>
+                <span>
+                  Add &quot;<a href={dictUrl(a.text)} target="_blank" rel="noreferrer">{a.text}</a>&quot;
+                </span>
                 <button
                   type="button"
                   aria-label={`Add "${a.text}" as alternative`}
@@ -502,7 +512,7 @@ export function TrainingScreen({
                 >
                   +
                 </button>
-              </p>
+              </div>
             )
           ))}
 
@@ -518,14 +528,13 @@ export function TrainingScreen({
             const altPrompt = altWords.join(' / ')
 
             return (
-              <p>
-                Mark &quot;{altWords.map((w, i) => (
+              <div className={styles.alternativeRow}>
+                <span>Mark &quot;{altWords.map((w, i) => (
                   <span key={w}>
                     {i > 0 && ' / '}
                     <a href={dictUrl(w)} target="_blank" rel="noreferrer">{w}</a>
                   </span>
-                ))}&quot;
-                {' '}
+                ))}&quot;</span>
                 <button
                   type="button"
                   aria-label={pendingAlternative.altMarked ? `Unmark "${altPrompt}"` : `Mark "${altPrompt}"`}
@@ -533,22 +542,25 @@ export function TrainingScreen({
                 >
                   {pendingAlternative.altMarked ? '★' : '☆'}
                 </button>
-              </p>
+              </div>
             )
           })()}
-        </>
+        </div>
       )}
 
       {isSecondChance && (
-        <p>
+        <p className={styles.secondChanceNotice}>
           <strong>Second Chance</strong> — answer correctly to reduce the penalty.
         </p>
       )}
 
-      <form onSubmit={(e) => void handleSubmit(e)}>
-        <p>
-          Translate: <strong>{prompt}</strong> <small>{displayedBucket === 0 ? '(new word)' : `(Bucket ${displayedBucket})`} [score: {(w1Entry ?? entry).score}]</small>
-          {' '}
+      <form className={styles.form} onSubmit={(e) => void handleSubmit(e)}>
+        <div className={styles.promptLine}>
+          <span>Translate:</span>
+          <strong className={styles.prompt}>{prompt}</strong>
+          <span className={styles.bucketTag}>
+            {displayedBucket === 0 ? '(new word)' : `Bucket ${displayedBucket}`} · score: {(w1Entry ?? entry).score}
+          </span>
           <button
             type="button"
             aria-label={isMarked ? 'Unmark word' : 'Mark word'}
@@ -557,17 +569,20 @@ export function TrainingScreen({
           >
             {isMarked ? '★' : '☆'}
           </button>
-        </p>
+        </div>
 
         {Array.from({ length: requiredCount }, (_, i) => {
           const hint = hints?.[i] ?? null
           const remaining = hint !== null ? hint.totalChars - countSignificantChars(answers[i] ?? '') : null
 
           return (
-            <div key={i}>
-              <label>
-                {requiredCount > 1 ? `Answer ${i + 1}:` : 'Your answer:'}
+            <div key={i} className={styles.answerRow}>
+              <label className={styles.answerLabel}>
+                <span className={styles.answerLabelText}>
+                  {requiredCount > 1 ? `Answer ${i + 1}:` : 'Your answer:'}
+                </span>
                 <input
+                  className={styles.answerInput}
                   ref={i === 0 ? firstInputRef : undefined}
                   type="text"
                   placeholder={hint !== null ? hint.text : ''}
@@ -580,7 +595,7 @@ export function TrainingScreen({
                 />
               </label>
               {remaining !== null && (
-                <span style={remaining < 0 ? { color: 'red' } : undefined}>
+                <span className={`${styles.remainingChars}${remaining < 0 ? ` ${styles.remainingCharsOver}` : ''}`}>
                   {remaining}
                 </span>
               )}
@@ -590,27 +605,29 @@ export function TrainingScreen({
 
         {error !== null && <p role="alert">{error}</p>}
 
-        <button type="submit" disabled={submitting}>
-          Submit
-        </button>
+        <div className={styles.formActions}>
+          <button type="submit" disabled={submitting}>
+            Submit
+          </button>
 
-        <button
-          type="button"
-          onClick={() => void handleHint()}
-          disabled={displayedBucket === 0 || credits === null || credits < hintCost || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint}
-        >
-          {displayedBucket === 0 ? 'Hint (auto)' : `Hint (${hintCost} credits)`}
-        </button>
-
-        {currentSession.type === 'discovery' && (
           <button
             type="button"
-            onClick={() => void handlePushBack()}
-            disabled={submitting || pushBacksRemaining <= 0}
+            onClick={() => void handleHint()}
+            disabled={displayedBucket === 0 || credits === null || credits < hintCost || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint}
           >
-            Push back ({pushBacksRemaining} left)
+            {displayedBucket === 0 ? 'Hint (auto)' : `Hint (${hintCost} credits)`}
           </button>
-        )}
+
+          {currentSession.type === 'discovery' && (
+            <button
+              type="button"
+              onClick={() => void handlePushBack()}
+              disabled={submitting || pushBacksRemaining <= 0}
+            >
+              Push back ({pushBacksRemaining} left)
+            </button>
+          )}
+        </div>
       </form>
     </div>
   )

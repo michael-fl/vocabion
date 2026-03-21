@@ -572,11 +572,10 @@ time-based pass does **not** apply here — multiple words may be taken from the
 
 The user earns credits each time a word reaches a new personal highest bucket for the first time:
 
-- **Buckets 1–3:** +1 credit per bucket level.
-- **Buckets ≥ 4:** +5 credits per bucket level.
+- **All buckets:** +1 credit per bucket level.
 - If a word falls back and climbs to the same bucket again, **no additional credit** is awarded — each bucket level is counted only once per word.
 
-**Storage:** The balance is kept as a single integer in the `credits` table (migration `004_credits.sql`), incremented whenever a word's `maxBucket` increases. The delta per promotion is `newBucket < 4 ? 1 : 5`. This counter is also updated during bulk import when imported entries carry `bucket > 0`.
+**Storage:** The balance is kept as a single integer in the `credits` table (migration `004_credits.sql`), incremented whenever a word's `maxBucket` increases. The delta per promotion is always 1. This counter is also updated during bulk import when imported entries carry `bucket > 0`.
 
 **`maxBucket`:** Each `VocabEntry` stores the highest bucket ever reached (`max_bucket` column, migration `003_max_bucket.sql`). It is updated whenever a correct answer promotes a word past its current `maxBucket`. It never decreases.
 
@@ -869,10 +868,52 @@ Allows users to star individual words during a training session. Starred words a
   words fill remaining slots; excess due buckets are skipped randomly)
 - [ ] Persist settings in `localStorage`
 
-### Phase 9 — Polish
+### Phase 9a — App Shell Layout + Theme System
+
+Replace the current flat layout with a proper single-page app shell:
+
+**Layout structure (desktop-only):**
+- **Header** (fixed top) — app name "Vocabion", credit balance, streak info, right-panel toggle button
+- **Left sidebar** — navigation: Home (new/continue session), Vocabulary, Settings
+- **Main content** — renders the currently active screen
+- **Right panel** — hidden by default; toggled via header button; shows "Coming soon…" label (reserved for dict.leo.org iframe)
+- **Footer** (fixed bottom) — app version string
+
+**Theme system:**
+- Three named themes: `scholar` (Navy + Amber), `slate` (Dark slate + Indigo), `forest` (Deep green + Gold)
+- Themes defined as CSS custom property sets on `html[data-theme="..."]` in a single `themes.css`
+- All component styles use `var(--color-*)` tokens — no hardcoded hex values
+- Active theme persisted in `localStorage`; applied before first render to avoid flash
+
+**CSS variable tokens (defined per theme):**
+- `--color-chrome-bg` — header/sidebar background
+- `--color-chrome-text` — text on dark chrome areas
+- `--color-content-bg` — main content area background
+- `--color-content-text` — primary text on content areas
+- `--color-accent` — primary action color (buttons, links, highlights)
+- `--color-accent-hover` — hover state of accent
+- `--color-muted` — secondary/muted text
+- `--color-success` — correct answer / positive feedback
+- `--color-error` — wrong answer / destructive actions
+- `--color-border` — subtle borders and dividers
+
+**Implementation checklist:**
+- [x] `src/styles/themes.css` — three theme definitions as CSS custom property blocks
+- [x] `src/styles/global.css` — base reset, body defaults, layout shell grid
+- [x] `src/hooks/useTheme.ts` — read/write theme to `localStorage`; set `data-theme` on `<html>`
+- [x] `src/components/AppLayout/AppLayout.tsx` + `AppLayout.module.css` — shell grid (header, sidebar, main, right panel, footer)
+- [x] `src/components/AppLayout/Header.tsx` + `Header.module.css` — app name, credits, streak, right-panel toggle
+- [x] `src/components/AppLayout/Sidebar.tsx` + `Sidebar.module.css` — nav items, active state
+- [x] `src/components/AppLayout/RightPanel.tsx` + `RightPanel.module.css` — toggleable panel, "Coming soon…"
+- [x] `src/components/AppLayout/Footer.tsx` + `Footer.module.css` — version string
+- [x] `src/app/App.tsx` — replaced flat render with `AppLayout`; integrated navigation state
+- [x] `src/screens/SettingsScreen.tsx` — theme picker (three visual cards, one per theme)
+- [x] Tests for `useTheme` hook and `SettingsScreen` (827 tests, all passing)
+
+### Phase 9b — Polish
 - [ ] Empty-state screens (no vocabulary, no open session)
 - [ ] Progress bar during a session
-- [ ] Basic responsive layout / styling
+- [ ] Refine component-level styles within the new shell
 
 ---
 
@@ -917,6 +958,8 @@ Allows users to star individual words during a training session. Starred words a
 | Import / Export UI | not started |
 | Settings (direction, session size) | not started |
 | Daily practice streaks | done |
+| App shell layout (header, sidebar, right panel, footer) | done |
+| Theme system (Scholar / Slate / Forest, CSS variables, picker) | done |
 
 ---
 

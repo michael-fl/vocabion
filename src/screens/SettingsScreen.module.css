@@ -1,0 +1,96 @@
+.screen {
+  max-width: 600px;
+}
+
+.title {
+  margin-bottom: 1.75rem;
+}
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  margin-bottom: 0.85rem;
+}
+
+.themeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.85rem;
+}
+
+.themeCard {
+  position: relative;
+  border: 2px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--color-card-bg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  text-align: left;
+  padding: 0;
+}
+
+.themeCard:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-nav-active-bg);
+}
+
+.themeCardActive {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-nav-active-bg);
+}
+
+.themePreview {
+  height: 56px;
+  display: flex;
+}
+
+.previewChrome {
+  width: 38%;
+}
+
+.previewContent {
+  flex: 1;
+}
+
+.themeCardBody {
+  padding: 0.6rem 0.75rem 0.7rem;
+}
+
+.themeName {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-content-text);
+  display: block;
+}
+
+.themeSubtitle {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  display: block;
+  margin-top: 0.1rem;
+}
+
+.activeCheck {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-card-bg);
+  border-radius: 50%;
+  width: 1.2rem;
+  height: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--color-accent);
+}

@@ -18,10 +18,10 @@ import * as sessionApi from '../api/sessionApi.ts'
 import * as vocabApi from '../api/vocabApi.ts'
 import * as streakApi from '../api/streakApi.ts'
 import { isEveningStreakWarning } from '../utils/streakWarning.ts'
+import styles from './HomeScreen.module.css'
 
 export interface HomeScreenProps {
   onStartTraining: (session: Session, vocabMap: Map<string, VocabEntry>) => void
-  onViewVocab: () => void
   /** Called after pause/resume so the parent can refresh the streak state. */
   onStreakRefresh?: () => void
   /** Current credit balance — needed to enable/disable the streak-save button. */
@@ -34,7 +34,7 @@ export interface HomeScreenProps {
  * Renders the home screen.
  * Calls `onStartTraining` once the session and vocab data are ready.
  */
-export function HomeScreen({ onStartTraining, onViewVocab, onStreakRefresh, credits = null, streak = null }: HomeScreenProps) {
+export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, streak = null }: HomeScreenProps) {
   // undefined = still loading; null = no open session
   const [openSession, setOpenSession] = useState<Session | null | undefined>(undefined)
   // A session that exists but has 0 answered words — reused silently to avoid a 409 conflict
@@ -139,20 +139,17 @@ export function HomeScreen({ onStartTraining, onViewVocab, onStreakRefresh, cred
   const pause = streak?.pause ?? null
 
   return (
-    <div>
-      <h1>Vocabion</h1>
+    <div className={styles.screen}>
+      <h1 className={styles.title}>Home</h1>
 
       {streak !== null && (
-        <p>
+        <p className={styles.streakLine}>
           Current streak: {streak.count} {streak.count === 1 ? 'day' : 'days'}
-          {streak.nextMilestone !== null && (
-            <> — Next: {streak.nextMilestone.label} ({streak.nextMilestone.credits} credits) in {streak.nextMilestone.daysUntil} {streak.nextMilestone.daysUntil === 1 ? 'day' : 'days'}</>
-          )}
         </p>
       )}
 
       {pause?.active === true && (
-        <div>
+        <div className={styles.statusBanner}>
           <p role="status">
             Game paused since {pause.startDate ?? '—'} — {pause.daysToCharge} {pause.daysToCharge === 1 ? 'day' : 'days'} charged
             {' '}({pause.budgetRemaining} of {streakApi.PAUSE_BUDGET_DAYS} pause days remaining this year)
@@ -164,19 +161,21 @@ export function HomeScreen({ onStartTraining, onViewVocab, onStreakRefresh, cred
       )}
 
       {pause !== null && !pause.active && streak !== null && streak.count > 0 && (
-        <div>
+        <div className={styles.infoBanner}>
           <p>
             Pause budget: {pause.budgetRemaining} of {streakApi.PAUSE_BUDGET_DAYS} days remaining this year
             {pause.daysToCharge > 0 && <> — activating now will charge {pause.daysToCharge} {pause.daysToCharge === 1 ? 'day' : 'days'} retroactively</>}
           </p>
-          <button
-            onClick={() => void handleActivatePause()}
-            disabled={loading || pause.daysToCharge > pause.budgetRemaining}
-          >
-            {pause.daysToCharge > 0
-              ? `Pause game (charges ${pause.daysToCharge} ${pause.daysToCharge === 1 ? 'day' : 'days'})`
-              : 'Pause game'}
-          </button>
+          <div>
+            <button
+              onClick={() => void handleActivatePause()}
+              disabled={loading || pause.daysToCharge > pause.budgetRemaining}
+            >
+              {pause.daysToCharge > 0
+                ? `Pause game (charges ${pause.daysToCharge} ${pause.daysToCharge === 1 ? 'day' : 'days'})`
+                : 'Pause game'}
+            </button>
+          </div>
           {pause.daysToCharge > pause.budgetRemaining && (
             <p role="alert">Insufficient pause budget: need {pause.daysToCharge} days, have {pause.budgetRemaining} remaining.</p>
           )}
@@ -184,14 +183,16 @@ export function HomeScreen({ onStartTraining, onViewVocab, onStreakRefresh, cred
       )}
 
       {streak?.saveAvailable === true && (
-        <div>
+        <div className={styles.statusBanner}>
           <p role="status">Your streak is at risk! Save it for 50 credits.</p>
-          <button
-            onClick={() => void handleSaveStreak()}
-            disabled={loading || credits === null || credits < 50}
-          >
-            Save streak (50 credits)
-          </button>
+          <div>
+            <button
+              onClick={() => void handleSaveStreak()}
+              disabled={loading || credits === null || credits < 50}
+            >
+              Save streak (50 credits)
+            </button>
+          </div>
         </div>
       )}
 
@@ -199,25 +200,24 @@ export function HomeScreen({ onStartTraining, onViewVocab, onStreakRefresh, cred
         <p role="status">Your streak is at risk! Start a session now to save it.</p>
       )}
 
-      {error !== null && <p role="alert">{error}</p>}
+      {error !== null && <p className={styles.error} role="alert">{error}</p>}
 
       {pause?.active !== true && (
-        openSession !== null ? (
-          <div>
-            <p>You have a session in progress.</p>
-
-            <button onClick={() => void handleStart(openSession)} disabled={loading}>
-              Continue session
+        <div className={styles.actions}>
+          {openSession !== null ? (
+            <>
+              <p>You have a session in progress.</p>
+              <button onClick={() => void handleStart(openSession)} disabled={loading}>
+                Continue session
+              </button>
+            </>
+          ) : (
+            <button onClick={() => void handleStart()} disabled={loading}>
+              Start new session
             </button>
-          </div>
-        ) : (
-          <button onClick={() => void handleStart()} disabled={loading}>
-            Start new session
-          </button>
-        )
+          )}
+        </div>
       )}
-
-      <button onClick={onViewVocab}>View vocabulary</button>
     </div>
   )
 }

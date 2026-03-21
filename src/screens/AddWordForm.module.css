@@ -1,0 +1,45 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.title {
+  margin-bottom: 0.25rem;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fieldLabel {
+  flex-shrink: 0;
+  width: 2.5rem;
+  text-align: right;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.fieldInput {
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.successMessage {
+  font-size: 0.875rem;
+  color: var(--color-success);
+}
+
+.errorMessage {
+  font-size: 0.875rem;
+  color: var(--color-error);
+}

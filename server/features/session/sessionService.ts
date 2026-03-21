@@ -554,7 +554,7 @@ export class SessionService {
     // Normal correct answer: promote; update credits when a new maxBucket is reached
     const newBucket = entry.bucket + 1
     const newMaxBucket = Math.max(entry.maxBucket, newBucket)
-    const creditDelta = newMaxBucket > entry.maxBucket ? (newBucket < 4 ? 1 : 5) : 0
+    const creditDelta = newMaxBucket > entry.maxBucket ? 1 : 0
 
     this.vocabRepo.update({ ...entry, bucket: newBucket, maxBucket: newMaxBucket, lastAskedAt: now })
 

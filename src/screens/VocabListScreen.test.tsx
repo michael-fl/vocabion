@@ -46,7 +46,7 @@ describe('VocabListScreen', () => {
   it('shows loading state initially', () => {
     vi.mocked(vocabApi.listVocab).mockReturnValue(new Promise(() => undefined))
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
@@ -58,7 +58,7 @@ describe('VocabListScreen', () => {
       makeEntry({ bucket: 5 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByText(/Bucket 0/)).toBeInTheDocument()
     expect(screen.getByText(/Bucket 2/)).toBeInTheDocument()
@@ -72,7 +72,7 @@ describe('VocabListScreen', () => {
       makeEntry({ bucket: 1 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByText(/Bucket 0 — 2 words/)).toBeInTheDocument()
     expect(screen.getByText(/Bucket 1 — 1 word/)).toBeInTheDocument()
@@ -85,7 +85,7 @@ describe('VocabListScreen', () => {
       makeEntry({ bucket: 2 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     await screen.findByText(/Bucket 0/)
 
@@ -103,7 +103,7 @@ describe('VocabListScreen', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     await screen.findByText(/Bucket 0/)
 
@@ -119,7 +119,7 @@ describe('VocabListScreen', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     const summary = await screen.findByText(/Bucket 0/)
 
@@ -136,7 +136,7 @@ describe('VocabListScreen', () => {
       makeEntry({ de: 'Buch', en: ['book'], bucket: 0 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     const summary = await screen.findByText(/Bucket 0/)
 
@@ -153,7 +153,7 @@ describe('VocabListScreen', () => {
       makeEntry({ de: 'Gemüse', en: ['vegetable', 'vegetables'], bucket: 0 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
 
@@ -167,7 +167,7 @@ describe('VocabListScreen', () => {
       makeEntry({ bucket: 4, lastAskedAt: null }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 4/))
 
@@ -179,7 +179,7 @@ describe('VocabListScreen', () => {
       makeEntry({ bucket: 0 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
 
@@ -191,7 +191,7 @@ describe('VocabListScreen', () => {
       makeEntry({ bucket: 4, lastAskedAt: null }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 4/))
 
@@ -206,7 +206,7 @@ describe('VocabListScreen', () => {
       makeEntry({ bucket: 4, lastAskedAt: sixDaysAgo }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 4/))
 
@@ -216,7 +216,7 @@ describe('VocabListScreen', () => {
   it('shows an empty state when no entries exist', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByText('No vocabulary entries yet.')).toBeInTheDocument()
     expect(document.querySelector('details')).toBeNull()
@@ -225,22 +225,11 @@ describe('VocabListScreen', () => {
   it('shows an error message when listVocab fails', async () => {
     vi.mocked(vocabApi.listVocab).mockRejectedValue(new Error('Network error'))
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error')
   })
 
-  it('calls onBack when the back button is clicked', () => {
-    vi.mocked(vocabApi.listVocab).mockReturnValue(new Promise(() => undefined))
-
-    const onBack = vi.fn()
-
-    render(<VocabListScreen onBack={onBack} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Back to home' }))
-
-    expect(onBack).toHaveBeenCalledOnce()
-  })
 })
 
 // ── Marked section ────────────────────────────────────────────────────────────
@@ -251,7 +240,7 @@ describe('Marked section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByText(/^Marked —/)).toBeInTheDocument()
   })
@@ -261,7 +250,7 @@ describe('Marked section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: false }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     await screen.findByText(/Bucket 0/)
 
@@ -274,7 +263,7 @@ describe('Marked section', () => {
       makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, marked: true }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByText(/^Marked — 2 words/)).toBeInTheDocument()
   })
@@ -286,7 +275,7 @@ describe('Marked section', () => {
       makeEntry({ de: 'Buch', en: ['book'], bucket: 2, marked: true }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     const summary = await screen.findByText(/^Marked —/)
 
@@ -295,7 +284,7 @@ describe('Marked section', () => {
     // Scope to this section to avoid picking up cells from bucket sections
     const section = summary.closest('details')
     if (section === null) { throw new Error('details element not found') }
-    // 6 columns per row in cross-section (German, English, Bucket, Due in, star, Score)
+    // 6 columns per row in cross-section (German, English, Bucket, Star, Score, Due in)
     const germanCells = within(section).getAllByRole('cell').filter((_, i) => i % 6 === 0)
 
     expect(germanCells.map((c) => c.textContent)).toEqual(['Apfel', 'Buch', 'Tisch'])
@@ -306,7 +295,7 @@ describe('Marked section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 3, marked: true }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/^Marked —/))
 
@@ -318,7 +307,7 @@ describe('Marked section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 4, lastAskedAt: null, marked: true }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/^Marked —/))
 
@@ -330,7 +319,7 @@ describe('Marked section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/^Marked —/))
     fireEvent.click(screen.getByText(/Bucket 0/))
@@ -349,7 +338,7 @@ describe('Scored section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 1 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByText(/^Scored —/)).toBeInTheDocument()
   })
@@ -359,7 +348,7 @@ describe('Scored section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 0 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     await screen.findByText(/Bucket 0/)
 
@@ -372,7 +361,7 @@ describe('Scored section', () => {
       makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, score: 1 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     expect(await screen.findByText(/^Scored — 2 words/)).toBeInTheDocument()
   })
@@ -384,7 +373,7 @@ describe('Scored section', () => {
       makeEntry({ de: 'Buch', en: ['book'], bucket: 0, score: 1 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     const summary = await screen.findByText(/^Scored —/)
 
@@ -404,7 +393,7 @@ describe('Scored section', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 2 }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/^Scored —/))
     fireEvent.click(screen.getByText(/Bucket 0/))
@@ -422,7 +411,7 @@ describe('star toggle', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
 
@@ -435,7 +424,7 @@ describe('star toggle', () => {
       makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: false }),
     ])
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
 
@@ -449,7 +438,7 @@ describe('star toggle', () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([entry])
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: true })
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
     fireEvent.click(screen.getByRole('button', { name: 'Mark' }))
@@ -463,7 +452,7 @@ describe('star toggle', () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([entry])
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: false })
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
 
@@ -480,7 +469,7 @@ describe('star toggle', () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([entry])
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: true })
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
     fireEvent.click(screen.getByRole('button', { name: 'Mark' }))
@@ -497,7 +486,7 @@ describe('star toggle', () => {
     let resolve!: (v: VocabEntry) => void
     vi.mocked(vocabApi.setVocabMarked).mockReturnValue(new Promise((r) => { resolve = r }))
 
-    render(<VocabListScreen onBack={vi.fn()} />)
+    render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/Bucket 0/))
 

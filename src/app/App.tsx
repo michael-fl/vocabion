@@ -1,13 +1,18 @@
 /**
  * Root application component.
  *
- * Manages top-level screen state using a discriminated union. Screens:
+ * Manages top-level screen state using a discriminated union and renders
+ * the appropriate screen inside the persistent `AppLayout` shell.
+ *
+ * Screens:
  * - `home`     — start or continue a session
  * - `training` — active training session
  * - `summary`  — end-of-session results
  * - `vocab`    — vocabulary list
+ * - `settings` — app settings (theme picker, future options)
  *
- * A persistent header displays the current credit count on all screens.
+ * Navigation between home / vocab / settings is driven by the sidebar.
+ * Training and summary are pushed on top by the session flow.
  *
  * @example
  * ```tsx
@@ -21,21 +26,37 @@ import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 import { getCredits } from '../api/creditsApi.ts'
 import { getStreak } from '../api/streakApi.ts'
 import type { StreakInfo } from '../api/streakApi.ts'
+import { useTheme } from '../hooks/useTheme.ts'
+import { AppLayout } from '../components/AppLayout/AppLayout.tsx'
+import type { NavItem } from '../components/AppLayout/Sidebar.tsx'
 import { HomeScreen } from '../screens/HomeScreen.tsx'
 import { TrainingScreen } from '../screens/TrainingScreen.tsx'
 import { SummaryScreen } from '../screens/SummaryScreen.tsx'
 import { VocabListScreen } from '../screens/VocabListScreen.tsx'
+import { SettingsScreen } from '../screens/SettingsScreen.tsx'
+
+const APP_VERSION: string = __APP_VERSION__
 
 type AppScreen =
   | { name: 'home' }
   | { name: 'training'; session: Session; vocabMap: Map<string, VocabEntry> }
-  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string }
+  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string; bucketMilestoneBonus: number }
   | { name: 'vocab' }
+  | { name: 'settings' }
+
+function activeNav(screen: AppScreen): NavItem {
+  if (screen.name === 'vocab') { return 'vocab' }
+  if (screen.name === 'settings') { return 'settings' }
+
+  return 'home'
+}
 
 function App() {
   const [screen, setScreen] = useState<AppScreen>({ name: 'home' })
   const [credits, setCredits] = useState<number | null>(null)
   const [streak, setStreak] = useState<StreakInfo | null>(null)
+  const [rightPanelOpen, setRightPanelOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   const refreshCredits = useCallback(() => {
     getCredits()
@@ -54,33 +75,35 @@ function App() {
     refreshStreak()
   }, [refreshCredits, refreshStreak])
 
-  if (screen.name === 'training') {
-    return (
-      <>
-        <header>
-          {credits !== null && <p>Credits: {credits}</p>}
-        </header>
+  function handleNavigate(item: NavItem) {
+    if (item === 'home') {
+      setScreen({ name: 'home' })
+    } else if (item === 'vocab') {
+      setScreen({ name: 'vocab' })
+    } else {
+      setScreen({ name: 'settings' })
+    }
+  }
+
+  function renderScreen() {
+    if (screen.name === 'training') {
+      return (
         <TrainingScreen
           session={screen.session}
           vocabMap={screen.vocabMap}
-          onComplete={(session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel) => {
+          onComplete={(session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus) => {
             refreshCredits()
             refreshStreak()
-            setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel })
+            setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus })
           }}
           onAnswerSubmitted={refreshCredits}
           credits={credits}
         />
-      </>
-    )
-  }
+      )
+    }
 
-  if (screen.name === 'summary') {
-    return (
-      <>
-        <header>
-          {credits !== null && <p>Credits: {credits}</p>}
-        </header>
+    if (screen.name === 'summary') {
+      return (
         <SummaryScreen
           session={screen.session}
           sessionCost={screen.sessionCost}
@@ -89,41 +112,51 @@ function App() {
           perfectBonus={screen.perfectBonus}
           streakCredit={screen.streakCredit}
           milestoneLabel={screen.milestoneLabel}
+          bucketMilestoneBonus={screen.bucketMilestoneBonus}
           onBack={() => {
             refreshStreak()
             setScreen({ name: 'home' })
           }}
         />
-      </>
-    )
-  }
+      )
+    }
 
-  if (screen.name === 'vocab') {
+    if (screen.name === 'vocab') {
+      return (
+        <VocabListScreen />
+      )
+    }
+
+    if (screen.name === 'settings') {
+      return (
+        <SettingsScreen theme={theme} onThemeChange={setTheme} />
+      )
+    }
+
     return (
-      <>
-        <header>
-          {credits !== null && <p>Credits: {credits}</p>}
-        </header>
-        <VocabListScreen onBack={() => { setScreen({ name: 'home' }) }} />
-      </>
-    )
-  }
-
-  return (
-    <>
-      <header>
-        {credits !== null && <p>Credits: {credits}</p>}
-      </header>
       <HomeScreen
         onStartTraining={(session, vocabMap) => {
           setScreen({ name: 'training', session, vocabMap })
         }}
-        onViewVocab={() => { setScreen({ name: 'vocab' }) }}
         onStreakRefresh={refreshStreak}
         credits={credits}
         streak={streak}
       />
-    </>
+    )
+  }
+
+  return (
+    <AppLayout
+      credits={credits}
+      streak={streak}
+      activeNav={activeNav(screen)}
+      rightPanelOpen={rightPanelOpen}
+      onToggleRightPanel={() => { setRightPanelOpen((o) => !o) }}
+      onNavigate={handleNavigate}
+      version={APP_VERSION}
+    >
+      {renderScreen()}
+    </AppLayout>
   )
 }
 

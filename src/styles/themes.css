@@ -1,0 +1,89 @@
+/**
+ * Theme definitions for Vocabion.
+ *
+ * Three named themes are provided, each as a block of CSS custom properties
+ * scoped to `html[data-theme="<name>"]`. All component styles must reference
+ * these variables — never hardcoded colour values.
+ *
+ * Tokens:
+ *   --color-chrome-bg        header + sidebar background
+ *   --color-chrome-text      primary text on chrome (header/sidebar)
+ *   --color-chrome-muted     secondary/muted text on chrome
+ *   --color-nav-hover-bg     sidebar nav item hover background
+ *   --color-nav-active-text  sidebar active nav item text colour
+ *   --color-nav-active-bg    sidebar active nav item background
+ *   --color-content-bg       main content area background
+ *   --color-content-text     primary text on content area
+ *   --color-accent           primary action colour (buttons, links, highlights)
+ *   --color-accent-hover     accent hover state
+ *   --color-muted            secondary/muted text on content area
+ *   --color-success          correct answer / positive feedback
+ *   --color-error            wrong answer / destructive actions
+ *   --color-border           subtle borders and dividers
+ *   --color-card-bg          card / panel backgrounds on content area
+ *   --color-input-bg         form input background
+ *   --color-input-border     form input border
+ */
+
+/* ─── Scholar: Deep Navy + Warm Amber ─────────────────────────────────────── */
+html[data-theme='scholar'] {
+  --color-chrome-bg:       #1e2d5a;
+  --color-chrome-text:     #ffffff;
+  --color-chrome-muted:    #8fa3d8;
+  --color-nav-hover-bg:    #2a3d75;
+  --color-nav-active-text: #f59e0b;
+  --color-nav-active-bg:   rgba(245, 158, 11, 0.15);
+  --color-content-bg:      #f8f9fa;
+  --color-content-text:    #1e293b;
+  --color-accent:          #f59e0b;
+  --color-accent-hover:    #d97706;
+  --color-muted:           #64748b;
+  --color-success:         #10b981;
+  --color-error:           #ef4444;
+  --color-border:          #e2e8f0;
+  --color-card-bg:         #ffffff;
+  --color-input-bg:        #ffffff;
+  --color-input-border:    #cbd5e1;
+}
+
+/* ─── Slate: Dark Slate + Indigo ──────────────────────────────────────────── */
+html[data-theme='slate'] {
+  --color-chrome-bg:       #1e293b;
+  --color-chrome-text:     #e2e8f0;
+  --color-chrome-muted:    #94a3b8;
+  --color-nav-hover-bg:    #2d3f55;
+  --color-nav-active-text: #818cf8;
+  --color-nav-active-bg:   rgba(99, 102, 241, 0.15);
+  --color-content-bg:      #f1f5f9;
+  --color-content-text:    #0f172a;
+  --color-accent:          #6366f1;
+  --color-accent-hover:    #4f46e5;
+  --color-muted:           #64748b;
+  --color-success:         #14b8a6;
+  --color-error:           #f43f5e;
+  --color-border:          #e2e8f0;
+  --color-card-bg:         #ffffff;
+  --color-input-bg:        #ffffff;
+  --color-input-border:    #cbd5e1;
+}
+
+/* ─── Forest: Deep Green + Gold ───────────────────────────────────────────── */
+html[data-theme='forest'] {
+  --color-chrome-bg:       #1a3a2a;
+  --color-chrome-text:     #f7f7f2;
+  --color-chrome-muted:    #7aab8a;
+  --color-nav-hover-bg:    #234d35;
+  --color-nav-active-text: #c9a227;
+  --color-nav-active-bg:   rgba(201, 162, 39, 0.15);
+  --color-content-bg:      #fafaf7;
+  --color-content-text:    #1c1917;
+  --color-accent:          #c9a227;
+  --color-accent-hover:    #a8891d;
+  --color-muted:           #78716c;
+  --color-success:         #22c55e;
+  --color-error:           #ea580c;
+  --color-border:          #e7e5e4;
+  --color-card-bg:         #ffffff;
+  --color-input-bg:        #ffffff;
+  --color-input-border:    #d6d3d1;
+}

@@ -1,0 +1,97 @@
+@keyframes celebrationSlideIn {
+  0%   { transform: translateY(-12px) scale(0.96); opacity: 0; }
+  60%  { transform: translateY(3px) scale(1.01); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes celebrationPulseAccent {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent); }
+  50%       { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-accent) 0%, transparent); }
+}
+
+@keyframes celebrationPulseSuccess {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 45%, transparent); }
+  50%       { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-success) 0%, transparent); }
+}
+
+/* ─── Shared celebration layout ─────────────────────────────────────────────── */
+
+.bucketMilestoneBanner {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  border: 2px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-card-bg));
+  text-align: center;
+  animation:
+    celebrationSlideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both,
+    celebrationPulseAccent 1.2s ease-in-out 0.45s 3;
+}
+
+.bucketMilestoneBadge {
+  display: inline-block;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-chrome-bg);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+
+.bucketMilestoneText {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-content-text);
+}
+
+.bucketMilestoneBonus {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+/* ─── Perfect session celebration ───────────────────────────────────────────── */
+
+.perfectBanner {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  border: 2px solid var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-card-bg));
+  text-align: center;
+  animation:
+    celebrationSlideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both,
+    celebrationPulseSuccess 1.2s ease-in-out 0.45s 3;
+}
+
+.perfectBadge {
+  display: inline-block;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: var(--color-success);
+  color: var(--color-chrome-bg);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+
+.perfectText {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-content-text);
+}
+
+.perfectBonus {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-success);
+}

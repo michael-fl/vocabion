@@ -1,0 +1,206 @@
+.screen {
+  max-width: 960px;
+}
+
+.title {
+  margin-bottom: 1.5rem;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.addWordSection {
+  margin-bottom: 1.75rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* ─── Collapsible section (details/summary) ──────────────────────────────── */
+
+.section {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sectionSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-content-text);
+  background: var(--color-card-bg);
+  user-select: none;
+  list-style: none;
+}
+
+.sectionSummary::-webkit-details-marker {
+  display: none;
+}
+
+.sectionSummary::before {
+  content: '›';
+  font-size: 1rem;
+  color: var(--color-muted);
+  transition: transform 0.15s;
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+}
+
+.section[open] > .sectionSummary::before {
+  transform: rotate(90deg);
+}
+
+.sectionSummary:hover {
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-card-bg));
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────── */
+
+.table {
+  /* No width: 100% — let fixed column widths determine the total table width so
+     all bucket sections share identical column widths regardless of which optional
+     columns are present. The tableWrapper's overflow-x: auto handles wider tables. */
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.th {
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-content-bg) 60%, var(--color-card-bg));
+  white-space: nowrap;
+}
+
+.td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  color: var(--color-content-text);
+}
+
+.tr:last-child .td {
+  border-bottom: none;
+}
+
+.tr:nth-child(even) .td {
+  background: color-mix(in srgb, var(--color-chrome-bg) 5%, var(--color-card-bg));
+}
+
+.tr:hover .td {
+  background: color-mix(in srgb, var(--color-chrome-bg) 10%, var(--color-card-bg));
+}
+
+/* ─── Column widths (applied to <th> in fixed-layout table) ─────────────── */
+
+.colDE {
+  width: 215px;
+}
+
+.colEN {
+  width: 340px;
+}
+
+.colBucket {
+  width: 65px;
+  text-align: center;
+}
+
+.colStar {
+  width: 40px;
+  text-align: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.colScore {
+  width: 65px;
+  text-align: right;
+}
+
+.colDueIn {
+  width: 120px;
+}
+
+/* ─── Cell content ───────────────────────────────────────────────────────── */
+
+/* Allow long English translation lists to wrap */
+.enCell {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.enCell a + a::before,
+.enSep {
+  color: var(--color-muted);
+}
+
+.tdCenter {
+  text-align: center;
+}
+
+.tdRight {
+  text-align: right;
+}
+
+/* ─── Star button ────────────────────────────────────────────────────────── */
+
+.starBtn {
+  background: none;
+  border: none;
+  padding: 0.15rem 0.25rem;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-border);
+  transition: color 0.15s, transform 0.1s;
+  border-radius: 4px;
+}
+
+.starBtn:hover:not(:disabled) {
+  color: var(--color-accent);
+  transform: scale(1.15);
+}
+
+.starBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.starBtnMarked {
+  color: var(--color-accent);
+}
