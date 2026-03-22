@@ -30,6 +30,9 @@ import { checkMilestoneReached } from '../../../shared/utils/streakMilestones.ts
 /** Number of active-pool words (buckets 1–4) below which a discovery session is triggered. */
 export const DISCOVERY_POOL_THRESHOLD = 80
 
+/** Minimum number of marked words required to start a starred session. */
+export const STARRED_MIN_WORDS = 5
+
 /** Number of free push-backs available per discovery session. */
 export const DISCOVERY_PUSHBACK_BUDGET = 10
 
@@ -250,7 +253,7 @@ export class SessionService {
    *
    * A starred session is available when:
    * - The game is not paused.
-   * - At least one word is marked (★).
+   * - At least `STARRED_MIN_WORDS` words are marked (★).
    * - No starred session has been completed today (UTC).
    */
   getStarredSessionAvailable(): { available: boolean; markedCount: number; alreadyDoneToday: boolean } {
@@ -261,7 +264,7 @@ export class SessionService {
     const alreadyDoneToday = this.creditsRepo.getLastStarredSessionDate() === today
 
     return {
-      available: !isPaused && !sessionInProgress && markedCount > 0 && !alreadyDoneToday,
+      available: !isPaused && !sessionInProgress && markedCount >= STARRED_MIN_WORDS && !alreadyDoneToday,
       markedCount,
       alreadyDoneToday,
     }
@@ -276,7 +279,7 @@ export class SessionService {
    *
    * @throws {ApiError} 423 if the streak is paused.
    * @throws {ApiError} 409 if a session is already open or one was already completed today.
-   * @throws {ApiError} 400 if no words are marked.
+   * @throws {ApiError} 400 if fewer than `STARRED_MIN_WORDS` words are marked.
    */
   createStarredSession(direction: Session['direction']): Session {
     if (this.creditsRepo.getPauseState().active) {
@@ -302,8 +305,8 @@ export class SessionService {
 
     const selected = selectStarredWords(this.vocabRepo.findAll(), 100)
 
-    if (selected === null) {
-      throw new ApiError(400, 'No starred words available for a session')
+    if (selected === null || selected.length < STARRED_MIN_WORDS) {
+      throw new ApiError(400, `At least ${STARRED_MIN_WORDS} starred words are required for a starred session`)
     }
 
     const now = new Date()

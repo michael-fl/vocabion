@@ -1986,13 +1986,22 @@ describe('getStarredSessionAvailable', () => {
     expect(result.alreadyDoneToday).toBe(false)
   })
 
-  it('returns available=true when marked words exist and none done today', () => {
-    vocabRepo.insert(makeEntry({ marked: true }))
+  it('returns available=true when at least 5 marked words exist and none done today', () => {
+    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
     const result = service.getStarredSessionAvailable()
 
     expect(result.available).toBe(true)
-    expect(result.markedCount).toBe(1)
+    expect(result.markedCount).toBe(5)
+  })
+
+  it('returns available=false when fewer than 5 words are marked', () => {
+    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
+
+    const result = service.getStarredSessionAvailable()
+
+    expect(result.available).toBe(false)
+    expect(result.markedCount).toBe(4)
   })
 
   it('returns available=false and alreadyDoneToday=true when session completed today', () => {
@@ -2027,7 +2036,7 @@ describe('getStarredSessionAvailable', () => {
   })
 
   it('returns available=true when the only open session is unstarted (0 answered words)', () => {
-    vocabRepo.insert(makeEntry({ marked: true }))
+    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
     sessionRepo.insert(makeSession({
       status: 'open',
       words: [{ vocabId: 'x', status: 'pending' }],
@@ -2043,18 +2052,23 @@ describe('getStarredSessionAvailable', () => {
 
 describe('createStarredSession', () => {
   it('creates a session of type "starred" from marked words', () => {
-    vocabRepo.insert(makeEntry({ marked: true }))
-    vocabRepo.insert(makeEntry({ marked: true }))
+    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
     vocabRepo.insert(makeEntry({ marked: false }))
 
     const session = service.createStarredSession('DE_TO_EN')
 
     expect(session.type).toBe('starred')
-    expect(session.words).toHaveLength(2)
+    expect(session.words).toHaveLength(5)
   })
 
   it('throws 400 when no words are marked', () => {
     vocabRepo.insert(makeEntry({ marked: false }))
+
+    expectApiError(() => service.createStarredSession('DE_TO_EN'), 400)
+  })
+
+  it('throws 400 when fewer than 5 words are marked', () => {
+    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
     expectApiError(() => service.createStarredSession('DE_TO_EN'), 400)
   })
@@ -2073,6 +2087,7 @@ describe('createStarredSession', () => {
     const entry = makeEntry({ marked: true })
 
     vocabRepo.insert(entry)
+    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
     const unstarted = makeSession({ status: 'open', words: [{ vocabId: entry.id, status: 'pending' }] })
 
@@ -2109,13 +2124,13 @@ describe('createStarredSession', () => {
   })
 
   it('records the last starred session date when session completes', () => {
-    const entry = makeEntry({ marked: true, de: 'Hund', en: ['dog'] })
+    const entries = Array.from({ length: 5 }, () => makeEntry({ marked: true }))
 
-    vocabRepo.insert(entry)
+    for (const e of entries) { vocabRepo.insert(e) }
 
     const session = service.createStarredSession('DE_TO_EN')
 
-    service.submitAnswer(session.id, entry.id, ['dog'])
+    for (const e of entries) { service.submitAnswer(session.id, e.id, ['word']) }
 
     const today = new Date().toISOString().slice(0, 10)
 
@@ -2128,6 +2143,7 @@ describe('createStarredSession', () => {
     const entry = makeEntry({ marked: true, de: 'Hund', en: ['dog'] })
 
     vocabRepo.insert(entry)
+    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
     sessionRepo.insert(makeSession({ type: 'normal', status: 'completed' }))
 
     const starredSess = service.createStarredSession('DE_TO_EN')
