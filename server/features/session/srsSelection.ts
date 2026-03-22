@@ -238,31 +238,62 @@ export function selectDiscoveryWords(all: VocabEntry[], sessionSize: number): Vo
 }
 
 /**
- * Selects vocabulary words for a stress session.
+ * Selects vocabulary words for a stress session using difficulty-based tiers.
  *
- * Draws randomly from all words in buckets 2+, regardless of due status.
- * No score-based preference — pure random selection.
+ * Words are drawn in three tiers, each randomly shuffled:
+ * - Tier A (up to 8): difficulty ≥ 4
+ * - Tier B (up to 8): difficulty ≥ 2, excluding tier A picks
+ * - Tier C (remaining slots up to sessionSize): any word, excluding prior picks
  *
- * Returns `null` when fewer than `minWords` qualifying words exist, so the
- * caller can fall back to the next session type.
+ * Each tier fills as many slots as available; if a tier has fewer than 8 words
+ * the shortfall carries forward so tier C always fills up to `sessionSize`.
+ *
+ * Returns `null` when fewer than `minWords` total entries exist.
  *
  * @param all - All vocabulary entries.
  * @param sessionSize - Maximum number of words to include (e.g. 24).
- * @param minWords - Minimum qualifying words required (e.g. 5).
- * @returns Up to `sessionSize` randomly selected entries from buckets 2+, or `null` if not enough exist.
+ * @param minWords - Minimum total words required (e.g. 5).
+ * @returns Up to `sessionSize` entries selected across the three tiers, or `null`.
  */
 export function selectStressWords(
   all: VocabEntry[],
   sessionSize: number,
   minWords: number,
 ): VocabEntry[] | null {
-  const candidates = all.filter((e) => e.bucket >= 2)
-
-  if (candidates.length < minWords) {
+  if (all.length < minWords) {
     return null
   }
 
-  return shuffle(candidates).slice(0, sessionSize)
+  const selected: VocabEntry[] = []
+  const usedIds = new Set<string>()
+
+  // Tier A: up to 8 words with difficulty >= 4
+  const tierA = shuffle(all.filter((e) => e.difficulty >= 4)).slice(0, Math.min(8, sessionSize))
+
+  for (const entry of tierA) {
+    selected.push(entry)
+    usedIds.add(entry.id)
+  }
+
+  // Tier B: up to 8 words with difficulty >= 2, not yet selected
+  const tierB = shuffle(all.filter((e) => e.difficulty >= 2 && !usedIds.has(e.id)))
+    .slice(0, Math.min(8, sessionSize - selected.length))
+
+  for (const entry of tierB) {
+    selected.push(entry)
+    usedIds.add(entry.id)
+  }
+
+  // Tier C: remaining slots up to sessionSize, from any word not yet selected
+  const tierC = shuffle(all.filter((e) => !usedIds.has(e.id)))
+    .slice(0, sessionSize - selected.length)
+
+  for (const entry of tierC) {
+    selected.push(entry)
+    usedIds.add(entry.id)
+  }
+
+  return selected
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────

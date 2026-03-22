@@ -2276,7 +2276,7 @@ describe('stress session — createSession', () => {
     expect(session.type).not.toBe('stress')
   })
 
-  it('stress session draws only words from buckets >= 2', () => {
+  it('stress session draws words from all buckets (not limited to bucket >= 2)', () => {
     creditsRepo.addBalance(500)
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
@@ -2290,11 +2290,12 @@ describe('stress session — createSession', () => {
     const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
     expect(session.type).toBe('stress')
+    expect(session.words.length).toBeGreaterThan(0)
 
-    for (const w of session.words) {
-      const entry = vocabRepo.findById(w.vocabId)
-      expect(entry?.bucket).toBeGreaterThanOrEqual(2)
-    }
+    // Words from any bucket can appear — tier C pulls from the full vocabulary
+    const buckets = session.words.map((w) => vocabRepo.findById(w.vocabId)?.bucket ?? -1)
+
+    expect(buckets.every((b) => b >= 0)).toBe(true)
   })
 
   it('stress session takes priority over discovery', () => {
