@@ -50,21 +50,22 @@
 }
 
 .stars {
-  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  gap: 1px;
   color: #f59e0b;
-  font-size: 1rem;
   white-space: nowrap;
 }
 
 .panelToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: var(--color-chrome-muted);
   border: 1.5px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  white-space: nowrap;
+  padding: 0.35rem;
   transition: color 0.15s, border-color 0.15s, background-color 0.15s;
 }
 

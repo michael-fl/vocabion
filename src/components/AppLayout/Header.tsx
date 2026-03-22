@@ -14,6 +14,7 @@
  * />
  * ```
  */
+import { StarIcon, SidebarSimpleIcon } from '@phosphor-icons/react'
 import type { StreakInfo } from '../../api/streakApi.ts'
 import styles from './Header.module.css'
 
@@ -34,7 +35,9 @@ export function Header({ credits, stars, streak, rightPanelOpen, onToggleRightPa
       <div className={styles.status}>
         {stars !== null && stars > 0 && (
           <span className={styles.stars} aria-label={`${stars} ${stars === 1 ? 'star' : 'stars'} earned`}>
-            {'★'.repeat(stars)}
+            {Array.from({ length: stars }, (_, i) => (
+              <StarIcon key={i} size={14} weight="fill" />
+            ))}
           </span>
         )}
 
@@ -63,7 +66,7 @@ export function Header({ credits, stars, streak, rightPanelOpen, onToggleRightPa
         aria-pressed={rightPanelOpen}
         aria-label={rightPanelOpen ? 'Close side panel' : 'Open side panel'}
       >
-        {rightPanelOpen ? 'Close panel' : 'Side panel'}
+        <SidebarSimpleIcon size={18} weight="regular" />
       </button>
     </header>
   )

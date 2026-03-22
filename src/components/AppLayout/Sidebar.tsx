@@ -9,6 +9,8 @@
  * <Sidebar activeNav="home" onNavigate={setScreen} />
  * ```
  */
+import { HouseIcon, BooksIcon, GearSixIcon } from '@phosphor-icons/react'
+import type { Icon } from '@phosphor-icons/react'
 import styles from './Sidebar.module.css'
 
 export type NavItem = 'home' | 'vocab' | 'settings'
@@ -21,12 +23,13 @@ export interface SidebarProps {
 interface NavEntry {
   key: NavItem
   label: string
+  icon: Icon
 }
 
 const NAV_ITEMS: NavEntry[] = [
-  { key: 'home',     label: 'Home' },
-  { key: 'vocab',    label: 'Vocabulary' },
-  { key: 'settings', label: 'Settings' },
+  { key: 'home',     label: 'Home',       icon: HouseIcon },
+  { key: 'vocab',    label: 'Vocabulary', icon: BooksIcon },
+  { key: 'settings', label: 'Settings',   icon: GearSixIcon },
 ]
 
 /** Renders the fixed left sidebar navigation. */
@@ -47,6 +50,7 @@ export function Sidebar({ activeNav, onNavigate }: SidebarProps) {
                 onClick={() => { onNavigate(item.key) }}
                 aria-current={activeNav === item.key ? 'page' : undefined}
               >
+                <item.icon size={16} weight="regular" />
                 {item.label}
               </button>
             </li>
