@@ -27,7 +27,10 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     maxBucket: 0,
+    maxScore: 0,
+    difficulty: 0,
     marked: false,
+    manuallyAdded: false,
     score: 0,
     ...overrides,
   }
@@ -142,8 +145,8 @@ describe('VocabListScreen', () => {
 
     fireEvent.click(summary)
 
-    // 4 columns per row (Source, Target, star, Score); take every 4th cell starting at 0
-    const cells = screen.getAllByRole('cell').filter((_, i) => i % 4 === 0)
+    // 5 columns per row (Source, Target, star, Score, Difficulty); take every 5th cell starting at 0
+    const cells = screen.getAllByRole('cell').filter((_, i) => i % 5 === 0)
 
     expect(cells.map((c) => c.textContent)).toEqual(['Apfel', 'Buch', 'Tisch'])
   })
@@ -284,8 +287,8 @@ describe('Marked section', () => {
     // Scope to this section to avoid picking up cells from bucket sections
     const section = summary.closest('details')
     if (section === null) { throw new Error('details element not found') }
-    // 6 columns per row in cross-section (Source, Target, Bucket, Star, Score, Due in)
-    const germanCells = within(section).getAllByRole('cell').filter((_, i) => i % 6 === 0)
+    // 7 columns per row in cross-section (Source, Target, Bucket, Star, Score, Difficulty, Due in)
+    const germanCells = within(section).getAllByRole('cell').filter((_, i) => i % 7 === 0)
 
     expect(germanCells.map((c) => c.textContent)).toEqual(['Apfel', 'Buch', 'Tisch'])
   })
@@ -382,8 +385,8 @@ describe('Scored section', () => {
     // Scope to this section to avoid picking up cells from bucket sections
     const section = summary.closest('details')
     if (section === null) { throw new Error('details element not found') }
-    // 6 columns per row in cross-section
-    const germanCells = within(section).getAllByRole('cell').filter((_, i) => i % 6 === 0)
+    // 7 columns per row in cross-section (Source, Target, Bucket, Star, Score, Difficulty, Due in)
+    const germanCells = within(section).getAllByRole('cell').filter((_, i) => i % 7 === 0)
 
     expect(germanCells.map((c) => c.textContent)).toEqual(['Apfel', 'Buch', 'Tisch'])
   })

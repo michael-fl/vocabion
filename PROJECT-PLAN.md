@@ -1004,6 +1004,8 @@ Replace the current flat layout with a proper single-page app shell:
 - Bucket milestone bonus: +100 credits the first time any word globally enters a bucket ≥ 6 that has never existed before. `max_bucket_ever` in credits table (migration 007). `CreditsRepository.getMaxBucketEver/setMaxBucketEver`. `bucketMilestoneBonus` field on `AnswerResult`; TrainingScreen shows celebration message.
 - Manually-added word priority: `manuallyAdded: boolean` on `VocabEntry` (migration 009). Words added via the UI "Add word" form are always drawn first in bucket 0 (all of them, overriding the normal 1-or-2 draw count). Flag is cleared after first session inclusion. JSON-imported words are never flagged.
 
+- Word difficulty score: a permanent `difficulty` field on `VocabEntry` (migration `025_difficulty.sql` adds `max_score` and `difficulty` columns, backfilled from existing data). Formula: `spaceBonus + multipleBonus + lengthBonus + maxScore`, where `maxScore` is the all-time highest priority score. `computeDifficulty()` in `shared/utils/difficulty.ts`. Recomputed in `VocabService` (create, update, import, setMarked) and `SessionService` (answer submit). `VocabListScreen` shows a Difficulty column in every table.
+
 **Recently added**
 
 - Starred session: a new on-demand session type (`type = 'starred'`) that includes all marked (★) words, capped at 100, score-sorted. Accessible via a second button on the Home screen. Limited to one per calendar day; `last_starred_session_date` in the credits table. Migration `018_starred_session.sql` adds the column; migration `019_session_type_starred.sql` rebuilds the sessions table to add `'starred'` to the type CHECK constraint.

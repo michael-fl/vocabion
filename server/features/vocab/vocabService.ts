@@ -16,6 +16,7 @@ import type { VocabRepository } from './VocabRepository.ts'
 import type { SessionRepository } from '../session/SessionRepository.ts'
 import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { computeScore } from '../session/srsScore.ts'
+import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
 import type {
   CreateVocabEntryRequest,
   UpdateVocabEntryRequest,
@@ -104,6 +105,8 @@ export class VocabService {
       target: data.target,
       bucket: 0,
       maxBucket: 0,
+      maxScore: 0,
+      difficulty: 0,
       manuallyAdded: true,
       marked: false,
       score: 0,
@@ -112,6 +115,7 @@ export class VocabService {
       updatedAt: now,
     }
 
+    entry.difficulty = computeDifficulty(entry)
     this.repo.insert(entry)
 
     return entry
@@ -130,6 +134,7 @@ export class VocabService {
       updatedAt: new Date().toISOString(),
     }
 
+    updated.difficulty = computeDifficulty(updated)
     this.repo.update(updated)
 
     return updated
@@ -173,6 +178,8 @@ export class VocabService {
           target: item.target,
           bucket: newMaxBucket,
           maxBucket: newMaxBucket,
+          maxScore: 0,
+          difficulty: 0,
           manuallyAdded: false,
           marked: false,
           score: 0,
@@ -181,6 +188,7 @@ export class VocabService {
           updatedAt: now,
         }
 
+        entry.difficulty = computeDifficulty(entry)
         this.repo.insert(entry)
         allEntries.push(entry)
         this.creditsRepo.addBalance(Math.max(0, newMaxBucket - 3))
@@ -196,6 +204,7 @@ export class VocabService {
           updatedAt: now,
         }
 
+        updated.difficulty = computeDifficulty(updated)
         this.repo.update(updated)
         allEntries[allEntries.indexOf(existing)] = updated
 
@@ -271,10 +280,10 @@ export class VocabService {
       marked: data.marked,
       updatedAt: new Date().toISOString(),
     }
-    const updated: VocabEntry = {
-      ...withMarked,
-      score: computeScore(withMarked, this.sessionRepo.countRecentErrors(id, 10)),
-    }
+    const updatedScore = computeScore(withMarked, this.sessionRepo.countRecentErrors(id, 10))
+    const updatedMaxScore = Math.max(withMarked.maxScore, updatedScore)
+    const withScore: VocabEntry = { ...withMarked, score: updatedScore, maxScore: updatedMaxScore }
+    const updated: VocabEntry = { ...withScore, difficulty: computeDifficulty(withScore) }
 
     this.repo.update(updated)
 

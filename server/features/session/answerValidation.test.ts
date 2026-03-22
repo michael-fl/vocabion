@@ -21,6 +21,8 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     maxBucket: 0,
+    maxScore: 0,
+    difficulty: 0,
     manuallyAdded: false,
     marked: false,
     score: 0,

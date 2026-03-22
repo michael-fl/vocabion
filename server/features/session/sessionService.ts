@@ -26,6 +26,7 @@ import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
 import type { StressSessionService } from './stressSessionService.ts'
 import { STRESS_MIN_CREDITS, STRESS_MIN_WORDS, STRESS_SESSION_SIZE, calcStressFee } from './stressSessionService.ts'
+import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -528,9 +529,13 @@ export class SessionService {
 
       if (e !== undefined) {
         const updatedScore = computeScore(e, this.sessionRepo.countRecentErrors(id, 10))
+        const updatedMaxScore = Math.max(e.maxScore, updatedScore)
+        const scoreChanged = updatedScore !== e.score || updatedMaxScore !== e.maxScore
 
-        if (updatedScore !== e.score) {
-          this.vocabRepo.update({ ...e, score: updatedScore })
+        if (scoreChanged) {
+          const withScore: VocabEntry = { ...e, score: updatedScore, maxScore: updatedMaxScore }
+
+          this.vocabRepo.update({ ...withScore, difficulty: computeDifficulty(withScore) })
         }
       }
     }

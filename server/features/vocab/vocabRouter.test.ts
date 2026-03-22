@@ -42,6 +42,8 @@ function seedEntry(repo: FakeVocabRepository, overrides: Partial<VocabEntry> = {
     target: ['table'],
     bucket: 0,
     maxBucket: 0,
+    maxScore: 0,
+    difficulty: 0,
     manuallyAdded: false,
     marked: false,
     score: 0,

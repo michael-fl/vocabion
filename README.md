@@ -243,6 +243,23 @@ The score is recalculated after every answer and whenever you star or unstar a w
 
 ---
 
+### Word Difficulty
+
+Every word has a permanent **difficulty** score that captures how intrinsically hard it is to learn, independent of your current practice state. Unlike the priority score, difficulty never resets — it only grows over time.
+
+```
+difficulty = spaceBonus + multipleBonus + lengthBonus + maxScore
+```
+
+- **spaceBonus** — +1 if any target translation is a genuine multi-word phrase — meaning it contains a space after stripping a leading "to " prefix (so "to fill up" qualifies, but "to replenish" does not).
+- **multipleBonus** — +1 if the word has more than one target translation.
+- **lengthBonus** — +1 if there is one target and it is ≥ 10 characters, or if there are multiple targets and more than one is ≥ 10 characters.
+- **maxScore** — the highest priority score this word has ever had (never decreases).
+
+The difficulty is recalculated whenever the target translations change or whenever the priority score reaches a new all-time high.
+
+---
+
 ### Starring Words
 
 You can **star** (mark) a word to give it a permanent +2 score boost. This is useful for words you find particularly tricky and want to see more often — the +2 bonus also guarantees the word qualifies for Focus Sessions regardless of its recent error history. Stars can be toggled at any time from the vocabulary list.
@@ -347,4 +364,4 @@ When a milestone is reached, the session summary shows a celebration line instea
 
 ### Vocabulary List
 
-The vocabulary list groups all your words by bucket. Each bucket section is collapsed by default and can be expanded. Within each bucket, words are sorted alphabetically. Time-based words (bucket 4+) show a "Due in" column indicating when they will next appear in a repetition session.
+The vocabulary list groups all your words by bucket. Each bucket section is collapsed by default and can be expanded. Within each bucket, words are sorted alphabetically. The table shows each word's current priority **Score** and **Difficulty** score. Time-based words (bucket 4+) also show a "Due in" column indicating when they will next appear in a repetition session.

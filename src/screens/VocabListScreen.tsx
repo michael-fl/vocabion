@@ -78,6 +78,7 @@ function VocabTable({ words, now, showBucket, togglingIds, onToggleMark }: Vocab
             {showBucket && <th className={`${styles.th} ${styles.colBucket}`}>Bucket</th>}
             <th className={`${styles.th} ${styles.colStar}`} aria-label="Marked" />
             <th className={`${styles.th} ${styles.colScore}`}>Score</th>
+            <th className={`${styles.th} ${showDueInColumn ? styles.colDifficulty : styles.colDifficultyExpanded}`}>Difficulty</th>
             {showDueInColumn && <th className={`${styles.th} ${styles.colDueIn}`}>Due in</th>}
           </tr>
         </thead>
@@ -108,6 +109,7 @@ function VocabTable({ words, now, showBucket, togglingIds, onToggleMark }: Vocab
                 </button>
               </td>
               <td className={`${styles.td} ${styles.tdRight}`}>{entry.score}</td>
+              <td className={`${styles.td} ${styles.tdRight}`}>{entry.difficulty}</td>
               {showDueInColumn && <td className={styles.td}>{entry.bucket >= 4 ? formatDueIn(entry, now) : null}</td>}
             </tr>
           ))}

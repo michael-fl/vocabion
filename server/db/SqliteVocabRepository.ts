@@ -25,6 +25,8 @@ interface VocabEntryRow {
   target: string       // JSON-encoded string[]
   bucket: number
   max_bucket: number
+  max_score: number
+  difficulty: number
   manually_added: number  // SQLite boolean: 0 = false, 1 = true
   marked: number          // SQLite boolean: 0 = false, 1 = true
   score: number
@@ -40,6 +42,8 @@ function rowToEntry(row: VocabEntryRow): VocabEntry {
     target: JSON.parse(row.target) as string[],
     bucket: row.bucket,
     maxBucket: row.max_bucket,
+    maxScore: row.max_score,
+    difficulty: row.difficulty,
     manuallyAdded: row.manually_added === 1,
     marked: row.marked === 1,
     score: row.score,
@@ -79,8 +83,8 @@ export class SqliteVocabRepository implements VocabRepository {
   insert(entry: VocabEntry): void {
     this.db
       .prepare(
-        `INSERT INTO vocab_entries (id, source, target, bucket, max_bucket, manually_added, marked, score, last_asked_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO vocab_entries (id, source, target, bucket, max_bucket, max_score, difficulty, manually_added, marked, score, last_asked_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         entry.id,
@@ -88,6 +92,8 @@ export class SqliteVocabRepository implements VocabRepository {
         JSON.stringify(entry.target),
         entry.bucket,
         entry.maxBucket,
+        entry.maxScore,
+        entry.difficulty,
         entry.manuallyAdded ? 1 : 0,
         entry.marked ? 1 : 0,
         entry.score,
@@ -101,7 +107,7 @@ export class SqliteVocabRepository implements VocabRepository {
     this.db
       .prepare(
         `UPDATE vocab_entries
-         SET source = ?, target = ?, bucket = ?, max_bucket = ?, manually_added = ?, marked = ?, score = ?, last_asked_at = ?, updated_at = ?
+         SET source = ?, target = ?, bucket = ?, max_bucket = ?, max_score = ?, difficulty = ?, manually_added = ?, marked = ?, score = ?, last_asked_at = ?, updated_at = ?
          WHERE id = ?`,
       )
       .run(
@@ -109,6 +115,8 @@ export class SqliteVocabRepository implements VocabRepository {
         JSON.stringify(entry.target),
         entry.bucket,
         entry.maxBucket,
+        entry.maxScore,
+        entry.difficulty,
         entry.manuallyAdded ? 1 : 0,
         entry.marked ? 1 : 0,
         entry.score,

@@ -16,6 +16,8 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     target: ['word'],
     bucket: 0,
     maxBucket: 0,
+    maxScore: 0,
+    difficulty: 0,
     manuallyAdded: false,
     marked: false,
     score: 0,

@@ -67,6 +67,28 @@ export interface VocabEntry {
   maxBucket: number
 
   /**
+   * The highest priority score this word has ever had.
+   * Never decreases — captures the word's troubled history even after the user
+   * has since mastered it. Used as a component of `difficulty`.
+   */
+  maxScore: number
+
+  /**
+   * Permanent difficulty score for this word.
+   *
+   * Formula: spaceBonus + multipleBonus + lengthBonus + maxScore
+   * - `spaceBonus`    — +1 if any target variant contains a space after stripping a leading
+   *                     "to " prefix ("to fill up" qualifies, "to replenish" does not)
+   * - `multipleBonus` — +1 if there is more than one target alternative
+   * - `lengthBonus`   — +1 if the single target is ≥ 10 characters, or if there are
+   *                     multiple targets and more than one is ≥ 10 characters
+   * - `maxScore`      — the highest priority score the entry has ever had
+   *
+   * Recomputed whenever target alternatives change or maxScore increases.
+   */
+  difficulty: number
+
+  /**
    * ISO 8601 timestamp of the last time this word was presented in a session.
    * null means the word has never appeared in a session and is always considered due.
    * Updated on every answer, correct or wrong.
@@ -117,7 +139,7 @@ export function isVocabEntry(value: unknown): value is VocabEntry {
   }
 
   const v = value as Record<string, unknown>
-  const { id, source, target, bucket, maxBucket, manuallyAdded, marked, score, lastAskedAt, createdAt, updatedAt } = v
+  const { id, source, target, bucket, maxBucket, maxScore, difficulty, manuallyAdded, marked, score, lastAskedAt, createdAt, updatedAt } = v
 
   if (typeof id !== 'string') {
     return false
@@ -136,6 +158,14 @@ export function isVocabEntry(value: unknown): value is VocabEntry {
   }
 
   if (typeof maxBucket !== 'number' || !Number.isInteger(maxBucket) || maxBucket < 0) {
+    return false
+  }
+
+  if (typeof maxScore !== 'number' || !Number.isInteger(maxScore) || maxScore < 0) {
+    return false
+  }
+
+  if (typeof difficulty !== 'number' || !Number.isInteger(difficulty) || difficulty < 0) {
     return false
   }
 

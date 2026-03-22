@@ -164,6 +164,18 @@
   text-align: right;
 }
 
+.colDifficulty {
+  width: 90px;
+  text-align: right;
+}
+
+/* Used when there is no Due in column — absorbs its 120px so that the
+   Target column stays the same width across all bucket tables. */
+.colDifficultyExpanded {
+  width: 210px;
+  text-align: right;
+}
+
 .colDueIn {
   width: 120px;
 }
