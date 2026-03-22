@@ -32,6 +32,7 @@ const mockSession = {
   words: [{ vocabId: 'entry-1', status: 'pending' as const }],
   status: 'open' as const,
   createdAt: '2026-01-01T00:00:00Z',
+  firstAnsweredAt: null,
 }
 
 // Session where at least one word has been answered — qualifies as "in progress"
@@ -470,6 +471,7 @@ const starredSession = {
   words: [{ vocabId: 'entry-1', status: 'pending' as const }],
   status: 'open' as const,
   createdAt: '2026-01-01T00:00:00Z',
+  firstAnsweredAt: null,
 }
 
 describe('HomeScreen — starred session', () => {

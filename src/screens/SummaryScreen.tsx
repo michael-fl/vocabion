@@ -21,7 +21,7 @@ export interface SummaryScreenProps {
   creditsEarned: number
   /** Credits spent on hints during this session. */
   creditsSpent: number
-  /** Bonus credits for a perfect session (no mistakes, no second chances). 10 or 0. */
+  /** Bonus credits for a perfect session (no mistakes, no hints, no second chances). 10 or 0. */
   perfectBonus: number
   /** Streak-related credits awarded: 1 (daily) or the milestone amount. 0 if none. */
   streakCredit: number
@@ -63,7 +63,7 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
         <div className={styles.perfectBanner} role="status">
           <span className={styles.perfectBadge}>Perfect session!</span>
           <p className={styles.perfectText}>
-            All words answered correctly on the first try — no mistakes, no second chances.
+            All words answered correctly on the first try — no mistakes, no hints, no second chances.
           </p>
           <p className={styles.perfectBonus}>+{perfectBonus} bonus credits</p>
         </div>

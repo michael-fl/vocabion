@@ -50,6 +50,14 @@ export interface Session {
 
   /** ISO 8601 creation timestamp. */
   createdAt: string
+
+  /**
+   * ISO 8601 timestamp of when the first answer was submitted in this session.
+   * `null` until the first answer is given. Used to attribute the streak day to
+   * when the user started practising, so a session started yesterday and
+   * completed today still counts toward yesterday's streak.
+   */
+  firstAnsweredAt: string | null
 }
 
 /**
@@ -71,7 +79,7 @@ export function isSession(value: unknown): value is Session {
   }
 
   const v = value as Record<string, unknown>
-  const { id, direction, type, words, status, createdAt } = v
+  const { id, direction, type, words, status, createdAt, firstAnsweredAt } = v
 
   if (typeof id !== 'string') {
     return false
@@ -94,6 +102,10 @@ export function isSession(value: unknown): value is Session {
   }
 
   if (typeof createdAt !== 'string') {
+    return false
+  }
+
+  if (firstAnsweredAt !== null && typeof firstAnsweredAt !== 'string') {
     return false
   }
 

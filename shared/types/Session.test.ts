@@ -18,6 +18,7 @@ function validSession(): Session {
     ],
     status: 'open',
     createdAt: '2026-01-01T00:00:00Z',
+    firstAnsweredAt: null,
   }
 }
 
@@ -34,6 +35,14 @@ describe('isSession', () => {
 
   it('returns true for direction TARGET_TO_SOURCE', () => {
     expect(isSession({ ...validSession(), direction: 'TARGET_TO_SOURCE' })).toBe(true)
+  })
+
+  it('returns true when firstAnsweredAt is a string', () => {
+    expect(isSession({ ...validSession(), firstAnsweredAt: '2026-01-01T10:00:00Z' })).toBe(true)
+  })
+
+  it('returns false when firstAnsweredAt is a number', () => {
+    expect(isSession({ ...validSession(), firstAnsweredAt: 123 })).toBe(false)
   })
 
   it('returns true for a session with an empty words array', () => {

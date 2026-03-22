@@ -53,7 +53,7 @@ export interface AnswerResult {
   answerCost: number
   /** Credits earned by this answer (word reached a new highest time-based bucket). */
   creditsEarned: number
-  /** Bonus credits awarded for a perfect session (no mistakes, no second chances). 10 or 0. */
+  /** Bonus credits awarded for a perfect session (no mistakes, no hints, no second chances). 10 or 0. */
   perfectBonus: number
   /** One-time bonus of 100 credits when a word enters a bucket ≥ 6 that has never existed before. 100 or 0. */
   bucketMilestoneBonus: number

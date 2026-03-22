@@ -55,6 +55,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     words: [{ vocabId: 'entry-1', status: 'pending' }],
     status: 'open',
     createdAt: '2026-01-01T00:00:00Z',
+    firstAnsweredAt: null,
     ...overrides,
   }
 }

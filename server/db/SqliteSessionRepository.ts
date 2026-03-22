@@ -27,6 +27,7 @@ interface SessionRow {
   words: string        // JSON-encoded SessionWord[]
   status: string
   created_at: string
+  first_answered_at: string | null
 }
 
 function rowToSession(row: SessionRow): Session {
@@ -37,6 +38,7 @@ function rowToSession(row: SessionRow): Session {
     words: JSON.parse(row.words) as SessionWord[],
     status: row.status as 'open' | 'completed',
     createdAt: row.created_at,
+    firstAnsweredAt: row.first_answered_at,
   }
 }
 
@@ -82,8 +84,8 @@ export class SqliteSessionRepository implements SessionRepository {
   insert(session: Session): void {
     this.db
       .prepare(
-        `INSERT INTO sessions (id, direction, type, words, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sessions (id, direction, type, words, status, created_at, first_answered_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         session.id,
@@ -92,13 +94,14 @@ export class SqliteSessionRepository implements SessionRepository {
         JSON.stringify(session.words),
         session.status,
         session.createdAt,
+        session.firstAnsweredAt,
       )
   }
 
   update(session: Session): void {
     this.db
-      .prepare('UPDATE sessions SET words = ?, status = ? WHERE id = ?')
-      .run(JSON.stringify(session.words), session.status, session.id)
+      .prepare('UPDATE sessions SET words = ?, status = ?, first_answered_at = ? WHERE id = ?')
+      .run(JSON.stringify(session.words), session.status, session.firstAnsweredAt, session.id)
   }
 
   countRecentErrors(vocabId: string, sessionLimit: number): number {

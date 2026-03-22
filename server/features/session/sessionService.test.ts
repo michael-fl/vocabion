@@ -53,6 +53,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     words: [],
     status: 'open',
     createdAt: '2026-01-01T00:00:00Z',
+    firstAnsweredAt: null,
     ...overrides,
   }
 }
@@ -1486,6 +1487,57 @@ describe('submitAnswer — streak milestones', () => {
 
     expect(result.streakCredit).toBe(1)
     expect(result.milestoneLabel).toBeUndefined()
+  })
+
+  it('uses firstAnsweredAt date to continue a streak when session was started yesterday and completed today', () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const dYesterday = new Date(today + 'T00:00:00Z')
+    dYesterday.setUTCDate(dYesterday.getUTCDate() - 1)
+    const yesterdayStr = dYesterday.toISOString().slice(0, 10)
+    const dTwoDaysAgo = new Date(today + 'T00:00:00Z')
+    dTwoDaysAgo.setUTCDate(dTwoDaysAgo.getUTCDate() - 2)
+    const twoDaysAgoStr = dTwoDaysAgo.toISOString().slice(0, 10)
+
+    const entry = makeEntry({ target: ['table'] })
+    // Session was started yesterday at 23:50 but is being completed today
+    const session = makeSession({
+      words: [{ vocabId: entry.id, status: 'pending' }],
+      firstAnsweredAt: yesterdayStr + 'T23:50:00Z',
+    })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+    // Last completed session was 2 days ago
+    creditsRepo.updateStreak(5, twoDaysAgoStr)
+
+    service.submitAnswer(session.id, entry.id, ['table'])
+
+    // effectiveDate = yesterday; lastDate = 2 days ago; yesterday = twoDaysAgo + 1 → streak continues
+    expect(creditsRepo.getStreakCount()).toBe(6)
+    expect(creditsRepo.getLastSessionDate()).toBe(yesterdayStr)
+  })
+
+  it('resets streak to 1 and uses completionDate when session spanned more than 2 calendar days', () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const threeDaysAgo = new Date(today + 'T00:00:00Z')
+    threeDaysAgo.setUTCDate(threeDaysAgo.getUTCDate() - 3)
+    const threeDaysAgoStr = threeDaysAgo.toISOString().slice(0, 10)
+
+    const entry = makeEntry({ target: ['table'] })
+    const session = makeSession({
+      words: [{ vocabId: entry.id, status: 'pending' }],
+      firstAnsweredAt: threeDaysAgoStr + 'T10:00:00Z',
+    })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+    creditsRepo.updateStreak(10, threeDaysAgoStr)
+
+    service.submitAnswer(session.id, entry.id, ['table'])
+
+    // Streak resets to 1, effective date is today (completion date)
+    expect(creditsRepo.getStreakCount()).toBe(1)
+    expect(creditsRepo.getLastSessionDate()).toBe(today)
   })
 
   it('resets weeksAwarded and monthsAwarded to 0 when the streak restarts', () => {

@@ -101,6 +101,7 @@ describe('openDatabase — schema', () => {
     expect(cols).toContain('words')
     expect(cols).toContain('status')
     expect(cols).toContain('created_at')
+    expect(cols).toContain('first_answered_at')
 
     db.close()
   })
@@ -114,7 +115,7 @@ describe('openDatabase — migration tracking', () => {
 
     const rows = db.prepare('SELECT name FROM migrations').all() as { name: string }[]
 
-    expect(rows).toHaveLength(21)
+    expect(rows).toHaveLength(22)
     expect(rows[0].name).toBe('001_initial.sql')
     expect(rows[1].name).toBe('002_session_type.sql')
 
@@ -165,7 +166,7 @@ describe('openDatabase — idempotency', () => {
       db.prepare('SELECT COUNT(*) as n FROM migrations').get() as { n: number }
     ).n
 
-    expect(count).toBe(21)
+    expect(count).toBe(22)
 
     db.close()
   })

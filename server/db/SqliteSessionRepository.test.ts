@@ -24,6 +24,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     words: [{ vocabId: 'word-1', status: 'pending' }],
     status: 'open',
     createdAt: '2026-01-01T00:00:00Z',
+    firstAnsweredAt: null,
     ...overrides,
   }
 }
@@ -162,6 +163,23 @@ describe('update', () => {
     repo.update({ ...a, status: 'completed' })
 
     expect(repo.findById(b.id)?.status).toBe('open')
+  })
+
+  it('persists firstAnsweredAt when updated from null to a timestamp', () => {
+    const session = makeSession()
+
+    repo.insert(session)
+    repo.update({ ...session, firstAnsweredAt: '2026-03-22T10:00:00Z' })
+
+    expect(repo.findById(session.id)?.firstAnsweredAt).toBe('2026-03-22T10:00:00Z')
+  })
+
+  it('round-trips firstAnsweredAt = null', () => {
+    const session = makeSession({ firstAnsweredAt: null })
+
+    repo.insert(session)
+
+    expect(repo.findById(session.id)?.firstAnsweredAt).toBeNull()
   })
 })
 

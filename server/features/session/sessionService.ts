@@ -23,7 +23,7 @@ import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDisc
 import { getIntervalMs } from '../../../shared/utils/srsInterval.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
-import { checkMilestoneReached } from '../../../shared/utils/streakMilestones.ts'
+import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -108,8 +108,8 @@ export interface AnswerResult {
    */
   creditsEarned: number
   /**
-   * Bonus credits awarded for completing the session with a perfect score (no mistakes
-   * and no second-chance words). 10 on a perfect session, 0 otherwise.
+   * Bonus credits awarded for completing the session with a perfect score (no mistakes,
+   * no hints, and no second-chance words). 10 on a perfect session, 0 otherwise.
    */
   perfectBonus: number
   /**
@@ -398,6 +398,7 @@ export class SessionService {
       ...session,
       words: updatedWords,
       status: sessionCompleted ? 'completed' : 'open',
+      firstAnsweredAt: session.firstAnsweredAt ?? (wasFirstAnswer ? now : null),
     }
 
     this.sessionRepo.update(updatedSession)
@@ -441,14 +442,23 @@ export class SessionService {
       // Award streak credit for the first session of each calendar day (UTC),
       // but only when the streak reaches 2 or more. A milestone reward replaces
       // the standard +1 daily credit when one is reached.
-      const today = now.slice(0, 10)
+      //
+      // The effective session date is when the first answer was given, not when
+      // the session was completed. This lets a cross-midnight session (started
+      // yesterday, finished today) count for yesterday's streak. If the session
+      // spanned more than 2 calendar days it is treated as a fresh start today.
+      const completionDate = now.slice(0, 10)
+      const sessionDate = updatedSession.firstAnsweredAt?.slice(0, 10) ?? completionDate
+      const spanDays = diffDays(sessionDate, completionDate)
+      const effectiveDate = spanDays > 1 ? completionDate : sessionDate
+
       const lastDate = this.creditsRepo.getLastSessionDate()
 
-      if (lastDate !== today) {
-        const yesterday = subtractDays(today, 1)
+      if (lastDate !== effectiveDate) {
+        const yesterday = subtractDays(effectiveDate, 1)
         const newStreak = lastDate === yesterday ? this.creditsRepo.getStreakCount() + 1 : 1
 
-        this.creditsRepo.updateStreak(newStreak, today)
+        this.creditsRepo.updateStreak(newStreak, effectiveDate)
 
         if (newStreak >= 2) {
           const milestone = checkMilestoneReached({
@@ -456,7 +466,7 @@ export class SessionService {
             weeksAwarded: this.creditsRepo.getStreakWeeksAwarded(),
             monthsAwarded: this.creditsRepo.getStreakMonthsAwarded(),
             streakStartDate: this.creditsRepo.getStreakStartDate(),
-            today,
+            today: completionDate,
           })
 
           if (milestone !== null) {
