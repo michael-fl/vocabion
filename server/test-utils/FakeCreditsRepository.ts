@@ -27,6 +27,7 @@ export class FakeCreditsRepository implements CreditsRepository {
   private earnedStars = 0
   private starsOfferSnoozedUntil: string | null = null
   private stressSessionDueAt: string | null = null
+  private veteranSessionDueAt: string | null = null
   private pauseState: PauseState = { active: false, startDate: null, daysUsed: 0, budgetYear: 0 }
 
   getBalance(): number {
@@ -146,6 +147,14 @@ export class FakeCreditsRepository implements CreditsRepository {
 
   setStressSessionDueAt(date: string | null): void {
     this.stressSessionDueAt = date
+  }
+
+  getVeteranSessionDueAt(): string | null {
+    return this.veteranSessionDueAt
+  }
+
+  setVeteranSessionDueAt(date: string | null): void {
+    this.veteranSessionDueAt = date
   }
 
   getPauseState(): PauseState {

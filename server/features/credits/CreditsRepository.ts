@@ -155,6 +155,18 @@ export interface CreditsRepository {
    */
   setStressSessionDueAt(date: string | null): void
 
+  /**
+   * Returns the date (YYYY-MM-DD) when the next automatic veteran session becomes available,
+   * or `null` if no veteran session has been scheduled yet.
+   */
+  getVeteranSessionDueAt(): string | null
+
+  /**
+   * Sets the date (YYYY-MM-DD) when the next veteran session becomes available.
+   * Pass `null` to clear the scheduled date.
+   */
+  setVeteranSessionDueAt(date: string | null): void
+
   /** Returns the current pause state. */
   getPauseState(): PauseState
 

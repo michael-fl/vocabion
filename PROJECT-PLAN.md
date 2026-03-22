@@ -395,19 +395,21 @@ the frontend "Due in" display.
 
 **Session types:**
 
-There are six session types: `stress`, `normal`, `repetition`, `focus`, `discovery`, and `starred`. The first five are chosen automatically on each `createSession` call as follows:
+There are seven session types: `stress`, `normal`, `repetition`, `focus`, `discovery`, `starred`, and `veteran`. The first six are chosen automatically on each `createSession` call as follows:
 
 1. **Stress session check (highest priority):** If the credit balance is ≥ 500, at least 5 words exist in buckets 2+, and the stress session is due (`stress_session_due_at` in the credits table is in the past or null is resolved to within 48 h of first reaching ≥ 500 credits), a stress session is created. At most one automatic stress session per week. See the full rules under *Stress sessions* below.
 2. **Discovery session check:** If the active pool (words in buckets 1–4) has fewer than `DISCOVERY_POOL_THRESHOLD` (80) words **and** at least `discoverySize` (24) bucket-0 words exist **and** no discovery session was already completed today (`last_discovery_session_date` in the credits table), a discovery session is created. At most one discovery session per calendar day.
 3. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket` in 1–5 exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
-4. **Normal/repetition alternation (fallback):** If none of the above conditions are met, sessions alternate based on the last completed session type:
+4. **Veteran session check:** If the veteran session is due (`veteran_session_due_at ≤ today`) and at least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+, and `selectVeteranWords` returns at least `VETERAN_MIN_WORDS` (5) qualifying words, a veteran session is created. The normal/repetition alternation state is **not advanced**. See the full rules under *Veteran sessions* below.
+5. **Normal/repetition alternation (fallback):** If none of the above conditions are met, sessions alternate based on the last completed session type:
 
 | Last completed session | Next session (if enough due words) |
 |---|---|
 | none (first ever session) | normal |
 | normal | repetition |
 | repetition | normal |
-| focus | determined by last non-focus completed session (same alternation) |
+| focus | determined by last non-focus/non-veteran completed session (same alternation) |
+| veteran | determined by last non-focus/non-veteran completed session (same alternation) |
 
 If a repetition session is due but fewer than `repetitionSize` due time-based words exist, the repetition is **skipped** and a normal session is created instead. Because the fallback session is also stored as `'normal'`, the next session will try repetition again.
 
@@ -450,6 +452,13 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 9. **Counts toward daily streak** like any other session type.
 10. **Summary screen:** a dedicated `StressSummaryScreen` shows correct/wrong counts, credits gained or lost, and the perfect bonus if applicable.
 
+*Veteran sessions* — periodic review of mastered words (buckets 6+), firing automatically roughly once a week.
+1. **Trigger conditions:** at least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+, and `veteran_session_due_at ≤ today`. When the bucket-6+ count first reaches 50 and no veteran session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
+2. **Word selection:** `selectVeteranWords(allEntries, sessionSize, VETERAN_MIN_WORDS)` — filters bucket ≥ 6, sorts by difficulty descending (ties shuffled randomly). Returns null if fewer than `VETERAN_MIN_WORDS` (5) words qualify.
+3. **SRS promotion rules:** same as focus sessions — due words (time-based bucket, `lastAskedAt + interval ≤ now`) are promoted one bucket; non-due words are not promoted.
+4. **Scheduling:** after the session completes (any outcome), the next due date is set to `today + VETERAN_INTERVAL_DAYS (6) + random(0–48 h)`.
+5. **Counts toward daily streak** like any other session type.
+
 *Starred sessions* — on-demand review of all words the user has starred (★), triggered manually via the "Start ★ session" button on the Home screen.
 1. All words with `marked = true` are included, capped at **100**.
 2. Words are sorted by score descending (ties shuffled randomly) — the trickiest starred words come first.
@@ -460,7 +469,7 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Discovery Session"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred.
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Discovery Session"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran.
 
 **Session size — how many questions will be asked:**
 
@@ -585,7 +594,7 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Repetition session word selection | `srsSelection.ts` — `selectRepetitionWords()` | ✓ complete |
 | Focus session word selection | `srsSelection.ts` — `selectFocusWords()` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
-| Session type selection (stress priority → discovery → focus → normal/rep) | `sessionService.ts` — `createSession()` | planned |
+| Session type selection (stress → discovery → focus → veteran → normal/rep) | `sessionService.ts` — `createSession()` | ✓ complete |
 | Stress session word selection | `srsSelection.ts` — `selectStressWords()` | planned |
 | Push back word (discovery sessions only) | `sessionService.ts` — `pushBackWord()` | ✓ complete |
 | Bucket promotion / demotion | `server/features/session/sessionService.ts` | ✓ complete |
@@ -1300,3 +1309,73 @@ Migration `024_stress_session.sql` adds one column to the `credits` table:
 - [ ] `TrainingScreen`: countdown timer, live balance, hidden hints
 - [ ] `StressSummaryScreen` + routing in `App.tsx`
 - [ ] Tests for all new/changed code
+
+---
+
+## Veteran Session Feature
+
+### Overview
+
+A periodic automatic review of fully-mastered words (buckets 6+), firing roughly once a week when the user has built up a sufficient veteran vocabulary. Unlike stress sessions there is no credit pressure — the session uses the same SRS promotion rules as focus sessions.
+
+### Trigger Conditions
+
+- At least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+.
+- `veteran_session_due_at` (YYYY-MM-DD UTC) is ≤ today.
+
+**First trigger:** when the bucket-6+ count first reaches 50 and `veteran_session_due_at` is still null, it is set to `today + random(0–48 h)`. This ensures the first veteran session fires within two days of the user becoming eligible.
+
+The trigger is checked inside `createSession()` — priority: stress → discovery → focus → **veteran** → normal/repetition.
+
+### Session Rules
+
+- **Size:** up to 12 words (`sessionSize`), drawn from all words in buckets 6+.
+- **Word selection:** sorted by difficulty descending (ties shuffled randomly) via `selectVeteranWords()`.
+- **Minimum words:** if fewer than `VETERAN_MIN_WORDS` (5) qualifying words exist, the session is skipped.
+- **SRS promotion:** same as focus — due words are promoted one bucket; non-due words are unchanged.
+
+### Scheduling
+
+After each veteran session completes (any outcome), the next due date is set to `today + VETERAN_INTERVAL_DAYS (6) + random(0–48 h)`.
+
+### Data Model
+
+Migration `028_veteran_session.sql` adds one column to the `credits` table:
+
+| Column | Type | Description |
+|---|---|---|
+| `veteran_session_due_at` | TEXT (YYYY-MM-DD) | next eligible date for a veteran session; null = not yet scheduled |
+
+### Backend Design
+
+- **`CreditsRepository`** — two new methods: `getVeteranSessionDueAt(): string | null`, `setVeteranSessionDueAt(date: string | null): void`.
+- **`SqliteCreditsRepository`** + **`FakeCreditsRepository`** — implement the new methods.
+- **`VeteranSessionService`** (`server/features/session/veteranSessionService.ts`):
+  - `isAvailable(today, bucket6PlusCount)`: returns true when all trigger conditions are met.
+  - `scheduleFirst(today)`: sets `veteran_session_due_at` to `today + random(0–48 h)` if not yet set.
+  - `scheduleNext(today)`: sets `veteran_session_due_at` to `today + 6 days + random(0–48 h)`.
+- **`srsSelection.ts`**: `selectVeteranWords(entries, sessionSize, minWords)` — filters bucket ≥ 6, `sortByDifficultyThenShuffle`, returns null if fewer than `minWords` qualify.
+- **`SessionService`** modifications:
+  - `createSession()`: compute `bucket6PlusCount`; call `veteranService.scheduleFirst()` when count first reaches 50; insert veteran check after focus check.
+  - `submitAnswer()`: call `veteranService.scheduleNext()` on veteran session completion.
+  - `shared/types/Session.ts`: add `'veteran'` to the `SessionType` union.
+
+### Frontend Design
+
+- **`TrainingScreen`**: display **"Veteran Session"** as the session title when `session.type === 'veteran'`.
+- No special UI changes needed — no timer, no credit pressure, no hidden hints.
+
+### Implementation Checklist
+
+- [x] Migration `028_veteran_session.sql`: add `veteran_session_due_at TEXT` to `credits`
+- [x] `CreditsRepository`: add `getVeteranSessionDueAt()`, `setVeteranSessionDueAt()`
+- [x] `SqliteCreditsRepository` + `FakeCreditsRepository`: implement new methods
+- [x] `server/db/database.test.ts`: bump migration count 27 → 28
+- [x] `shared/types/Session.ts`: add `'veteran'` to `SessionType`
+- [x] `VeteranSessionService`: `isAvailable()`, `scheduleNext()`, `scheduleFirst()`; unit tests
+- [x] `srsSelection.ts`: `selectVeteranWords()` + `sortByDifficultyThenShuffle()`; unit tests
+- [x] `SessionService.createSession()`: veteran check after focus, before normal/rep
+- [x] `SessionService.submitAnswer()`: call `scheduleNext` on veteran session completion
+- [x] `SessionService` tests for veteran session creation and completion
+- [x] `TrainingScreen`: show "Veteran Session" label
+- [x] Tests for all new/changed code

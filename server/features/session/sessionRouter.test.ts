@@ -14,6 +14,7 @@ import supertest from 'supertest'
 import { createSessionRouter } from './sessionRouter.ts'
 import { SessionService } from './sessionService.ts'
 import { StressSessionService } from './stressSessionService.ts'
+import { VeteranSessionService } from './veteranSessionService.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
 import { FakeVocabRepository } from '../../test-utils/FakeVocabRepository.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
@@ -28,7 +29,7 @@ function makeTestApp() {
   const sessionRepo = new FakeSessionRepository()
   const vocabRepo = new FakeVocabRepository()
   const creditsRepo = new FakeCreditsRepository()
-  const service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo))
+  const service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo))
   const app = express()
 
   app.use(express.json())

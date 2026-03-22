@@ -538,7 +538,9 @@ export function TrainingScreen({
                 ? 'Discovery Session'
                 : currentSession.type === 'stress'
                   ? 'Stress Session'
-                  : 'Learning Session'}
+                  : currentSession.type === 'veteran'
+                    ? 'Veteran Session'
+                    : 'Learning Session'}
         </h2>
         <p className={styles.meta}>{answered} of {total} answered</p>
       </div>
@@ -635,7 +637,7 @@ export function TrainingScreen({
           <span>Translate:</span>
           <strong className={styles.prompt}>{prompt}</strong>
           <span className={styles.bucketTag}>
-            {displayedBucket === 0 ? '(new word)' : `Bucket ${displayedBucket}`} · score: {(w1Entry ?? entry).score}
+            {displayedBucket === 0 ? '(new word)' : `Bucket ${displayedBucket}`} · {currentSession.type === 'veteran' ? `difficulty: ${(w1Entry ?? entry).difficulty}` : `score: ${(w1Entry ?? entry).score}`}
           </span>
           <button
             type="button"

@@ -19,13 +19,15 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
 import { checkAnswerDetailed } from './answerValidation.ts'
 import type { TypoMatch } from './answerValidation.ts'
-import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, isDue } from './srsSelection.ts'
+import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, isDue } from './srsSelection.ts'
 import { getIntervalMs } from '../../../shared/utils/srsInterval.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
 import type { StressSessionService } from './stressSessionService.ts'
 import { STRESS_MIN_CREDITS, STRESS_MIN_WORDS, STRESS_SESSION_SIZE, calcStressFee } from './stressSessionService.ts'
+import type { VeteranSessionService } from './veteranSessionService.ts'
+import { VETERAN_MIN_BUCKET6_WORDS, VETERAN_MIN_WORDS } from './veteranSessionService.ts'
 import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -140,6 +142,7 @@ export class SessionService {
     private readonly vocabRepo: VocabRepository,
     private readonly creditsRepo: CreditsRepository,
     private readonly stressService: StressSessionService,
+    private readonly veteranService: VeteranSessionService,
   ) {}
 
   /** Returns the currently open session, or `undefined` if none exists. */
@@ -186,6 +189,13 @@ export class SessionService {
       this.stressService.scheduleFirst(today)
     }
 
+    // When bucket-6+ words first reach the minimum, schedule the initial veteran session window.
+    const bucket6PlusCount = allEntries.filter((e) => e.bucket >= 6).length
+
+    if (bucket6PlusCount >= VETERAN_MIN_BUCKET6_WORDS) {
+      this.veteranService.scheduleFirst(today)
+    }
+
     // Stress session has the highest priority: fires automatically once per week
     // when the user has >= 500 credits and enough qualifying words.
     const qualifyingWordCount = allEntries.filter((e) => e.bucket >= 2).length
@@ -216,27 +226,37 @@ export class SessionService {
         selected = focusCandidates
         sessionType = 'focus'
       } else {
-        // Determine intended type: alternate from the last completed non-focus session.
-        // Focus sessions are skipped so they don't disturb the normal/repetition alternation.
-        // No previous non-focus session → start with 'normal'.
-        const lastType = this.sessionRepo.findLastCompletedNonFocus()?.type
-        const intendedType: SessionType = lastType === 'normal' ? 'repetition' : 'normal'
+        // Veteran session is next: fires roughly weekly when >= 50 words are in buckets 6+.
+        const veteranCandidates = this.veteranService.isAvailable(today, bucket6PlusCount)
+          ? selectVeteranWords(allEntries, options.size, VETERAN_MIN_WORDS)
+          : null
 
-        if (intendedType === 'repetition') {
-          const candidates = selectRepetitionWords(allEntries, repSize, now)
+        if (veteranCandidates !== null) {
+          selected = veteranCandidates
+          sessionType = 'veteran'
+        } else {
+          // Determine intended type: alternate from the last completed non-focus session.
+          // Focus/veteran sessions are skipped so they don't disturb the normal/repetition alternation.
+          // No previous non-focus session → start with 'normal'.
+          const lastType = this.sessionRepo.findLastCompletedNonFocus()?.type
+          const intendedType: SessionType = lastType === 'normal' ? 'repetition' : 'normal'
 
-          if (candidates.length >= repSize) {
-            selected = candidates
-            sessionType = 'repetition'
+          if (intendedType === 'repetition') {
+            const candidates = selectRepetitionWords(allEntries, repSize, now)
+
+            if (candidates.length >= repSize) {
+              selected = candidates
+              sessionType = 'repetition'
+            } else {
+              // Not enough due time-based words — skip repetition, create normal session.
+              // The next call will see a 'normal' last-session and try repetition again.
+              selected = selectSessionWords(allEntries, options.size, now)
+              sessionType = 'normal'
+            }
           } else {
-            // Not enough due time-based words — skip repetition, create normal session.
-            // The next call will see a 'normal' last-session and try repetition again.
             selected = selectSessionWords(allEntries, options.size, now)
             sessionType = 'normal'
           }
-        } else {
-          selected = selectSessionWords(allEntries, options.size, now)
-          sessionType = 'normal'
         }
       }
     }
@@ -455,6 +475,10 @@ export class SessionService {
 
       if (updatedSession.type === 'stress') {
         this.stressService.scheduleNext(now.slice(0, 10))
+      }
+
+      if (updatedSession.type === 'veteran') {
+        this.veteranService.scheduleNext(now.slice(0, 10))
       }
 
       const isPerfect =

@@ -107,7 +107,7 @@ There is no upper limit on buckets — the longer you practice a word without mi
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are five automatic types, chosen in this priority order. A sixth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are six automatic types, chosen in this priority order. A seventh type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
 #### 1. Stress Session (highest priority, weekly)
 
@@ -163,7 +163,23 @@ If you have at least 5 words with a **priority score of 2 or higher** (see [Word
 - If fewer than 5 words qualify, the focus session is skipped.
 - Only one focus session per calendar day.
 
-#### 4. Repetition Session
+#### 4. Veteran Session (weekly, once ≥ 50 words reach bucket 6+)
+
+A **Veteran Session** is a periodic review of your most-mastered words — those that have reached bucket 6 or higher. It fires automatically roughly once a week when all of the following conditions are met:
+
+- At least **50 words** exist in buckets 6 and above
+- The veteran session is **due** (at least 6 days have passed since the last one)
+
+If your bucket-6+ count first reaches 50, the initial session is scheduled to trigger within the next **48 hours**.
+
+**Session rules:**
+- Up to **12 words** drawn from buckets 6+, sorted by difficulty descending (ties broken randomly) — your hardest veteran words come first.
+- SRS promotion rules mirror the Focus Session: words that are not yet due are not promoted.
+- If fewer than 5 qualifying words can be selected, the session is skipped.
+
+After each veteran session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
+
+#### 6. Repetition Session
 
 After a normal session, the next session is a **Repetition Session** — an intensive review of time-based words (buckets 4+) that are currently overdue.
 
@@ -171,7 +187,7 @@ After a normal session, the next session is a **Repetition Session** — an inte
 - No frequency bucket words (0–3) are included.
 - If fewer than 24 due words exist across all time-based buckets, the repetition session is skipped and a normal session runs instead. The next session will try repetition again.
 
-#### 5. Normal (Learning) Session
+#### 7. Normal (Learning) Session
 
 The default session type. It draws from both frequency buckets and time-based buckets:
 
@@ -189,11 +205,12 @@ Within every candidate pool, words are picked highest-score first (ties broken r
 | Stress session due, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) | **Stress** |
 | Active pool (buckets 1–4) < 80 words and ≥ 24 bucket-0 words exist | Discovery |
 | 5+ high-score words exist and no focus session today | Focus |
+| Veteran session due and ≥ 50 words in buckets 6+ | Veteran |
 | Last session was normal (and enough due words) | Repetition |
 | Last session was repetition | Normal |
-| Last session was focus | Picks up the normal/repetition alternation where it left off |
+| Last session was focus or veteran | Picks up the normal/repetition alternation where it left off |
 
-#### 6. ★ Session (manual, once per day)
+#### 8. ★ Session (manual, once per day)
 
 A **★ Session** lets you practice all your starred (★) words in one focused run. It is started manually via the **"Start ★ session"** button on the Home screen and is available at most once per calendar day.
 

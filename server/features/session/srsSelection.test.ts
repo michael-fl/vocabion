@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords } from './srsSelection.ts'
+import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords } from './srsSelection.ts'
 import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -937,5 +937,74 @@ describe('selectStressWords', () => {
     const result = selectStressWords([...tierA, ...tierB, ...tierC], 10, 5)
 
     expect(result).toHaveLength(10)
+  })
+})
+
+// ── selectVeteranWords ────────────────────────────────────────────────────────
+
+describe('selectVeteranWords', () => {
+  it('returns null when fewer than minWords qualifying entries exist', () => {
+    const entries = [
+      ...makeEntries(4, { bucket: 6, difficulty: 2 }),
+      ...makeEntries(20, { bucket: 3, difficulty: 5 }), // not bucket 6+
+    ]
+
+    expect(selectVeteranWords(entries, 12, 5)).toBeNull()
+  })
+
+  it('excludes words with difficulty < 2 even if bucket >= 6', () => {
+    const easy = makeEntries(8, { bucket: 6, difficulty: 1 })
+    const qualifying = makeEntries(5, { bucket: 6, difficulty: 2 })
+    const result = selectVeteranWords([...easy, ...qualifying], 12, 5)
+
+    const qualifyingIds = new Set(qualifying.map((e) => e.id))
+
+    expect(result?.every((e) => qualifyingIds.has(e.id))).toBe(true)
+  })
+
+  it('only includes words from buckets 6+', () => {
+    const veteran = makeEntries(8, { bucket: 6, difficulty: 2 })
+    const nonVeteran = makeEntries(10, { bucket: 5, difficulty: 5 })
+    const result = selectVeteranWords([...veteran, ...nonVeteran], 12, 5)
+
+    const veteranIds = new Set(veteran.map((e) => e.id))
+
+    expect(result?.every((e) => veteranIds.has(e.id))).toBe(true)
+  })
+
+  it('returns at most sessionSize words', () => {
+    const entries = makeEntries(20, { bucket: 7, difficulty: 2 })
+
+    expect(selectVeteranWords(entries, 12, 5)).toHaveLength(12)
+  })
+
+  it('returns all qualifying words when fewer than sessionSize exist', () => {
+    const entries = makeEntries(8, { bucket: 6, difficulty: 2 })
+
+    expect(selectVeteranWords(entries, 12, 5)).toHaveLength(8)
+  })
+
+  it('sorts by difficulty descending', () => {
+    const low = makeEntries(5, { bucket: 6, difficulty: 2 })
+    const high = makeEntries(5, { bucket: 6, difficulty: 5 })
+    const result = selectVeteranWords([...low, ...high], 5, 5)
+
+    const highIds = new Set(high.map((e) => e.id))
+
+    expect(result?.every((e) => highIds.has(e.id))).toBe(true)
+  })
+
+  it('includes words from bucket 7, 8, etc. (any bucket >= 6)', () => {
+    const b6 = makeEntry({ bucket: 6, difficulty: 2 })
+    const b7 = makeEntry({ bucket: 7, difficulty: 2 })
+    const b10 = makeEntry({ bucket: 10, difficulty: 3 })
+    const filler = makeEntries(2, { bucket: 8, difficulty: 2 })
+    const result = selectVeteranWords([b6, b7, b10, ...filler], 12, 5)
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    expect(ids.has(b6.id)).toBe(true)
+    expect(ids.has(b7.id)).toBe(true)
+    expect(ids.has(b10.id)).toBe(true)
   })
 })

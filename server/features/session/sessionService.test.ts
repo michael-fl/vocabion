@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 
 import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET } from './sessionService.ts'
 import { StressSessionService } from './stressSessionService.ts'
+import { VeteranSessionService, VETERAN_MIN_BUCKET6_WORDS } from './veteranSessionService.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
 import { FakeVocabRepository } from '../../test-utils/FakeVocabRepository.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
@@ -73,7 +74,7 @@ beforeEach(() => {
   sessionRepo = new FakeSessionRepository()
   vocabRepo = new FakeVocabRepository()
   creditsRepo = new FakeCreditsRepository()
-  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo))
+  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo))
 })
 
 // ── getOpenSession ────────────────────────────────────────────────────────────
@@ -2442,6 +2443,144 @@ describe('stress session — answer scoring', () => {
     if (newDueAt !== null) {
       // Next due at is at least 7 days after today
       expect(newDueAt > '2026-03-28').toBe(true)
+    }
+  })
+})
+
+// ── Veteran Session ────────────────────────────────────────────────────────────
+
+describe('veteran session — createSession', () => {
+  function makeBucket6Entries(count: number): VocabEntry[] {
+    const entries: VocabEntry[] = []
+
+    for (let i = 0; i < count; i++) {
+      entries.push(makeEntry({ bucket: 6, difficulty: 2, source: `Wort${i}`, target: [`word${i}`] }))
+    }
+
+    return entries
+  }
+
+  it('creates a veteran session when all conditions are met', () => {
+    creditsRepo.setVeteranSessionDueAt('2026-01-01')
+
+    const entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
+
+    for (const e of entries) {
+      vocabRepo.insert(e)
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).toBe('veteran')
+  })
+
+  it('does not create a veteran session when bucket-6+ count is below minimum', () => {
+    creditsRepo.setVeteranSessionDueAt('2026-01-01')
+
+    const entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS - 1)
+
+    for (const e of entries) {
+      vocabRepo.insert(e)
+    }
+
+    // Add enough bucket-0 words for a normal session
+    for (let i = 0; i < 20; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 0 }))
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).not.toBe('veteran')
+  })
+
+  it('does not create a veteran session when due date is in the future', () => {
+    creditsRepo.setVeteranSessionDueAt('9999-12-31')
+
+    const entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
+
+    for (const e of entries) {
+      vocabRepo.insert(e)
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).not.toBe('veteran')
+  })
+
+  it('schedules the first veteran session when bucket-6+ count first reaches minimum', () => {
+    const entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
+
+    for (const e of entries) {
+      vocabRepo.insert(e)
+    }
+
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(creditsRepo.getVeteranSessionDueAt()).not.toBeNull()
+  })
+
+  it('veteran session takes priority over normal/repetition', () => {
+    creditsRepo.setVeteranSessionDueAt('2026-01-01')
+    sessionRepo.insert(makeSession({ status: 'completed', type: 'normal' }))
+
+    const entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
+
+    for (const e of entries) {
+      vocabRepo.insert(e)
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).toBe('veteran')
+  })
+
+  it('focus session takes priority over veteran session', () => {
+    creditsRepo.setVeteranSessionDueAt('2026-01-01')
+
+    const bucket6Entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
+
+    for (const e of bucket6Entries) {
+      vocabRepo.insert(e)
+    }
+
+    // Add 5 high-score entries in buckets 1–5 to trigger focus
+    for (let i = 0; i < 5; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 2, score: 2 }))
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).toBe('focus')
+  })
+})
+
+describe('veteran session — answer scoring', () => {
+  function makeVeteranSession(words: VocabEntry[]): Session {
+    return makeSession({
+      type: 'veteran',
+      words: words.map((e) => ({ vocabId: e.id, status: 'pending' as const })),
+    })
+  }
+
+  it('schedules next veteran session after completion', () => {
+    const entry = makeEntry({ bucket: 6, difficulty: 2, source: 'Hund', target: ['dog'] })
+
+    vocabRepo.insert(entry)
+    creditsRepo.setVeteranSessionDueAt('2026-01-01')
+
+    const sess = makeVeteranSession([entry])
+
+    sessionRepo.insert(sess)
+
+    service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    const newDueAt = creditsRepo.getVeteranSessionDueAt()
+
+    expect(newDueAt).not.toBeNull()
+
+    if (newDueAt !== null) {
+      // Next due at is at least 6 days after today
+      expect(newDueAt > '2026-03-27').toBe(true)
     }
   })
 })

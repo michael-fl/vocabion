@@ -297,6 +297,35 @@ export function selectStressWords(
   return selected
 }
 
+/**
+ * Selects vocabulary words for a veteran session.
+ *
+ * Draws from words in buckets 6+ with difficulty ≥ 2, sorted by difficulty
+ * descending (ties broken randomly). Requiring difficulty ≥ 2 ensures only
+ * structurally complex or error-prone words are revisited; easy words that
+ * reached a high bucket are skipped.
+ *
+ * Returns `null` when fewer than `minWords` qualifying entries exist.
+ *
+ * @param all - All vocabulary entries.
+ * @param sessionSize - Maximum number of words to include.
+ * @param minWords - Minimum qualifying words required (e.g. 5).
+ * @returns Up to `sessionSize` entries from buckets 6+ with difficulty ≥ 2, sorted by difficulty, or `null`.
+ */
+export function selectVeteranWords(
+  all: VocabEntry[],
+  sessionSize: number,
+  minWords: number,
+): VocabEntry[] | null {
+  const candidates = all.filter((e) => e.bucket >= 6 && e.difficulty >= 2)
+
+  if (candidates.length < minWords) {
+    return null
+  }
+
+  return sortByDifficultyThenShuffle(candidates).slice(0, sessionSize)
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 function shuffle<T>(arr: readonly T[]): T[] {
@@ -326,6 +355,24 @@ function sortByScoreThenShuffle(arr: readonly VocabEntry[]): VocabEntry[] {
   return [...byScore.keys()]
     .sort((a, b) => b - a)
     .flatMap((s) => shuffle(byScore.get(s) ?? []))
+}
+
+/**
+ * Sorts vocab entries by difficulty descending, shuffling within each difficulty group.
+ * Higher-difficulty words always appear before lower-difficulty ones; ties are random.
+ */
+function sortByDifficultyThenShuffle(arr: readonly VocabEntry[]): VocabEntry[] {
+  const byDifficulty = new Map<number, VocabEntry[]>()
+
+  for (const e of arr) {
+    const group = byDifficulty.get(e.difficulty) ?? []
+    group.push(e)
+    byDifficulty.set(e.difficulty, group)
+  }
+
+  return [...byDifficulty.keys()]
+    .sort((a, b) => b - a)
+    .flatMap((d) => shuffle(byDifficulty.get(d) ?? []))
 }
 
 function selectFrequencyWords(freqEntries: VocabEntry[], sessionSize: number): VocabEntry[] {
