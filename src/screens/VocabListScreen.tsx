@@ -40,7 +40,7 @@ function groupByBucket(entries: VocabEntry[]): Map<number, VocabEntry[]> {
   }
 
   for (const group of map.values()) {
-    group.sort((a, b) => a.de.localeCompare(b.de, 'de'))
+    group.sort((a, b) => a.source.localeCompare(b.source))
   }
 
   return map
@@ -73,8 +73,8 @@ function VocabTable({ words, now, showBucket, togglingIds, onToggleMark }: Vocab
       <table className={styles.table}>
         <thead>
           <tr>
-            <th className={`${styles.th} ${styles.colDE}`}>German</th>
-            <th className={`${styles.th} ${styles.colEN}`}>English</th>
+            <th className={`${styles.th} ${styles.colDE}`}>Source</th>
+            <th className={`${styles.th} ${styles.colEN}`}>Target</th>
             {showBucket && <th className={`${styles.th} ${styles.colBucket}`}>Bucket</th>}
             <th className={`${styles.th} ${styles.colStar}`} aria-label="Marked" />
             <th className={`${styles.th} ${styles.colScore}`}>Score</th>
@@ -85,10 +85,10 @@ function VocabTable({ words, now, showBucket, togglingIds, onToggleMark }: Vocab
           {words.map((entry) => (
             <tr key={entry.id} className={styles.tr}>
               <td className={styles.td}>
-                <a href={dictUrl(entry.de)} target="_blank" rel="noreferrer">{entry.de}</a>
+                <a href={dictUrl(entry.source)} target="_blank" rel="noreferrer">{entry.source}</a>
               </td>
               <td className={`${styles.td} ${styles.enCell}`}>
-                {entry.en.map((w, i) => (
+                {entry.target.map((w, i) => (
                   <span key={w}>
                     {i > 0 && <span className={styles.enSep}> / </span>}
                     <a href={dictUrl(w)} target="_blank" rel="noreferrer">{w}</a>
@@ -165,14 +165,14 @@ export function VocabListScreen() {
 
   const markedWords =
     entries !== null
-      ? [...entries].filter((e) => e.marked).sort((a, b) => a.de.localeCompare(b.de, 'de'))
+      ? [...entries].filter((e) => e.marked).sort((a, b) => a.source.localeCompare(b.source))
       : []
 
   const scoredWords =
     entries !== null
       ? [...entries]
           .filter((e) => e.score > 0)
-          .sort((a, b) => b.score - a.score || a.de.localeCompare(b.de, 'de'))
+          .sort((a, b) => b.score - a.score || a.source.localeCompare(b.source))
       : []
 
   return (

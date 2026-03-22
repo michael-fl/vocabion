@@ -16,7 +16,7 @@ import { z } from 'zod'
 // ── Create session ────────────────────────────────────────────────────────────
 
 export const createSessionSchema = z.object({
-  direction: z.enum(['DE_TO_EN', 'EN_TO_DE']).default('DE_TO_EN'),
+  direction: z.enum(['SOURCE_TO_TARGET', 'TARGET_TO_SOURCE']).default('SOURCE_TO_TARGET'),
   size: z.number().int().min(1).max(50).default(12),
   repetitionSize: z.number().int().min(1).max(50).default(24),
 })
@@ -26,7 +26,7 @@ export type CreateSessionRequest = z.infer<typeof createSessionSchema>
 // ── Create starred session ─────────────────────────────────────────────────────
 
 export const createStarredSessionSchema = z.object({
-  direction: z.enum(['DE_TO_EN', 'EN_TO_DE']).default('DE_TO_EN'),
+  direction: z.enum(['SOURCE_TO_TARGET', 'TARGET_TO_SOURCE']).default('SOURCE_TO_TARGET'),
 })
 
 export type CreateStarredSessionRequest = z.infer<typeof createStarredSessionSchema>

@@ -17,11 +17,11 @@ export interface VocabEntry {
   /** UUID */
   id: string
 
-  /** The German word. */
-  de: string
+  /** The source-language word (e.g. the German word). */
+  source: string
 
-  /** One or more English forms. */
-  en: string[]
+  /** One or more target-language forms (e.g. English translations). */
+  target: string[]
 
   /**
    * SRS bucket index. 0 = newest / least known.
@@ -107,7 +107,7 @@ export interface SessionWord {
  * ```ts
  * const raw: unknown = JSON.parse(input)
  * if (isVocabEntry(raw)) {
- *   console.log(raw.de)
+ *   console.log(raw.source)
  * }
  * ```
  */
@@ -117,17 +117,17 @@ export function isVocabEntry(value: unknown): value is VocabEntry {
   }
 
   const v = value as Record<string, unknown>
-  const { id, de, en, bucket, maxBucket, manuallyAdded, marked, score, lastAskedAt, createdAt, updatedAt } = v
+  const { id, source, target, bucket, maxBucket, manuallyAdded, marked, score, lastAskedAt, createdAt, updatedAt } = v
 
   if (typeof id !== 'string') {
     return false
   }
 
-  if (typeof de !== 'string' || de.length === 0) {
+  if (typeof source !== 'string' || source.length === 0) {
     return false
   }
 
-  if (!Array.isArray(en) || !en.every((s) => typeof s === 'string')) {
+  if (!Array.isArray(target) || !target.every((s) => typeof s === 'string')) {
     return false
   }
 

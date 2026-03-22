@@ -10,7 +10,7 @@ import type { Session } from './Session.ts'
 function validSession(): Session {
   return {
     id: 'sess-001',
-    direction: 'DE_TO_EN',
+    direction: 'SOURCE_TO_TARGET',
     type: 'normal',
     words: [
       { vocabId: 'abc-123', status: 'pending' },
@@ -32,8 +32,8 @@ describe('isSession', () => {
     expect(isSession({ ...validSession(), status: 'completed' })).toBe(true)
   })
 
-  it('returns true for direction EN_TO_DE', () => {
-    expect(isSession({ ...validSession(), direction: 'EN_TO_DE' })).toBe(true)
+  it('returns true for direction TARGET_TO_SOURCE', () => {
+    expect(isSession({ ...validSession(), direction: 'TARGET_TO_SOURCE' })).toBe(true)
   })
 
   it('returns true for a session with an empty words array', () => {

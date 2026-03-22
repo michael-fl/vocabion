@@ -30,8 +30,8 @@ function parseVariants(raw: string): string[] {
 
 /** Form for adding or merging a vocabulary entry. */
 export function AddWordForm({ onSuccess }: AddWordFormProps) {
-  const [de, setDe] = useState('')
-  const [en, setEn] = useState('')
+  const [source, setSource] = useState('')
+  const [target, setTarget] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -41,18 +41,18 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
     setSuccessMessage(null)
     setError(null)
 
-    const deVariants = parseVariants(de)
-    const enVariants = parseVariants(en)
+    const sourceVariants = parseVariants(source)
+    const targetVariants = parseVariants(target)
 
-    if (deVariants.length === 0 || enVariants.length === 0) {
-      setError('Please enter at least one German and one English word.')
+    if (sourceVariants.length === 0 || targetVariants.length === 0) {
+      setError('Please enter at least one source and one target word.')
       return
     }
 
     setSubmitting(true)
 
     try {
-      const results = await vocabApi.addOrMergeVocab(deVariants, enVariants)
+      const results = await vocabApi.addOrMergeVocab(sourceVariants, targetVariants)
 
       const addedCount = results.filter((r) => !r.merged).length
       const mergedCount = results.filter((r) => r.merged).length
@@ -61,8 +61,8 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
         const { entry, merged } = results[0]
         setSuccessMessage(
           merged
-            ? `Merged into existing entry: ${entry.de} — ${entry.en.join(', ')}`
-            : `Word added: ${entry.de} — ${entry.en.join(', ')}`,
+            ? `Merged into existing entry: ${entry.source} — ${entry.target.join(', ')}`
+            : `Word added: ${entry.source} — ${entry.target.join(', ')}`,
         )
       } else {
         const parts: string[] = []
@@ -72,8 +72,8 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
 
         setSuccessMessage(`${results.length} words saved (${parts.join(', ')})`)
       }
-      setDe('')
-      setEn('')
+      setSource('')
+      setTarget('')
       onSuccess()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save word')
@@ -87,26 +87,26 @@ export function AddWordForm({ onSuccess }: AddWordFormProps) {
       <h2 className={styles.title}>Add word</h2>
 
       <div className={styles.fieldRow}>
-        <label htmlFor="add-word-de" className={styles.fieldLabel}>DE:</label>
+        <label htmlFor="add-word-source" className={styles.fieldLabel}>Source:</label>
         <input
-          id="add-word-de"
+          id="add-word-source"
           className={styles.fieldInput}
           type="text"
-          value={de}
+          value={source}
           placeholder="e.g. sprechen, reden"
-          onChange={(e) => { setDe(e.target.value) }}
+          onChange={(e) => { setSource(e.target.value) }}
         />
       </div>
 
       <div className={styles.fieldRow}>
-        <label htmlFor="add-word-en" className={styles.fieldLabel}>EN:</label>
+        <label htmlFor="add-word-target" className={styles.fieldLabel}>Target:</label>
         <input
-          id="add-word-en"
+          id="add-word-target"
           className={styles.fieldInput}
           type="text"
-          value={en}
+          value={target}
           placeholder="e.g. to speak, to talk"
-          onChange={(e) => { setEn(e.target.value) }}
+          onChange={(e) => { setTarget(e.target.value) }}
         />
       </div>
 

@@ -16,26 +16,26 @@ import { z } from 'zod'
 // ── Create / Update ───────────────────────────────────────────────────────────
 
 export const createVocabEntrySchema = z.object({
-  de: z.string().min(1),
-  en: z.array(z.string().min(1)).min(1),
+  source: z.string().min(1),
+  target: z.array(z.string().min(1)).min(1),
 })
 
 export type CreateVocabEntryRequest = z.infer<typeof createVocabEntrySchema>
 
 export const updateVocabEntrySchema = z.object({
-  de: z.string().min(1),
-  en: z.array(z.string().min(1)).min(1),
+  source: z.string().min(1),
+  target: z.array(z.string().min(1)).min(1),
 })
 
 export type UpdateVocabEntryRequest = z.infer<typeof updateVocabEntrySchema>
 
 // ── Add or merge ──────────────────────────────────────────────────────────────
 
-// `de` is an array: comma-separated input from the UI is split into individual
+// `source` is an array: comma-separated input from the UI is split into individual
 // words, each of which is created as a separate entry (or merged into an existing one).
 export const addOrMergeVocabSchema = z.object({
-  de: z.array(z.string().min(1)).min(1),
-  en: z.array(z.string().min(1)).min(1),
+  source: z.array(z.string().min(1)).min(1),
+  target: z.array(z.string().min(1)).min(1),
 })
 
 export type AddOrMergeVocabRequest = z.infer<typeof addOrMergeVocabSchema>
@@ -75,8 +75,8 @@ export type RefundCreditsRequest = z.infer<typeof refundCreditsSchema>
 // ── Import ────────────────────────────────────────────────────────────────────
 
 const importEntrySchema = z.object({
-  de: z.string().min(1),
-  en: z.array(z.string().min(1)).min(1),
+  source: z.string().min(1),
+  target: z.array(z.string().min(1)).min(1),
   bucket: z.number().int().min(0).optional(),
 })
 

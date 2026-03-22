@@ -972,6 +972,7 @@ Replace the current flat layout with a proper single-page app shell:
 | Theme system (Scholar / Slate / Forest, CSS variables, picker) | done |
 | Starred session (once-per-day session for all marked words, up to 100, score-sorted) | done |
 | Earned stars (watermark in header — 1 star per new bucket above 3, never decreases) | done |
+| Language-neutral rename (de/en → source/target throughout code and DB) | planned |
 
 ---
 
@@ -989,11 +990,66 @@ Replace the current flat layout with a proper single-page app shell:
 - Starred session: a new on-demand session type (`type = 'starred'`) that includes all marked (★) words, capped at 100, score-sorted. Accessible via a second button on the Home screen. Limited to one per calendar day; `last_starred_session_date` in the credits table. Migration `018_starred_session.sql` adds the column; migration `019_session_type_starred.sql` rebuilds the sessions table to add `'starred'` to the type CHECK constraint.
 - Earned stars: a persistent watermark (`earned_stars INTEGER` in the credits table, migration `020_earned_stars.sql`) displayed as amber ★ characters in the header. Stars only ever increase. Currently awarded when any word reaches a new personal-best bucket ≥ 4 (bucket 4 → 1 star, bucket 5 → 2 stars, …). The award logic is decoupled from the bucket number via `CreditsRepository.awardStars(n)` — other earning mechanisms can be added later without changing the storage model.
 
+**Planned — Language-neutral rename (de/en → source/target)**
+
+The codebase currently has German/English hardcoded throughout. This refactoring makes the trainer language-agnostic. It is purely mechanical — no logic changes.
+
+*Scope (~40 files):*
+
+1. **DB migration** (`021_source_target.sql`) — two steps:
+   - `ALTER TABLE vocab_entries RENAME COLUMN de TO source` and `RENAME COLUMN en TO target` (SQLite ≥ 3.25 supports this directly)
+   - Rebuild the `sessions` table to change the CHECK constraint from `('DE_TO_EN', 'EN_TO_DE')` to `('SOURCE_TO_TARGET', 'TARGET_TO_SOURCE')` and `UPDATE` existing rows to the new values
+
+2. **Shared types**
+   - `VocabEntry`: fields `de` → `source`, `en` → `target`; update JSDoc
+   - `SessionDirection`: `'DE_TO_EN' | 'EN_TO_DE'` → `'SOURCE_TO_TARGET' | 'TARGET_TO_SOURCE'`; update type guard in `isSession()`
+
+3. **Backend — server/**
+   - `SqliteVocabRepository.ts`: all SQL column references
+   - `vocabService.ts`: field references, docstrings (124 occurrences of the direction enum across backend alone)
+   - `sessionService.ts`, `answerValidation.ts`, `srsSelection.ts`: direction comparisons
+   - `vocabSchemas.ts`, `sessionSchemas.ts`: Zod field names and enum values
+   - All corresponding test files
+
+4. **Frontend — src/**
+   - `VocabListScreen.tsx`: column headers "German" → "Source", "English" → "Target"; CSS class names `.colDE`/`.colEN` → `.colSource`/`.colTarget`
+   - `AddWordForm.tsx`: field names, UI labels, error message text
+   - `TrainingScreen.tsx`: direction comparisons and field accesses
+   - `sessionApi.ts`, `vocabApi.ts`: request/response field names and types
+   - All corresponding test files
+
+5. **Import/export format — breaking change**
+   - The JSON export format changes from `{ de, en, bucket }` to `{ source, target, bucket }`
+   - `bootstrap-vocabulary.json` and any user-created import files must be updated
+   - Mention the format change in the import guide (`scripts/IMPORT-VOCAB.md`)
+
+*Migration checklist:*
+- [ ] Migration `021_source_target.sql`
+- [ ] `shared/types/VocabEntry.ts` — fields renamed
+- [ ] `shared/types/Session.ts` — `SessionDirection` values renamed
+- [ ] `server/db/SqliteVocabRepository.ts` — SQL queries
+- [ ] `server/features/vocab/vocabService.ts` — field refs + docstrings
+- [ ] `server/features/session/sessionService.ts` — direction comparisons
+- [ ] `server/features/session/answerValidation.ts` — direction comparisons
+- [ ] `server/features/session/srsSelection.ts` — direction comparisons
+- [ ] `server/validation/vocabSchemas.ts` — Zod schema field names
+- [ ] `server/validation/sessionSchemas.ts` — Zod schema direction enum
+- [ ] `server/db/SqliteSessionRepository.ts` — direction value references
+- [ ] All backend test files (fake repos, service tests, router tests)
+- [ ] `src/screens/VocabListScreen.tsx` + CSS — column headers and class names
+- [ ] `src/screens/AddWordForm.tsx` — labels and error message
+- [ ] `src/screens/TrainingScreen.tsx` — direction comparisons and field access
+- [ ] `src/api/sessionApi.ts`, `src/api/vocabApi.ts` — types and field names
+- [ ] All frontend test files
+- [ ] `bootstrap-vocabulary.json` — rename all `de`/`en` keys
+- [ ] `scripts/IMPORT-VOCAB.md` — update format documentation
+- [ ] `server/db/database.test.ts` — update migration count
+
 **Phase 7 (continued) — Vocabulary CRUD + Import/Export**
 
 The vocab list screen, add-word form, and hint feature are done. Remaining Phase 7 items:
 
-1. Edit / delete entry — click a row to edit `de`/`en` arrays or delete with confirmation
+1. Edit / delete entry — click a row to edit `source`/`target` arrays or delete with confirmation
 2. Import JSON — file picker that posts to `POST /api/v1/vocab/import`
 3. Export JSON — calls `GET /api/v1/vocab/export` and triggers a file download
 

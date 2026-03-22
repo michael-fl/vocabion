@@ -52,8 +52,8 @@ function mergeUnique(existing: string[], incoming: string[]): string[] {
 
 /** A single entry in the export file — only the user-editable fields. */
 export interface ExportEntry {
-  de: string
-  en: string[]
+  source: string
+  target: string[]
   bucket: number
 }
 
@@ -100,8 +100,8 @@ export class VocabService {
     const now = new Date().toISOString()
     const entry: VocabEntry = {
       id: crypto.randomUUID(),
-      de: data.de,
-      en: data.en,
+      source: data.source,
+      target: data.target,
       bucket: 0,
       maxBucket: 0,
       manuallyAdded: true,
@@ -125,8 +125,8 @@ export class VocabService {
     const existing = this.getById(id)
     const updated: VocabEntry = {
       ...existing,
-      de: data.de,
-      en: data.en,
+      source: data.source,
+      target: data.target,
       updatedAt: new Date().toISOString(),
     }
 
@@ -148,9 +148,9 @@ export class VocabService {
    * Bulk-imports vocabulary entries with merge-on-conflict behaviour.
    *
    * For each entry in the import file (matching is case-sensitive):
-   * - If no existing entry shares a German word → insert as a new entry at
+   * - If no existing entry shares a source word → insert as a new entry at
    *   `bucket` (defaults to 0 if not specified in the file).
-   * - If an existing entry shares a German word → merge DE and EN arrays
+   * - If an existing entry shares a source word → merge source and target arrays
    *   (duplicates filtered out), then move to `bucket` from the file, or keep
    *   the existing bucket if the file does not specify one.
    *
@@ -163,14 +163,14 @@ export class VocabService {
     let merged = 0
 
     for (const item of data.entries) {
-      const existing = allEntries.find((e) => e.de === item.de)
+      const existing = allEntries.find((e) => e.source === item.source)
 
       if (existing === undefined) {
         const newMaxBucket = item.bucket ?? 0
         const entry: VocabEntry = {
           id: crypto.randomUUID(),
-          de: item.de,
-          en: item.en,
+          source: item.source,
+          target: item.target,
           bucket: newMaxBucket,
           maxBucket: newMaxBucket,
           manuallyAdded: false,
@@ -190,7 +190,7 @@ export class VocabService {
         const creditDelta = Math.max(0, newMaxBucket - 3) - Math.max(0, existing.maxBucket - 3)
         const updated: VocabEntry = {
           ...existing,
-          en: mergeUnique(existing.en, item.en),
+          target: mergeUnique(existing.target, item.target),
           bucket: mergedBucket,
           maxBucket: newMaxBucket,
           updatedAt: now,
@@ -211,12 +211,12 @@ export class VocabService {
   }
 
   /**
-   * Adds or merges one vocabulary entry per German word in `data.de`.
+   * Adds or merges one vocabulary entry per source word in `data.source`.
    *
-   * For each word in `data.de`:
-   * - If no existing entry has that German word → a new entry is created.
-   * - If an existing entry matches (case-sensitive) → the EN translations
-   *   are merged into it (duplicates filtered out); the DE word is unchanged.
+   * For each word in `data.source`:
+   * - If no existing entry has that source word → a new entry is created.
+   * - If an existing entry matches (case-sensitive) → the target translations
+   *   are merged into it (duplicates filtered out); the source word is unchanged.
    *
    * Returns one result object per input word, each carrying the created/updated
    * entry and a `merged` flag.
@@ -224,16 +224,16 @@ export class VocabService {
   addOrMerge(data: AddOrMergeVocabRequest): { entry: VocabEntry; merged: boolean }[] {
     const results: { entry: VocabEntry; merged: boolean }[] = []
 
-    for (const word of data.de) {
-      const existing = this.repo.findAll().find((e) => e.de === word)
+    for (const word of data.source) {
+      const existing = this.repo.findAll().find((e) => e.source === word)
 
       if (existing === undefined) {
-        const entry = this.create({ de: word, en: data.en })
+        const entry = this.create({ source: word, target: data.target })
 
         results.push({ entry, merged: false })
       } else {
-        const mergedEn = mergeUnique(existing.en, data.en)
-        const entry = this.update(existing.id, { de: existing.de, en: mergedEn })
+        const mergedTarget = mergeUnique(existing.target, data.target)
+        const entry = this.update(existing.id, { source: existing.source, target: mergedTarget })
 
         results.push({ entry, merged: true })
       }
@@ -334,7 +334,7 @@ export class VocabService {
     return {
       version: 1,
       exportedAt: new Date().toISOString(),
-      entries: entries.map((e) => ({ de: e.de, en: e.en, bucket: e.bucket })),
+      entries: entries.map((e) => ({ source: e.source, target: e.target, bucket: e.bucket })),
     }
   }
 }

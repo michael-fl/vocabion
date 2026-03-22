@@ -19,8 +19,8 @@ const MIGRATIONS_DIR = join(import.meta.dirname, 'migrations')
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: crypto.randomUUID(),
-    de: 'Tisch',
-    en: ['table'],
+    source: 'Tisch',
+    target: ['table'],
     bucket: 0,
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
@@ -100,8 +100,8 @@ describe('findByBucket', () => {
 describe('insert', () => {
   it('round-trips all fields when lastAskedAt is null', () => {
     const entry = makeEntry({
-      de: 'Fahrrad',
-      en: ['bicycle', 'bike'],
+      source: 'Fahrrad',
+      target: ['bicycle', 'bike'],
       bucket: 3,
       lastAskedAt: null,
     })
@@ -119,16 +119,16 @@ describe('insert', () => {
     expect(repo.findById(entry.id)?.lastAskedAt).toBe('2026-06-01T12:00:00Z')
   })
 
-  it('preserves de as a plain string and en as a proper array', () => {
-    const entry = makeEntry({ de: 'Hund', en: ['dog', 'hound'] })
+  it('preserves source as a plain string and target as a proper array', () => {
+    const entry = makeEntry({ source: 'Hund', target: ['dog', 'hound'] })
 
     repo.insert(entry)
 
     const found = repo.findById(entry.id)
 
-    expect(typeof found?.de).toBe('string')
-    expect(found?.de).toBe('Hund')
-    expect(found?.en).toEqual(['dog', 'hound'])
+    expect(typeof found?.source).toBe('string')
+    expect(found?.source).toBe('Hund')
+    expect(found?.target).toEqual(['dog', 'hound'])
   })
 })
 
@@ -156,16 +156,16 @@ describe('update', () => {
     expect(repo.findById(entry.id)?.maxBucket).toBe(5)
   })
 
-  it('updates de and en translations', () => {
+  it('updates source and target translations', () => {
     const entry = makeEntry()
 
     repo.insert(entry)
-    repo.update({ ...entry, de: 'Stuhl', en: ['chair'] })
+    repo.update({ ...entry, source: 'Stuhl', target: ['chair'] })
 
     const updated = repo.findById(entry.id)
 
-    expect(updated?.de).toBe('Stuhl')
-    expect(updated?.en).toEqual(['chair'])
+    expect(updated?.source).toBe('Stuhl')
+    expect(updated?.target).toEqual(['chair'])
   })
 
   it('leaves other entries unchanged', () => {

@@ -20,8 +20,8 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   idSeq++
   return {
     id: `entry-${idSeq}`,
-    de: 'Tisch',
-    en: ['table'],
+    source: 'Tisch',
+    target: ['table'],
     bucket: 0,
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
@@ -100,7 +100,7 @@ describe('VocabListScreen', () => {
 
   it('bucket sections are collapsed by default', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0 }),
     ])
 
     render(<VocabListScreen />)
@@ -116,7 +116,7 @@ describe('VocabListScreen', () => {
 
   it('shows words inside a bucket after expanding it', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0 }),
     ])
 
     render(<VocabListScreen />)
@@ -131,9 +131,9 @@ describe('VocabListScreen', () => {
 
   it('sorts words alphabetically within a bucket', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0 }),
-      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 0 }),
-      makeEntry({ de: 'Buch', en: ['book'], bucket: 0 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0 }),
+      makeEntry({ source: 'Apfel', target: ['apple'], bucket: 0 }),
+      makeEntry({ source: 'Buch', target: ['book'], bucket: 0 }),
     ])
 
     render(<VocabListScreen />)
@@ -142,15 +142,15 @@ describe('VocabListScreen', () => {
 
     fireEvent.click(summary)
 
-    // 4 columns per row (German, English, star, Score); take every 4th cell starting at 0
+    // 4 columns per row (Source, Target, star, Score); take every 4th cell starting at 0
     const cells = screen.getAllByRole('cell').filter((_, i) => i % 4 === 0)
 
     expect(cells.map((c) => c.textContent)).toEqual(['Apfel', 'Buch', 'Tisch'])
   })
 
-  it('renders each German or English variant as a separate dictionary link', async () => {
+  it('renders each source or target variant as a separate dictionary link', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: 'Gemüse', en: ['vegetable', 'vegetables'], bucket: 0 }),
+      makeEntry({ source: 'Gemüse', target: ['vegetable', 'vegetables'], bucket: 0 }),
     ])
 
     render(<VocabListScreen />)
@@ -237,7 +237,7 @@ describe('VocabListScreen', () => {
 describe('Marked section', () => {
   it('shows the Marked section when at least one entry is marked', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: true }),
     ])
 
     render(<VocabListScreen />)
@@ -247,7 +247,7 @@ describe('Marked section', () => {
 
   it('does not show the Marked section when no entries are marked', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: false }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: false }),
     ])
 
     render(<VocabListScreen />)
@@ -259,8 +259,8 @@ describe('Marked section', () => {
 
   it('shows word count in the Marked section summary', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
-      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, marked: true }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: true }),
+      makeEntry({ source: 'Apfel', target: ['apple'], bucket: 1, marked: true }),
     ])
 
     render(<VocabListScreen />)
@@ -270,9 +270,9 @@ describe('Marked section', () => {
 
   it('sorts marked words alphabetically', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
-      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, marked: true }),
-      makeEntry({ de: 'Buch', en: ['book'], bucket: 2, marked: true }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: true }),
+      makeEntry({ source: 'Apfel', target: ['apple'], bucket: 1, marked: true }),
+      makeEntry({ source: 'Buch', target: ['book'], bucket: 2, marked: true }),
     ])
 
     render(<VocabListScreen />)
@@ -284,7 +284,7 @@ describe('Marked section', () => {
     // Scope to this section to avoid picking up cells from bucket sections
     const section = summary.closest('details')
     if (section === null) { throw new Error('details element not found') }
-    // 6 columns per row in cross-section (German, English, Bucket, Star, Score, Due in)
+    // 6 columns per row in cross-section (Source, Target, Bucket, Star, Score, Due in)
     const germanCells = within(section).getAllByRole('cell').filter((_, i) => i % 6 === 0)
 
     expect(germanCells.map((c) => c.textContent)).toEqual(['Apfel', 'Buch', 'Tisch'])
@@ -292,7 +292,7 @@ describe('Marked section', () => {
 
   it('shows the Bucket column in the Marked section', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 3, marked: true }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 3, marked: true }),
     ])
 
     render(<VocabListScreen />)
@@ -304,7 +304,7 @@ describe('Marked section', () => {
 
   it('shows Due in for time-based words in the Marked section', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 4, lastAskedAt: null, marked: true }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 4, lastAskedAt: null, marked: true }),
     ])
 
     render(<VocabListScreen />)
@@ -316,7 +316,7 @@ describe('Marked section', () => {
 
   it('shows words in both Marked section and their bucket section', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: true }),
     ])
 
     render(<VocabListScreen />)
@@ -335,7 +335,7 @@ describe('Marked section', () => {
 describe('Scored section', () => {
   it('shows the Scored section when at least one entry has score > 0', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 1 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, score: 1 }),
     ])
 
     render(<VocabListScreen />)
@@ -345,7 +345,7 @@ describe('Scored section', () => {
 
   it('does not show the Scored section when all entries have score 0', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 0 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, score: 0 }),
     ])
 
     render(<VocabListScreen />)
@@ -357,8 +357,8 @@ describe('Scored section', () => {
 
   it('shows word count in the Scored section summary', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 2 }),
-      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 1, score: 1 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, score: 2 }),
+      makeEntry({ source: 'Apfel', target: ['apple'], bucket: 1, score: 1 }),
     ])
 
     render(<VocabListScreen />)
@@ -368,9 +368,9 @@ describe('Scored section', () => {
 
   it('sorts scored words by score descending, then alphabetically on ties', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 1 }),
-      makeEntry({ de: 'Apfel', en: ['apple'], bucket: 0, score: 3 }),
-      makeEntry({ de: 'Buch', en: ['book'], bucket: 0, score: 1 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, score: 1 }),
+      makeEntry({ source: 'Apfel', target: ['apple'], bucket: 0, score: 3 }),
+      makeEntry({ source: 'Buch', target: ['book'], bucket: 0, score: 1 }),
     ])
 
     render(<VocabListScreen />)
@@ -390,7 +390,7 @@ describe('Scored section', () => {
 
   it('shows words in both Scored section and their bucket section', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, score: 2 }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, score: 2 }),
     ])
 
     render(<VocabListScreen />)
@@ -408,7 +408,7 @@ describe('Scored section', () => {
 describe('star toggle', () => {
   it('shows ★ button for a marked entry', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: true }),
     ])
 
     render(<VocabListScreen />)
@@ -421,7 +421,7 @@ describe('star toggle', () => {
 
   it('shows ☆ button for an unmarked entry', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
-      makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: false }),
+      makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: false }),
     ])
 
     render(<VocabListScreen />)
@@ -433,7 +433,7 @@ describe('star toggle', () => {
   })
 
   it('calls setVocabMarked(id, true) when clicking ☆', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: false })
+    const entry = makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: false })
 
     vi.mocked(vocabApi.listVocab).mockResolvedValue([entry])
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: true })
@@ -447,7 +447,7 @@ describe('star toggle', () => {
   })
 
   it('calls setVocabMarked(id, false) when clicking ★', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: true })
+    const entry = makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: true })
 
     vi.mocked(vocabApi.listVocab).mockResolvedValue([entry])
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: false })
@@ -464,7 +464,7 @@ describe('star toggle', () => {
   })
 
   it('updates the star button after a successful toggle', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: false })
+    const entry = makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: false })
 
     vi.mocked(vocabApi.listVocab).mockResolvedValue([entry])
     vi.mocked(vocabApi.setVocabMarked).mockResolvedValue({ ...entry, marked: true })
@@ -479,7 +479,7 @@ describe('star toggle', () => {
   })
 
   it('disables the star button while the request is in-flight', async () => {
-    const entry = makeEntry({ de: ['Tisch'], en: ['table'], bucket: 0, marked: false })
+    const entry = makeEntry({ source: 'Tisch', target: ['table'], bucket: 0, marked: false })
 
     vi.mocked(vocabApi.listVocab).mockResolvedValue([entry])
 

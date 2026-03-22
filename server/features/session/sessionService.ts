@@ -8,7 +8,7 @@
  * @example
  * ```ts
  * const service = new SessionService(sessionRepo, vocabRepo)
- * const session = service.createSession({ direction: 'DE_TO_EN', size: 10 })
+ * const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
  * ```
  */
 import type { Session, SessionWord, SessionDirection, SessionType } from '../../../shared/types/Session.ts'

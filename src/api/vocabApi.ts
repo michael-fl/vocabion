@@ -13,14 +13,14 @@ import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 
 const BASE = '/api/v1/vocab'
 
-/** One result per German word submitted to `addOrMergeVocab`. */
+/** One result per source word submitted to `addOrMergeVocab`. */
 export interface AddOrMergeResultItem {
   entry: VocabEntry
   /** `true` if translations were merged into an existing entry; `false` if a new entry was created. */
   merged: boolean
 }
 
-/** Returned by `addOrMergeVocab` — one item per German word. */
+/** Returned by `addOrMergeVocab` — one item per source word. */
 export type AddOrMergeResult = AddOrMergeResultItem[]
 
 /** Fetches all vocabulary entries from the server. */
@@ -70,13 +70,13 @@ export async function setVocabMarked(vocabId: string, marked: boolean): Promise<
 
 /**
  * Adds a new entry or merges translations into an existing one.
- * `de` and `en` are already-parsed arrays of variants.
+ * `source` and `target` are already-parsed arrays of variants.
  */
-export async function addOrMergeVocab(de: string[], en: string[]): Promise<AddOrMergeResult> {
+export async function addOrMergeVocab(source: string[], target: string[]): Promise<AddOrMergeResult> {
   const res = await fetch(`${BASE}/add-or-merge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ de, en }),
+    body: JSON.stringify({ source, target }),
   })
 
   if (!res.ok) {

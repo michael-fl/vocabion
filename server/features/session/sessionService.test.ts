@@ -30,8 +30,8 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   idCounter++
   return {
     id: `entry-${idCounter}`,
-    de: 'Wort',
-    en: ['word'],
+    source: 'Wort',
+    target: ['word'],
     bucket: 0,
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
@@ -48,7 +48,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
   idCounter++
   return {
     id: `session-${idCounter}`,
-    direction: 'DE_TO_EN',
+    direction: 'SOURCE_TO_TARGET',
     type: 'normal',
     words: [],
     status: 'open',
@@ -94,15 +94,15 @@ describe('createSession', () => {
   it('creates a session with the chosen direction', () => {
     vocabRepo.insert(makeEntry())
 
-    const session = service.createSession({ direction: 'EN_TO_DE', size: 1 })
+    const session = service.createSession({ direction: 'TARGET_TO_SOURCE', size: 1 })
 
-    expect(session.direction).toBe('EN_TO_DE')
+    expect(session.direction).toBe('TARGET_TO_SOURCE')
   })
 
   it('creates a session with status "open"', () => {
     vocabRepo.insert(makeEntry())
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 1 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
     expect(session.status).toBe('open')
   })
@@ -111,7 +111,7 @@ describe('createSession', () => {
     vocabRepo.insert(makeEntry({ bucket: 0 }))
     vocabRepo.insert(makeEntry({ bucket: 0 }))
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 2 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 2 })
 
     expect(session.words.length).toBeGreaterThan(0)
     expect(session.words.every((w) => w.status === 'pending')).toBe(true)
@@ -120,7 +120,7 @@ describe('createSession', () => {
   it('persists the session so getOpenSession returns it', () => {
     vocabRepo.insert(makeEntry())
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 1 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
     expect(service.getOpenSession()?.id).toBe(session.id)
   })
@@ -128,18 +128,18 @@ describe('createSession', () => {
   it('throws ApiError 409 when a session is already open', () => {
     sessionRepo.insert(makeSession({ status: 'open' }))
 
-    expectApiError(() => service.createSession({ direction: 'DE_TO_EN', size: 10 }), 409)
+    expectApiError(() => service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 }), 409)
   })
 
   it('throws ApiError 400 when no vocabulary entries are available', () => {
-    expectApiError(() => service.createSession({ direction: 'DE_TO_EN', size: 10 }), 400)
+    expectApiError(() => service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 }), 400)
   })
 
   it('clears manuallyAdded flag on selected words after session creation', () => {
     const entry = makeEntry({ bucket: 0, manuallyAdded: true })
 
     vocabRepo.insert(entry)
-    service.createSession({ direction: 'DE_TO_EN', size: 1 })
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
     expect(vocabRepo.findById(entry.id)?.manuallyAdded).toBe(false)
   })
@@ -152,7 +152,7 @@ describe('createSession', () => {
     vocabRepo.insert(notSelected)
 
     // Session size 1 — only 1 word gets picked; the other stays untouched
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 1 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
     const sessionVocabIds = new Set(session.words.map((w) => w.vocabId))
     const untouchedId = [selected.id, notSelected.id].find((id) => !sessionVocabIds.has(id))
 
@@ -199,7 +199,7 @@ describe('submitAnswer — error cases', () => {
 
 describe('submitAnswer — correct on frequency bucket', () => {
   it('returns outcome "correct" and newBucket = bucket + 1', () => {
-    const entry = makeEntry({ bucket: 0, en: ['word'] })
+    const entry = makeEntry({ bucket: 0, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -213,7 +213,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
   })
 
   it('promotes the word to bucket + 1', () => {
-    const entry = makeEntry({ bucket: 2, en: ['word'] })
+    const entry = makeEntry({ bucket: 2, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -225,7 +225,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
   })
 
   it('completes the session when all words are answered', () => {
-    const entry = makeEntry({ en: ['word'] })
+    const entry = makeEntry({ target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -238,7 +238,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
   })
 
   it('updates lastAskedAt on the vocab entry', () => {
-    const entry = makeEntry({ bucket: 0, en: ['word'], lastAskedAt: null })
+    const entry = makeEntry({ bucket: 0, target: ['word'], lastAskedAt: null })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -250,7 +250,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
   })
 
   it('updates maxBucket and earns 1 credit when promoted into bucket 4 for the first time', () => {
-    const entry = makeEntry({ bucket: 3, maxBucket: 3, en: ['word'] })
+    const entry = makeEntry({ bucket: 3, maxBucket: 3, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -263,7 +263,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
   })
 
   it('earns 1 credit when promoted into bucket 1 for the first time', () => {
-    const entry = makeEntry({ bucket: 0, maxBucket: 0, en: ['word'] })
+    const entry = makeEntry({ bucket: 0, maxBucket: 0, target: ['word'] })
     const other = makeEntry()
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }, { vocabId: other.id, status: 'pending' }] })
 
@@ -277,7 +277,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
   })
 
   it('does not decrease maxBucket or add credits when the new bucket is lower than maxBucket', () => {
-    const entry = makeEntry({ bucket: 2, maxBucket: 5, en: ['word'] })
+    const entry = makeEntry({ bucket: 2, maxBucket: 5, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -294,7 +294,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
 
 describe('submitAnswer — wrong on frequency bucket', () => {
   it('returns outcome "incorrect" and newBucket = 1', () => {
-    const entry = makeEntry({ bucket: 2, en: ['word'] })
+    const entry = makeEntry({ bucket: 2, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -308,7 +308,7 @@ describe('submitAnswer — wrong on frequency bucket', () => {
   })
 
   it('resets the word to bucket 1', () => {
-    const entry = makeEntry({ bucket: 3, en: ['word'] })
+    const entry = makeEntry({ bucket: 3, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -324,7 +324,7 @@ describe('submitAnswer — wrong on frequency bucket', () => {
 
 describe('submitAnswer — partial (one of two required answers correct)', () => {
   it('returns outcome "partial", correct=false, and newBucket = current bucket (unchanged)', () => {
-    const entry = makeEntry({ bucket: 2, en: ['bicycle', 'bike'] })
+    const entry = makeEntry({ bucket: 2, target: ['bicycle', 'bike'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -338,7 +338,7 @@ describe('submitAnswer — partial (one of two required answers correct)', () =>
   })
 
   it('keeps the word in its current bucket (does not demote)', () => {
-    const entry = makeEntry({ bucket: 3, en: ['bicycle', 'bike'] })
+    const entry = makeEntry({ bucket: 3, target: ['bicycle', 'bike'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -350,7 +350,7 @@ describe('submitAnswer — partial (one of two required answers correct)', () =>
   })
 
   it('promotes bucket 0 words to bucket 1 even on a partial answer', () => {
-    const entry = makeEntry({ bucket: 0, en: ['bicycle', 'bike'] })
+    const entry = makeEntry({ bucket: 0, target: ['bicycle', 'bike'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -363,7 +363,7 @@ describe('submitAnswer — partial (one of two required answers correct)', () =>
   })
 
   it('does not apply partial logic when only one answer is required (single translation)', () => {
-    const entry = makeEntry({ bucket: 2, en: ['table'] })
+    const entry = makeEntry({ bucket: 2, target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -376,7 +376,7 @@ describe('submitAnswer — partial (one of two required answers correct)', () =>
   })
 
   it('applies partial logic for time-based buckets (bucket ≥ 4) too', () => {
-    const entry = makeEntry({ bucket: 4, en: ['bicycle', 'bike'] })
+    const entry = makeEntry({ bucket: 4, target: ['bicycle', 'bike'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -393,7 +393,7 @@ describe('submitAnswer — partial (one of two required answers correct)', () =>
 
 describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
   it('returns outcome "correct"', () => {
-    const entry = makeEntry({ bucket: 4, en: ['word'] })
+    const entry = makeEntry({ bucket: 4, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -406,7 +406,7 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
   })
 
   it('promotes the word to bucket + 1', () => {
-    const entry = makeEntry({ bucket: 4, en: ['word'] })
+    const entry = makeEntry({ bucket: 4, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -418,7 +418,7 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
   })
 
   it('updates lastAskedAt on the vocab entry', () => {
-    const entry = makeEntry({ bucket: 4, en: ['word'], lastAskedAt: null })
+    const entry = makeEntry({ bucket: 4, target: ['word'], lastAskedAt: null })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -431,7 +431,7 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
 
   it('does not promote a non-due time-based word when answered correctly', () => {
     // lastAskedAt = just now → word is not due yet (needs 22 h for bucket 4)
-    const entry = makeEntry({ bucket: 4, en: ['word'], lastAskedAt: new Date().toISOString() })
+    const entry = makeEntry({ bucket: 4, target: ['word'], lastAskedAt: new Date().toISOString() })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -445,7 +445,7 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
   it('still updates lastAskedAt for a non-due time-based word answered correctly', () => {
     // Use a timestamp 1 hour ago so the new lastAskedAt will be strictly later
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-    const entry = makeEntry({ bucket: 4, en: ['word'], lastAskedAt: oneHourAgo })
+    const entry = makeEntry({ bucket: 4, target: ['word'], lastAskedAt: oneHourAgo })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -462,7 +462,7 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
   it('still promotes a due time-based word when answered correctly', () => {
     // lastAskedAt = 2 days ago → definitely due for bucket 4 (22 h interval)
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-    const entry = makeEntry({ bucket: 4, en: ['word'], lastAskedAt: twoDaysAgo })
+    const entry = makeEntry({ bucket: 4, target: ['word'], lastAskedAt: twoDaysAgo })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -478,8 +478,8 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
 
 describe('submitAnswer — wrong on time bucket (second-chance)', () => {
   it('returns outcome "second_chance" and newBucket = W1\'s current bucket (unchanged)', () => {
-    const w1 = makeEntry({ bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ bucket: 4, target: ['other'] })
     const session = makeSession({ words: [{ vocabId: w1.id, status: 'pending' }] })
 
     vocabRepo.insert(w1)
@@ -494,8 +494,8 @@ describe('submitAnswer — wrong on time bucket (second-chance)', () => {
   })
 
   it('adds a second-chance word to the session', () => {
-    const w1 = makeEntry({ bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ bucket: 4, target: ['other'] })
     const session = makeSession({ words: [{ vocabId: w1.id, status: 'pending' }] })
 
     vocabRepo.insert(w1)
@@ -511,8 +511,8 @@ describe('submitAnswer — wrong on time bucket (second-chance)', () => {
   })
 
   it('does not change W1 bucket immediately — waits for second chance', () => {
-    const w1 = makeEntry({ bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ bucket: 4, target: ['other'] })
     const session = makeSession({ words: [{ vocabId: w1.id, status: 'pending' }] })
 
     vocabRepo.insert(w1)
@@ -526,7 +526,7 @@ describe('submitAnswer — wrong on time bucket (second-chance)', () => {
   })
 
   it('returns "incorrect" (not second_chance) when no second word is available', () => {
-    const w1 = makeEntry({ bucket: 4, en: ['word'] })
+    const w1 = makeEntry({ bucket: 4, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: w1.id, status: 'pending' }] })
 
     vocabRepo.insert(w1)
@@ -543,8 +543,8 @@ describe('submitAnswer — wrong on time bucket (second-chance)', () => {
 
 describe('submitAnswer — second-chance word correct', () => {
   it('returns outcome "second_chance_correct", newBucket = W2 bucket (unchanged), w1NewBucket = W1 bucket-1', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -564,8 +564,8 @@ describe('submitAnswer — second-chance word correct', () => {
   })
 
   it('keeps W2 in its current bucket', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -583,8 +583,8 @@ describe('submitAnswer — second-chance word correct', () => {
   })
 
   it('demotes W1 to bucket - 1', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -602,8 +602,8 @@ describe('submitAnswer — second-chance word correct', () => {
   })
 
   it('sets W1 lastAskedAt so it is not due immediately but is due after 24 h (new bucket is time-based)', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 5, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 5, en: ['other'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 5, target: ['other'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -632,8 +632,8 @@ describe('submitAnswer — second-chance word correct', () => {
   })
 
   it('uses lastAskedAt = now for W1 when new bucket is a frequency bucket (< 4)', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -665,8 +665,8 @@ describe('submitAnswer — second-chance word correct', () => {
 
 describe('submitAnswer — second-chance word wrong', () => {
   it('returns outcome "second_chance_incorrect", newBucket = W2 bucket (unchanged), w1NewBucket = 1', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, en: ['other'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -686,8 +686,8 @@ describe('submitAnswer — second-chance word wrong', () => {
   })
 
   it('resets W1 to bucket 1 and keeps W2 in its current bucket', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 5, en: ['other'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 5, target: ['other'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -710,8 +710,8 @@ describe('submitAnswer — second-chance word wrong', () => {
 
 describe('submitAnswer — second-chance word partial', () => {
   it('returns outcome "second_chance_partial", newBucket = W2 bucket (unchanged), w1NewBucket = 1', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 5, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, en: ['other', 'another'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other', 'another'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -731,8 +731,8 @@ describe('submitAnswer — second-chance word partial', () => {
   })
 
   it('resets W1 to bucket 1 and keeps W2 in its current bucket', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 5, en: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, en: ['other', 'another'] })
+    const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['word'] })
+    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other', 'another'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -756,7 +756,7 @@ describe('submitAnswer — second-chance word partial', () => {
 describe('submitAnswer — typo (close but not exact answer)', () => {
   it('returns outcome "correct_typo" when the answer is within the typo threshold', () => {
     // 'machone' vs 'machine': distance 1, ratio 1/7 ≈ 0.14 ≤ 0.15
-    const entry = makeEntry({ bucket: 0, en: ['machine'] })
+    const entry = makeEntry({ bucket: 0, target: ['machine'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -769,7 +769,7 @@ describe('submitAnswer — typo (close but not exact answer)', () => {
   })
 
   it('promotes the word to bucket + 1 on a typo answer (same as correct)', () => {
-    const entry = makeEntry({ bucket: 2, en: ['machine'] })
+    const entry = makeEntry({ bucket: 2, target: ['machine'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -781,7 +781,7 @@ describe('submitAnswer — typo (close but not exact answer)', () => {
   })
 
   it('includes typo details in the result', () => {
-    const entry = makeEntry({ bucket: 0, en: ['machine'] })
+    const entry = makeEntry({ bucket: 0, target: ['machine'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -794,8 +794,8 @@ describe('submitAnswer — typo (close but not exact answer)', () => {
   })
 
   it('returns outcome "second_chance_correct_typo" when the second-chance word is answered with a typo', () => {
-    const w1 = makeEntry({ bucket: 4, en: ['word'] })
-    const w2 = makeEntry({ bucket: 4, en: ['machine'] })
+    const w1 = makeEntry({ bucket: 4, target: ['word'] })
+    const w2 = makeEntry({ bucket: 4, target: ['machine'] })
     const session = makeSession({
       words: [
         { vocabId: w1.id, status: 'incorrect' },
@@ -817,7 +817,7 @@ describe('submitAnswer — typo (close but not exact answer)', () => {
   it('returns outcome "partial_typo" when one answer is a typo and the other is wrong', () => {
     // 'machine' (7 chars): 'machone' is distance 1 → typo match
     // 'apparatus': 'wrong' is too far → no match
-    const entry = makeEntry({ bucket: 2, en: ['machine', 'apparatus'] })
+    const entry = makeEntry({ bucket: 2, target: ['machine', 'apparatus'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -832,7 +832,7 @@ describe('submitAnswer — typo (close but not exact answer)', () => {
   })
 
   it('keeps word in its current bucket on a partial_typo outcome', () => {
-    const entry = makeEntry({ bucket: 2, en: ['machine', 'apparatus'] })
+    const entry = makeEntry({ bucket: 2, target: ['machine', 'apparatus'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -844,7 +844,7 @@ describe('submitAnswer — typo (close but not exact answer)', () => {
   })
 
   it('does not return typos for an exact correct answer', () => {
-    const entry = makeEntry({ bucket: 0, en: ['machine'] })
+    const entry = makeEntry({ bucket: 0, target: ['machine'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -873,7 +873,7 @@ describe('createSession — session type alternation', () => {
   it('creates a "normal" session when there is no previous session', () => {
     vocabRepo.insert(makeEntry({ bucket: 0 }))
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 1 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
     expect(session.type).toBe('normal')
   })
@@ -888,7 +888,7 @@ describe('createSession — session type alternation', () => {
 
     sessionRepo.insert(prevSession)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, repetitionSize: 12 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 12 })
 
     expect(session.type).toBe('repetition')
   })
@@ -905,7 +905,7 @@ describe('createSession — session type alternation', () => {
 
     sessionRepo.insert(prevSession)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, repetitionSize: 12 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 12 })
 
     expect(session.type).toBe('repetition')
     expect(session.words.every((w) => {
@@ -928,7 +928,7 @@ describe('createSession — session type alternation', () => {
 
     sessionRepo.insert(prevSession)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
 
     expect(session.type).toBe('normal')
   })
@@ -946,7 +946,7 @@ describe('createSession — session type alternation', () => {
 
     sessionRepo.insert(fallbackNormal)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, repetitionSize: 12 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 12 })
 
     expect(session.type).toBe('repetition')
   })
@@ -958,7 +958,7 @@ describe('createSession — session type alternation', () => {
 
     sessionRepo.insert(prevSession)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 1 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
     expect(session.type).toBe('normal')
   })
@@ -968,7 +968,7 @@ describe('createSession — session type alternation', () => {
 
 describe('submitAnswer — answer cost', () => {
   it('returns answerCost = 0 for a correct answer', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -983,8 +983,8 @@ describe('submitAnswer — answer cost', () => {
   })
 
   it('deducts 1 credit immediately for a wrong answer and returns answerCost = 1', () => {
-    const e1 = makeEntry({ en: ['table'] })
-    const e2 = makeEntry({ en: ['chair'] })
+    const e1 = makeEntry({ target: ['table'] })
+    const e2 = makeEntry({ target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1000,7 +1000,7 @@ describe('submitAnswer — answer cost', () => {
   })
 
   it('returns answerCost = 0 and does not go negative when balance is 0', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1015,8 +1015,8 @@ describe('submitAnswer — answer cost', () => {
   })
 
   it('deducts across multiple wrong answers, stopping at 0 balance', () => {
-    const e1 = makeEntry({ en: ['table'] })
-    const e2 = makeEntry({ en: ['chair'] })
+    const e1 = makeEntry({ target: ['table'] })
+    const e2 = makeEntry({ target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1038,7 +1038,7 @@ describe('submitAnswer — answer cost', () => {
 
 describe('submitAnswer — perfect session bonus', () => {
   it('awards 10 credits for a perfect normal session', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1051,8 +1051,8 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('does not award a bonus when any word is answered incorrectly', () => {
-    const e1 = makeEntry({ en: ['table'] })
-    const e2 = makeEntry({ en: ['chair'] })
+    const e1 = makeEntry({ target: ['table'] })
+    const e2 = makeEntry({ target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1066,8 +1066,8 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('does not award a bonus when a second-chance word was used', () => {
-    const w1 = makeEntry({ bucket: 4, en: ['table'], lastAskedAt: null })
-    const w2 = makeEntry({ bucket: 4, en: ['chair'], lastAskedAt: null })
+    const w1 = makeEntry({ bucket: 4, target: ['table'], lastAskedAt: null })
+    const w2 = makeEntry({ bucket: 4, target: ['chair'], lastAskedAt: null })
     const session = makeSession({ words: [{ vocabId: w1.id, status: 'pending' }] })
 
     vocabRepo.insert(w1)
@@ -1089,8 +1089,8 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('returns perfectBonus = 0 for non-final answers', () => {
-    const e1 = makeEntry({ en: ['table'] })
-    const e2 = makeEntry({ en: ['chair'] })
+    const e1 = makeEntry({ target: ['table'] })
+    const e2 = makeEntry({ target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1104,7 +1104,7 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('adds the bonus to the credit balance', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1118,7 +1118,7 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('does not award a bonus when hints were used', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1130,7 +1130,7 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('awards 100 credits for a perfect discovery session (all correct, no push-backs)', () => {
-    const entry = makeEntry({ bucket: 0, en: ['dog'] })
+    const entry = makeEntry({ bucket: 0, target: ['dog'] })
     const session = makeSession({
       type: 'discovery',
       words: [{ vocabId: entry.id, status: 'pending' }],
@@ -1146,8 +1146,8 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('does not award 100 credits when a discovery session has a pushed-back word', () => {
-    const e1 = makeEntry({ bucket: 0, en: ['dog'] })
-    const e2 = makeEntry({ bucket: 0, en: ['cat'] })
+    const e1 = makeEntry({ bucket: 0, target: ['dog'] })
+    const e2 = makeEntry({ bucket: 0, target: ['cat'] })
     const session: Session = {
       ...makeSession({ type: 'discovery' }),
       words: [
@@ -1170,7 +1170,7 @@ describe('submitAnswer — perfect session bonus', () => {
 
 describe('markWordCorrect', () => {
   it('changes the word status from incorrect to correct', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'incorrect' }] })
 
     vocabRepo.insert(entry)
@@ -1182,7 +1182,7 @@ describe('markWordCorrect', () => {
   })
 
   it('persists the updated status in the repository', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'incorrect' }] })
 
     vocabRepo.insert(entry)
@@ -1194,8 +1194,8 @@ describe('markWordCorrect', () => {
   })
 
   it('only changes the target word, leaving others unchanged', () => {
-    const e1 = makeEntry({ id: 'e1', en: ['table'] })
-    const e2 = makeEntry({ id: 'e2', en: ['chair'] })
+    const e1 = makeEntry({ id: 'e1', target: ['table'] })
+    const e2 = makeEntry({ id: 'e2', target: ['chair'] })
     const session = makeSession({
       words: [
         { vocabId: e1.id, status: 'incorrect' },
@@ -1218,7 +1218,7 @@ describe('markWordCorrect', () => {
   })
 
   it('throws ApiError 400 when the word is not in incorrect status', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'correct' }] })
 
     vocabRepo.insert(entry)
@@ -1232,7 +1232,7 @@ describe('markWordCorrect', () => {
 
 describe('submitAnswer — bucket milestone bonus', () => {
   it('awards 100 credits when a word is first promoted into bucket 6', () => {
-    const entry = makeEntry({ en: ['word'], bucket: 5, maxBucket: 5 })
+    const entry = makeEntry({ target: ['word'], bucket: 5, maxBucket: 5 })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1247,7 +1247,7 @@ describe('submitAnswer — bucket milestone bonus', () => {
 
   it('awards 200 credits when bucket 7 is created for the first time', () => {
     creditsRepo.setMaxBucketEver(6)
-    const entry = makeEntry({ en: ['word'], bucket: 6, maxBucket: 6 })
+    const entry = makeEntry({ target: ['word'], bucket: 6, maxBucket: 6 })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1260,7 +1260,7 @@ describe('submitAnswer — bucket milestone bonus', () => {
   })
 
   it('does not award a bonus when bucket 5 is created for the first time (threshold is 6)', () => {
-    const entry = makeEntry({ en: ['word'], bucket: 4, maxBucket: 4 })
+    const entry = makeEntry({ target: ['word'], bucket: 4, maxBucket: 4 })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1273,7 +1273,7 @@ describe('submitAnswer — bucket milestone bonus', () => {
 
   it('does not award a second bonus when bucket 6 already existed', () => {
     creditsRepo.setMaxBucketEver(6)
-    const entry = makeEntry({ en: ['word'], bucket: 5, maxBucket: 5 })
+    const entry = makeEntry({ target: ['word'], bucket: 5, maxBucket: 5 })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1285,7 +1285,7 @@ describe('submitAnswer — bucket milestone bonus', () => {
   })
 
   it('returns bucketMilestoneBonus = 0 for a wrong answer', () => {
-    const entry = makeEntry({ en: ['word'], bucket: 5, maxBucket: 5 })
+    const entry = makeEntry({ target: ['word'], bucket: 5, maxBucket: 5 })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1301,7 +1301,7 @@ describe('submitAnswer — bucket milestone bonus', () => {
 
 describe('submitAnswer — streak credit', () => {
   it('returns streakCredit = 0 for the first-ever session (streak starts at 1, not yet ≥ 2)', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1320,7 +1320,7 @@ describe('submitAnswer — streak credit', () => {
     yesterday.setUTCDate(yesterday.getUTCDate() - 1)
 
     const yesterdayStr = yesterday.toISOString().slice(0, 10)
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1333,7 +1333,7 @@ describe('submitAnswer — streak credit', () => {
   })
 
   it('returns streakCredit = 0 when streak resets to 1 (gap in practice)', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1346,8 +1346,8 @@ describe('submitAnswer — streak credit', () => {
   })
 
   it('returns streakCredit = 0 when the session does not complete', () => {
-    const e1 = makeEntry({ en: ['table'] })
-    const e2 = makeEntry({ en: ['chair'] })
+    const e1 = makeEntry({ target: ['table'] })
+    const e2 = makeEntry({ target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1362,7 +1362,7 @@ describe('submitAnswer — streak credit', () => {
 
   it('returns streakCredit = 0 for a second session completed on the same day', () => {
     const today = new Date().toISOString().slice(0, 10)
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1381,7 +1381,7 @@ describe('submitAnswer — streak credit', () => {
     yesterday.setUTCDate(yesterday.getUTCDate() - 1)
     const yesterdayStr = yesterday.toISOString().slice(0, 10)
 
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1394,7 +1394,7 @@ describe('submitAnswer — streak credit', () => {
   })
 
   it('resets the streak count to 1 when last session was more than a day ago', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1413,7 +1413,7 @@ describe('submitAnswer — streak credit', () => {
 
     yesterday.setUTCDate(yesterday.getUTCDate() - 1)
 
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1442,7 +1442,7 @@ describe('submitAnswer — streak milestones', () => {
 
   it('awards week 1 milestone credits and sets milestoneLabel when streak reaches 7', () => {
     const yesterdayStr = makeYesterdayStr()
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1458,7 +1458,7 @@ describe('submitAnswer — streak milestones', () => {
 
   it('awards week 2 milestone credits when streak reaches 14', () => {
     const yesterdayStr = makeYesterdayStr()
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1475,7 +1475,7 @@ describe('submitAnswer — streak milestones', () => {
 
   it('returns milestoneLabel = undefined and streakCredit = 1 when no milestone is reached', () => {
     const yesterdayStr = makeYesterdayStr()
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1489,7 +1489,7 @@ describe('submitAnswer — streak milestones', () => {
   })
 
   it('resets weeksAwarded and monthsAwarded to 0 when the streak restarts', () => {
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1515,7 +1515,7 @@ describe('submitAnswer — streak save bridging', () => {
     twoDaysAgo.setUTCDate(twoDaysAgo.getUTCDate() - 2)
     const twoDaysAgoStr = twoDaysAgo.toISOString().slice(0, 10)
 
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1531,8 +1531,8 @@ describe('submitAnswer — streak save bridging', () => {
   })
 
   it('clears streak_save_pending after the first answer', () => {
-    const e1 = makeEntry({ en: ['table'] })
-    const e2 = makeEntry({ en: ['chair'] })
+    const e1 = makeEntry({ target: ['table'] })
+    const e2 = makeEntry({ target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1558,7 +1558,7 @@ describe('createSession — focus session', () => {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 10 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
     expect(session.type).toBe('focus')
   })
@@ -1572,7 +1572,7 @@ describe('createSession — focus session', () => {
       vocabRepo.insert(makeEntry({ bucket: 0 }))
     }
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 10 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
     expect(session.type).toBe('normal')
   })
@@ -1586,13 +1586,13 @@ describe('createSession — focus session', () => {
 
     creditsRepo.setLastFocusSessionDate(today)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 10 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
     expect(session.type).not.toBe('focus')
   })
 
   it('records last_focus_session_date when focus session completes', () => {
-    const entry = makeEntry({ bucket: 1, score: 2, de: 'Tisch', en: ['table'] })
+    const entry = makeEntry({ bucket: 1, score: 2, source: 'Tisch', target: ['table'] })
 
     vocabRepo.insert(entry)
 
@@ -1601,7 +1601,7 @@ describe('createSession — focus session', () => {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 5 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 5 })
 
     expect(session.type).toBe('focus')
 
@@ -1609,7 +1609,7 @@ describe('createSession — focus session', () => {
     for (const word of session.words) {
       const e = vocabRepo.findById(word.vocabId)
       if (e !== undefined) {
-        service.submitAnswer(session.id, word.vocabId, e.en)
+        service.submitAnswer(session.id, word.vocabId, e.target)
       }
     }
 
@@ -1620,10 +1620,10 @@ describe('createSession — focus session', () => {
 
   it('does not record focus date while session is still open', () => {
     for (let i = 0; i < 5; i++) {
-      vocabRepo.insert(makeHighScoreEntry({ de: 'Wort', en: ['word'] }))
+      vocabRepo.insert(makeHighScoreEntry({ source: 'Wort', target: ['word'] }))
     }
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 5 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 5 })
 
     expect(session.type).toBe('focus')
 
@@ -1646,7 +1646,7 @@ describe('createSession — focus session', () => {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 10 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
     expect(session.type).toBe('focus')
   })
@@ -1666,7 +1666,7 @@ describe('createSession — focus session', () => {
     creditsRepo.setLastFocusSessionDate(today)
 
     // No previous non-focus session → alternation picks 'normal'
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 10 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
     expect(session.type).toBe('normal')
   })
@@ -1693,7 +1693,7 @@ describe('createSession — focus session', () => {
 
     creditsRepo.setLastFocusSessionDate(today)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, repetitionSize: 24 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 24 })
 
     expect(session.type).toBe('repetition')
   })
@@ -1720,7 +1720,7 @@ describe('createSession — discovery session', () => {
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
     insertBucket0Words(DISC_SIZE)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).toBe('discovery')
     expect(session.words).toHaveLength(DISC_SIZE)
@@ -1730,7 +1730,7 @@ describe('createSession — discovery session', () => {
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD)
     insertBucket0Words(DISC_SIZE)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).not.toBe('discovery')
   })
@@ -1739,7 +1739,7 @@ describe('createSession — discovery session', () => {
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
     insertBucket0Words(DISC_SIZE - 1)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: DISC_SIZE - 1 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: DISC_SIZE - 1 })
 
     expect(session.type).not.toBe('discovery')
   })
@@ -1752,7 +1752,7 @@ describe('createSession — discovery session', () => {
 
     insertBucket0Words(DISC_SIZE)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).toBe('discovery')
   })
@@ -1763,7 +1763,7 @@ describe('createSession — discovery session', () => {
 
     sessionRepo.insert(makeSession({ status: 'completed', type: 'normal' }))
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).toBe('discovery')
   })
@@ -1772,7 +1772,7 @@ describe('createSession — discovery session', () => {
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
     insertBucket0Words(DISC_SIZE)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).toBe('discovery')
 
@@ -1790,7 +1790,7 @@ describe('createSession — discovery session', () => {
       vocabRepo.insert(makeEntry({ bucket: 1, score: 2 }))
     }
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).toBe('focus')
   })
@@ -1803,7 +1803,7 @@ describe('createSession — discovery session', () => {
 
     creditsRepo.setLastDiscoverySessionDate(today)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).not.toBe('discovery')
   })
@@ -1812,7 +1812,7 @@ describe('createSession — discovery session', () => {
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
     insertBucket0Words(DISC_SIZE)
 
-    const session = service.createSession({ direction: 'DE_TO_EN', size: 12, discoverySize: DISC_SIZE })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, discoverySize: DISC_SIZE })
 
     expect(session.type).toBe('discovery')
 
@@ -1820,7 +1820,7 @@ describe('createSession — discovery session', () => {
     for (const word of session.words) {
       const entry = vocabRepo.findById(word.vocabId)
       if (!entry) { continue }
-      const answer = entry.en[0] ?? ''
+      const answer = entry.target[0] ?? ''
       service.submitAnswer(session.id, word.vocabId, answer)
     }
 
@@ -1955,7 +1955,7 @@ describe('pushBackWord', () => {
 
 describe('submitAnswer — discovery session is free', () => {
   it('does not charge credits for a wrong answer in a discovery session', () => {
-    const entry = makeEntry({ bucket: 0, de: 'Hund', en: ['dog'] })
+    const entry = makeEntry({ bucket: 0, source: 'Hund', target: ['dog'] })
 
     vocabRepo.insert(entry)
 
@@ -2055,7 +2055,7 @@ describe('createStarredSession', () => {
     for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
     vocabRepo.insert(makeEntry({ marked: false }))
 
-    const session = service.createStarredSession('DE_TO_EN')
+    const session = service.createStarredSession('SOURCE_TO_TARGET')
 
     expect(session.type).toBe('starred')
     expect(session.words).toHaveLength(5)
@@ -2064,13 +2064,13 @@ describe('createStarredSession', () => {
   it('throws 400 when no words are marked', () => {
     vocabRepo.insert(makeEntry({ marked: false }))
 
-    expectApiError(() => service.createStarredSession('DE_TO_EN'), 400)
+    expectApiError(() => service.createStarredSession('SOURCE_TO_TARGET'), 400)
   })
 
   it('throws 400 when fewer than 5 words are marked', () => {
     for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
-    expectApiError(() => service.createStarredSession('DE_TO_EN'), 400)
+    expectApiError(() => service.createStarredSession('SOURCE_TO_TARGET'), 400)
   })
 
   it('throws 409 when a session is in progress (has answered words)', () => {
@@ -2080,7 +2080,7 @@ describe('createStarredSession', () => {
       words: [{ vocabId: 'x', status: 'correct' }, { vocabId: 'y', status: 'pending' }],
     }))
 
-    expectApiError(() => service.createStarredSession('DE_TO_EN'), 409)
+    expectApiError(() => service.createStarredSession('SOURCE_TO_TARGET'), 409)
   })
 
   it('discards an unstarted open session and creates the starred session', () => {
@@ -2093,7 +2093,7 @@ describe('createStarredSession', () => {
 
     sessionRepo.insert(unstarted)
 
-    const session = service.createStarredSession('DE_TO_EN')
+    const session = service.createStarredSession('SOURCE_TO_TARGET')
 
     expect(session.type).toBe('starred')
     expect(sessionRepo.findById(unstarted.id)).toBeUndefined()
@@ -2103,14 +2103,14 @@ describe('createStarredSession', () => {
     vocabRepo.insert(makeEntry({ marked: true }))
     creditsRepo.setLastStarredSessionDate(new Date().toISOString().slice(0, 10))
 
-    expectApiError(() => service.createStarredSession('DE_TO_EN'), 409)
+    expectApiError(() => service.createStarredSession('SOURCE_TO_TARGET'), 409)
   })
 
   it('throws 423 when the game is paused', () => {
     vocabRepo.insert(makeEntry({ marked: true }))
     creditsRepo.setPauseActive('2026-01-01')
 
-    expectApiError(() => service.createStarredSession('DE_TO_EN'), 423)
+    expectApiError(() => service.createStarredSession('SOURCE_TO_TARGET'), 423)
   })
 
   it('caps the session at 100 words', () => {
@@ -2118,7 +2118,7 @@ describe('createStarredSession', () => {
       vocabRepo.insert(makeEntry({ marked: true }))
     }
 
-    const session = service.createStarredSession('DE_TO_EN')
+    const session = service.createStarredSession('SOURCE_TO_TARGET')
 
     expect(session.words).toHaveLength(100)
   })
@@ -2128,7 +2128,7 @@ describe('createStarredSession', () => {
 
     for (const e of entries) { vocabRepo.insert(e) }
 
-    const session = service.createStarredSession('DE_TO_EN')
+    const session = service.createStarredSession('SOURCE_TO_TARGET')
 
     for (const e of entries) { service.submitAnswer(session.id, e.id, ['word']) }
 
@@ -2140,13 +2140,13 @@ describe('createStarredSession', () => {
   it('does not disrupt the normal/repetition alternation cycle', () => {
     // After a normal session, the next non-special session should be repetition.
     // If we complete a starred session in between, it should not affect this.
-    const entry = makeEntry({ marked: true, de: 'Hund', en: ['dog'] })
+    const entry = makeEntry({ marked: true, source: 'Hund', target: ['dog'] })
 
     vocabRepo.insert(entry)
     for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
     sessionRepo.insert(makeSession({ type: 'normal', status: 'completed' }))
 
-    const starredSess = service.createStarredSession('DE_TO_EN')
+    const starredSess = service.createStarredSession('SOURCE_TO_TARGET')
 
     service.submitAnswer(starredSess.id, entry.id, ['dog'])
 

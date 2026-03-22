@@ -17,13 +17,13 @@ The import file is JSON and must match this structure:
   "version": 1,
   "exportedAt": "<ISO 8601 timestamp>",
   "entries": [
-    { "de": ["Wort"], "en": ["word"] },
-    { "de": ["Auto", "Automobil"], "en": ["car", "automobile"] }
+    { "source": ["Wort"], "target": ["word"] },
+    { "source": ["Auto", "Automobil"], "target": ["car", "automobile"] }
   ]
 }
 ```
 
-- `de` and `en` are arrays of strings (one or more variants per entry).
+- `source` and `target` are arrays of strings (one or more variants per entry).
 - `bucket` is intentionally omitted — new entries start at bucket 0.
 - Each entry represents one concept. Group synonyms/variants in one entry.
 
@@ -33,10 +33,10 @@ When generating words, follow these rules:
 
 - **Topic focus**: only include words clearly relevant to the requested topic.
 - **No duplicates within a file**: each concept appears once; merge synonyms into one entry.
-- **Sensible grouping**: `{ "de": ["Fahrrad"], "en": ["bicycle", "bike"] }` is one entry, not two.
-- **Accurate translations**: both DE and EN sides must be correct.
+- **Sensible grouping**: `{ "source": ["Fahrrad"], "target": ["bicycle", "bike"] }` is one entry, not two.
+- **Accurate translations**: both source and target sides must be correct.
 - **No proper nouns**: no names, cities, brands.
-- **No articles**: do not prefix German nouns with their article (der/die/das). Write `Tisch`, not `der Tisch`. Capitalisation already identifies nouns.
+- **No articles: do not prefix source-language nouns with their article. Capitalisation already identifies nouns.
 
 ## Import script
 
@@ -69,7 +69,7 @@ while total_new < target and attempts < max_attempts:
     missing = target - total_new
     attempts += 1
 
-    1. Generate `missing` German–English word pairs for the topic.
+    1. Generate `missing` source–target word pairs for the topic.
        Do NOT repeat words already generated in earlier iterations.
     2. Write them to a temporary file, e.g. /tmp/import-<topic>-<attempt>.json
     3. Run: node scripts/import-vocab.mjs /tmp/import-<topic>-<attempt>.json
@@ -86,7 +86,7 @@ else:
 
 > "Import 50 new words from the topic sports into Vocabion."
 
-1. Generate 50 sport-related DE/EN word pairs → write to `/tmp/import-sports-1.json`
+1. Generate 50 sport-related source/target word pairs → write to `/tmp/import-sports-1.json`
 2. Run `node scripts/import-vocab.mjs /tmp/import-sports-1.json`
 3. Output: `{ "imported": 50, "merged": 8, "new": 42 }` → 42 new, 8 missing
 4. Generate 8 more sport words (different from the first batch) → `/tmp/import-sports-2.json`

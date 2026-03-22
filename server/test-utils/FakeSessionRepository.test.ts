@@ -17,7 +17,7 @@ import type { Session } from '../../shared/types/Session.ts'
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     id: crypto.randomUUID(),
-    direction: 'DE_TO_EN',
+    direction: 'SOURCE_TO_TARGET',
     type: 'normal',
     words: [{ vocabId: 'word-1', status: 'pending' }],
     status: 'open',

@@ -9,7 +9,7 @@ import type { Session } from '../../shared/types/Session.ts'
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
-    direction: 'DE_TO_EN',
+    direction: 'SOURCE_TO_TARGET',
     words: [],
     status: 'completed',
     createdAt: '2026-01-01T00:00:00Z',

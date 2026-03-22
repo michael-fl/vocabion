@@ -6,7 +6,7 @@
  * @example
  * ```ts
  * import { getOpenSession, createSession, submitAnswer } from './sessionApi.ts'
- * const session = await createSession('DE_TO_EN', 12)
+ * const session = await createSession('SOURCE_TO_TARGET', 12)
  * const result = await submitAnswer(session.id, wordId, ['table'])
  * ```
  */
@@ -96,7 +96,7 @@ export async function getStarredAvailable(): Promise<StarredAvailable> {
 
 /** Creates a new starred session (all marked words, up to 100). */
 export async function createStarredSession(
-  direction: SessionDirection = 'DE_TO_EN',
+  direction: SessionDirection = 'SOURCE_TO_TARGET',
 ): Promise<Session> {
   const res = await fetch(`${BASE}/starred`, {
     method: 'POST',
@@ -113,7 +113,7 @@ export async function createStarredSession(
 
 /** Creates a new training session with the given direction and word count. */
 export async function createSession(
-  direction: SessionDirection = 'DE_TO_EN',
+  direction: SessionDirection = 'SOURCE_TO_TARGET',
   size = 12,
 ): Promise<Session> {
   const res = await fetch(BASE, {

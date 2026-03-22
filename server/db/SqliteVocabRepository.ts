@@ -1,7 +1,7 @@
 /**
  * SQLite-backed implementation of `VocabRepository`.
  *
- * All operations are synchronous (better-sqlite3). JSON arrays (`de`, `en`) are
+ * All operations are synchronous (better-sqlite3). JSON arrays (`source`, `target`) are
  * serialised to TEXT columns and deserialised on read. Column names follow
  * snake_case (database convention) and are mapped to camelCase on the way out.
  *
@@ -21,8 +21,8 @@ import type { VocabRepository } from '../features/vocab/VocabRepository.ts'
 
 interface VocabEntryRow {
   id: string
-  de: string           // plain German word
-  en: string           // JSON-encoded string[]
+  source: string       // plain source-language word
+  target: string       // JSON-encoded string[]
   bucket: number
   max_bucket: number
   manually_added: number  // SQLite boolean: 0 = false, 1 = true
@@ -36,8 +36,8 @@ interface VocabEntryRow {
 function rowToEntry(row: VocabEntryRow): VocabEntry {
   return {
     id: row.id,
-    de: row.de,
-    en: JSON.parse(row.en) as string[],
+    source: row.source,
+    target: JSON.parse(row.target) as string[],
     bucket: row.bucket,
     maxBucket: row.max_bucket,
     manuallyAdded: row.manually_added === 1,
@@ -79,13 +79,13 @@ export class SqliteVocabRepository implements VocabRepository {
   insert(entry: VocabEntry): void {
     this.db
       .prepare(
-        `INSERT INTO vocab_entries (id, de, en, bucket, max_bucket, manually_added, marked, score, last_asked_at, created_at, updated_at)
+        `INSERT INTO vocab_entries (id, source, target, bucket, max_bucket, manually_added, marked, score, last_asked_at, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         entry.id,
-        entry.de,
-        JSON.stringify(entry.en),
+        entry.source,
+        JSON.stringify(entry.target),
         entry.bucket,
         entry.maxBucket,
         entry.manuallyAdded ? 1 : 0,
@@ -101,12 +101,12 @@ export class SqliteVocabRepository implements VocabRepository {
     this.db
       .prepare(
         `UPDATE vocab_entries
-         SET de = ?, en = ?, bucket = ?, max_bucket = ?, manually_added = ?, marked = ?, score = ?, last_asked_at = ?, updated_at = ?
+         SET source = ?, target = ?, bucket = ?, max_bucket = ?, manually_added = ?, marked = ?, score = ?, last_asked_at = ?, updated_at = ?
          WHERE id = ?`,
       )
       .run(
-        entry.de,
-        JSON.stringify(entry.en),
+        entry.source,
+        JSON.stringify(entry.target),
         entry.bucket,
         entry.maxBucket,
         entry.manuallyAdded ? 1 : 0,

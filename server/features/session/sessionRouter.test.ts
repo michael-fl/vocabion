@@ -43,8 +43,8 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   idCounter++
   return {
     id: `entry-${idCounter}`,
-    de: 'Wort',
-    en: ['word'],
+    source: 'Wort',
+    target: ['word'],
     bucket: 0,
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
@@ -61,7 +61,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
   idCounter++
   return {
     id: `session-${idCounter}`,
-    direction: 'DE_TO_EN',
+    direction: 'SOURCE_TO_TARGET',
     type: 'normal',
     words: [],
     status: 'open',
@@ -109,12 +109,12 @@ describe('POST /', () => {
 
     const res = await supertest(app)
       .post('/')
-      .send({ direction: 'DE_TO_EN', size: 1 })
+      .send({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
     const body = res.body as Session
 
     expect(res.status).toBe(201)
-    expect(body.direction).toBe('DE_TO_EN')
+    expect(body.direction).toBe('SOURCE_TO_TARGET')
     expect(body.status).toBe('open')
   })
 
@@ -126,7 +126,7 @@ describe('POST /', () => {
     const res = await supertest(app).post('/').send({})
 
     expect(res.status).toBe(201)
-    expect((res.body as Session).direction).toBe('DE_TO_EN')
+    expect((res.body as Session).direction).toBe('SOURCE_TO_TARGET')
   })
 
   it('returns 409 when a session is already open', async () => {
@@ -134,7 +134,7 @@ describe('POST /', () => {
 
     sessionRepo.insert(makeSession())
 
-    const res = await supertest(app).post('/').send({ direction: 'DE_TO_EN', size: 10 })
+    const res = await supertest(app).post('/').send({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
     expect(res.status).toBe(409)
   })
@@ -152,7 +152,7 @@ describe('POST /', () => {
   it('returns 400 when size is 0', async () => {
     const { app } = makeTestApp()
 
-    const res = await supertest(app).post('/').send({ direction: 'DE_TO_EN', size: 0 })
+    const res = await supertest(app).post('/').send({ direction: 'SOURCE_TO_TARGET', size: 0 })
 
     expect(res.status).toBe(400)
   })
@@ -163,7 +163,7 @@ describe('POST /', () => {
 describe('POST /:id/answer', () => {
   it('returns 200 with an answer result on a correct answer', async () => {
     const { app, sessionRepo, vocabRepo } = makeTestApp()
-    const entry = makeEntry({ en: ['word'] })
+    const entry = makeEntry({ target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -183,7 +183,7 @@ describe('POST /:id/answer', () => {
 
   it('returns 200 with correct: false for a wrong answer', async () => {
     const { app, sessionRepo, vocabRepo } = makeTestApp()
-    const entry = makeEntry({ en: ['word'] })
+    const entry = makeEntry({ target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -234,7 +234,7 @@ describe('POST /:id/words/:vocabId/correct', () => {
   it('returns 200 with the updated session on success', async () => {
     const { app, sessionRepo, vocabRepo } = makeTestApp()
 
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'incorrect' }] })
 
     vocabRepo.insert(entry)
@@ -259,7 +259,7 @@ describe('POST /:id/words/:vocabId/correct', () => {
   it('returns 400 when word is not in incorrect status', async () => {
     const { app, sessionRepo, vocabRepo } = makeTestApp()
 
-    const entry = makeEntry({ en: ['table'] })
+    const entry = makeEntry({ target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'correct' }] })
 
     vocabRepo.insert(entry)

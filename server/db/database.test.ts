@@ -81,8 +81,8 @@ describe('openDatabase — schema', () => {
     const cols = columns(db, 'vocab_entries')
 
     expect(cols).toContain('id')
-    expect(cols).toContain('de')
-    expect(cols).toContain('en')
+    expect(cols).toContain('source')
+    expect(cols).toContain('target')
     expect(cols).toContain('bucket')
     expect(cols).toContain('last_asked_at')
     expect(cols).toContain('created_at')
@@ -114,7 +114,7 @@ describe('openDatabase — migration tracking', () => {
 
     const rows = db.prepare('SELECT name FROM migrations').all() as { name: string }[]
 
-    expect(rows).toHaveLength(20)
+    expect(rows).toHaveLength(21)
     expect(rows[0].name).toBe('001_initial.sql')
     expect(rows[1].name).toBe('002_session_type.sql')
 
@@ -165,7 +165,7 @@ describe('openDatabase — idempotency', () => {
       db.prepare('SELECT COUNT(*) as n FROM migrations').get() as { n: number }
     ).n
 
-    expect(count).toBe(20)
+    expect(count).toBe(21)
 
     db.close()
   })

@@ -8,7 +8,7 @@
  * ```ts
  * import { checkAnswer } from './answerValidation.ts'
  *
- * const correct = checkAnswer(entry, 'DE_TO_EN', ['table'])
+ * const correct = checkAnswer(entry, 'SOURCE_TO_TARGET', ['table'])
  * ```
  */
 import leven from 'leven'
@@ -61,7 +61,7 @@ export interface AnswerCheckResult {
  * Each correct translation can only be matched once.
  *
  * @param entry - The vocabulary entry being tested.
- * @param direction - The session direction (`DE_TO_EN` or `EN_TO_DE`).
+ * @param direction - The session direction (`SOURCE_TO_TARGET` or `TARGET_TO_SOURCE`).
  * @param answers - The user's submitted answers (one or more strings).
  */
 export function checkAnswerDetailed(
@@ -69,7 +69,7 @@ export function checkAnswerDetailed(
   direction: SessionDirection,
   answers: string[],
 ): AnswerCheckResult {
-  const translations = deduplicateTranslations(direction === 'DE_TO_EN' ? entry.en : [entry.de])
+  const translations = deduplicateTranslations(direction === 'SOURCE_TO_TARGET' ? entry.target : [entry.source])
   const requiredCount = Math.min(translations.length, 2)
 
   let matchedCount = 0
@@ -141,7 +141,7 @@ export function checkAnswerDetailed(
  * Delegates to `checkAnswerDetailed`; use that function when you need match counts.
  *
  * @param entry - The vocabulary entry being tested.
- * @param direction - The session direction (`DE_TO_EN` or `EN_TO_DE`).
+ * @param direction - The session direction (`SOURCE_TO_TARGET` or `TARGET_TO_SOURCE`).
  * @param answers - The user's submitted answers (one or more strings).
  */
 export function checkAnswer(

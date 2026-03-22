@@ -16,7 +16,7 @@ import { isSessionWord } from './VocabEntry.ts'
 export type { SessionWord }
 
 /** The translation direction for a session. */
-export type SessionDirection = 'DE_TO_EN' | 'EN_TO_DE'
+export type SessionDirection = 'SOURCE_TO_TARGET' | 'TARGET_TO_SOURCE'
 
 /** The type of a training session. */
 export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery' | 'starred'
@@ -77,7 +77,7 @@ export function isSession(value: unknown): value is Session {
     return false
   }
 
-  if (direction !== 'DE_TO_EN' && direction !== 'EN_TO_DE') {
+  if (direction !== 'SOURCE_TO_TARGET' && direction !== 'TARGET_TO_SOURCE') {
     return false
   }
 

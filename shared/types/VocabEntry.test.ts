@@ -10,8 +10,8 @@ import type { VocabEntry, SessionWord } from './VocabEntry.ts'
 function validEntry(): VocabEntry {
   return {
     id: 'abc-123',
-    de: 'Tisch',
-    en: ['table'],
+    source: 'Tisch',
+    target: ['table'],
     bucket: 0,
     maxBucket: 0,
     manuallyAdded: false,
@@ -40,8 +40,8 @@ describe('isVocabEntry', () => {
     expect(isVocabEntry(entry)).toBe(true)
   })
 
-  it('returns true when en has multiple translations', () => {
-    const entry = { ...validEntry(), en: ['bicycle', 'bike'] }
+  it('returns true when target has multiple translations', () => {
+    const entry = { ...validEntry(), target: ['bicycle', 'bike'] }
 
     expect(isVocabEntry(entry)).toBe(true)
   })
@@ -76,26 +76,26 @@ describe('isVocabEntry', () => {
     expect(isVocabEntry({ ...validEntry(), id: 123 })).toBe(false)
   })
 
-  it('returns false when de is missing', () => {
-    const { de: _de, ...rest } = validEntry()
+  it('returns false when source is missing', () => {
+    const { source: _source, ...rest } = validEntry()
 
     expect(isVocabEntry(rest)).toBe(false)
   })
 
-  it('returns false when de is not a string', () => {
-    expect(isVocabEntry({ ...validEntry(), de: ['Tisch'] })).toBe(false)
+  it('returns false when source is not a string', () => {
+    expect(isVocabEntry({ ...validEntry(), source: ['Tisch'] })).toBe(false)
   })
 
-  it('returns false when de is an empty string', () => {
-    expect(isVocabEntry({ ...validEntry(), de: '' })).toBe(false)
+  it('returns false when source is an empty string', () => {
+    expect(isVocabEntry({ ...validEntry(), source: '' })).toBe(false)
   })
 
-  it('returns false when en is not an array', () => {
-    expect(isVocabEntry({ ...validEntry(), en: 'table' })).toBe(false)
+  it('returns false when target is not an array', () => {
+    expect(isVocabEntry({ ...validEntry(), target: 'table' })).toBe(false)
   })
 
-  it('returns false when en contains a non-string element', () => {
-    expect(isVocabEntry({ ...validEntry(), en: [true] })).toBe(false)
+  it('returns false when target contains a non-string element', () => {
+    expect(isVocabEntry({ ...validEntry(), target: [true] })).toBe(false)
   })
 
   it('returns false when bucket is not a number', () => {

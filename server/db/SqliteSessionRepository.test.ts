@@ -19,7 +19,7 @@ const MIGRATIONS_DIR = join(import.meta.dirname, 'migrations')
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     id: crypto.randomUUID(),
-    direction: 'DE_TO_EN',
+    direction: 'SOURCE_TO_TARGET',
     type: 'normal',
     words: [{ vocabId: 'word-1', status: 'pending' }],
     status: 'open',
@@ -94,7 +94,7 @@ describe('findById', () => {
 describe('insert', () => {
   it('round-trips all fields including direction and words', () => {
     const session = makeSession({
-      direction: 'EN_TO_DE',
+      direction: 'TARGET_TO_SOURCE',
       words: [
         { vocabId: 'w1', status: 'correct' },
         { vocabId: 'w2', status: 'incorrect' },

@@ -14,10 +14,11 @@ const NOW = new Date(BASE)
 function makeEntry(bucket: number, lastAskedAt: string | null): VocabEntry {
   return {
     id: 'e1',
-    de: ['Wort'],
-    en: ['word'],
+    source: 'Wort',
+    target: ['word'],
     bucket,
     maxBucket: bucket,
+    manuallyAdded: false,
     marked: false,
     score: 0,
     lastAskedAt,

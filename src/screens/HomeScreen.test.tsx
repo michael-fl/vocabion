@@ -28,7 +28,7 @@ vi.mock('../api/vocabApi.ts', () => ({
 
 const mockSession = {
   id: 'session-1',
-  direction: 'DE_TO_EN' as const,
+  direction: 'SOURCE_TO_TARGET' as const,
   words: [{ vocabId: 'entry-1', status: 'pending' as const }],
   status: 'open' as const,
   createdAt: '2026-01-01T00:00:00Z',
@@ -45,8 +45,8 @@ const mockSessionInProgress = {
 
 const mockEntry = {
   id: 'entry-1',
-  de: ['Tisch'],
-  en: ['table'],
+  source: 'Tisch',
+  target: ['table'],
   bucket: 0,
   lastAskedAt: null,
   createdAt: '2026-01-01T00:00:00Z',
@@ -465,7 +465,7 @@ describe('HomeScreen — pause mode', () => {
 
 const starredSession = {
   id: 'starred-1',
-  direction: 'DE_TO_EN' as const,
+  direction: 'SOURCE_TO_TARGET' as const,
   type: 'starred' as const,
   words: [{ vocabId: 'entry-1', status: 'pending' as const }],
   status: 'open' as const,

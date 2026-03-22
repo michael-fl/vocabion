@@ -38,8 +38,8 @@ function makeTestApp() {
 function seedEntry(repo: FakeVocabRepository, overrides: Partial<VocabEntry> = {}): VocabEntry {
   const entry: VocabEntry = {
     id: crypto.randomUUID(),
-    de: 'Tisch',
-    en: ['table'],
+    source: 'Tisch',
+    target: ['table'],
     bucket: 0,
     maxBucket: 0,
     manuallyAdded: false,
@@ -87,29 +87,29 @@ describe('POST /', () => {
   it('returns 201 with the created entry', async () => {
     const { app } = makeTestApp()
 
-    const res = await supertest(app).post('/').send({ de: 'Hund', en: ['dog'] })
+    const res = await supertest(app).post('/').send({ source: 'Hund', target: ['dog'] })
 
     const body = res.body as VocabEntry
 
     expect(res.status).toBe(201)
-    expect(body.de).toBe('Hund')
-    expect(body.en).toEqual(['dog'])
+    expect(body.source).toBe('Hund')
+    expect(body.target).toEqual(['dog'])
     expect(typeof body.id).toBe('string')
   })
 
-  it('returns 400 when de is missing', async () => {
+  it('returns 400 when source is missing', async () => {
     const { app } = makeTestApp()
 
-    const res = await supertest(app).post('/').send({ en: ['dog'] })
+    const res = await supertest(app).post('/').send({ target: ['dog'] })
 
     expect(res.status).toBe(400)
     expect((res.body as { error: string }).error).toBe('Validation failed')
   })
 
-  it('returns 400 when en is an empty array', async () => {
+  it('returns 400 when target is an empty array', async () => {
     const { app } = makeTestApp()
 
-    const res = await supertest(app).post('/').send({ de: 'Hund', en: [] })
+    const res = await supertest(app).post('/').send({ source: 'Hund', target: [] })
 
     expect(res.status).toBe(400)
   })
@@ -124,13 +124,13 @@ describe('PUT /:id', () => {
 
     const res = await supertest(app)
       .put(`/${entry.id}`)
-      .send({ de: 'Stuhl', en: ['chair'] })
+      .send({ source: 'Stuhl', target: ['chair'] })
 
     const body = res.body as VocabEntry
 
     expect(res.status).toBe(200)
-    expect(body.de).toBe('Stuhl')
-    expect(body.en).toEqual(['chair'])
+    expect(body.source).toBe('Stuhl')
+    expect(body.target).toEqual(['chair'])
   })
 
   it('returns 404 for an unknown id', async () => {
@@ -138,7 +138,7 @@ describe('PUT /:id', () => {
 
     const res = await supertest(app)
       .put('/no-such-id')
-      .send({ de: 'Stuhl', en: ['chair'] })
+      .send({ source: 'Stuhl', target: ['chair'] })
 
     expect(res.status).toBe(404)
   })
@@ -147,7 +147,7 @@ describe('PUT /:id', () => {
     const { app, repo } = makeTestApp()
     const entry = seedEntry(repo)
 
-    const res = await supertest(app).put(`/${entry.id}`).send({ de: '', en: ['chair'] })
+    const res = await supertest(app).put(`/${entry.id}`).send({ source: '', target: ['chair'] })
 
     expect(res.status).toBe(400)
   })
@@ -184,13 +184,13 @@ describe('GET /export', () => {
 
     const res = await supertest(app).get('/export')
 
-    const body = res.body as { version: number; exportedAt: string; entries: { de: string; en: string[]; bucket: number }[] }
+    const body = res.body as { version: number; exportedAt: string; entries: { source: string; target: string[]; bucket: number }[] }
 
     expect(res.status).toBe(200)
     expect(body.version).toBe(1)
     expect(typeof body.exportedAt).toBe('string')
     expect(body.entries).toHaveLength(1)
-    expect(body.entries[0]).toEqual({ de: 'Tisch', en: ['table'], bucket: 2 })
+    expect(body.entries[0]).toEqual({ source: 'Tisch', target: ['table'], bucket: 2 })
   })
 })
 
@@ -206,8 +206,8 @@ describe('POST /import', () => {
         version: 1,
         exportedAt: '2026-01-01T00:00:00Z',
         entries: [
-          { de: 'Tisch', en: ['table'], bucket: 0 },
-          { de: 'Hund', en: ['dog'], bucket: 1 },
+          { source: 'Tisch', target: ['table'], bucket: 0 },
+          { source: 'Hund', target: ['dog'], bucket: 1 },
         ],
       })
 
@@ -239,44 +239,44 @@ describe('POST /import', () => {
 // ── POST /add-or-merge ────────────────────────────────────────────────────────
 
 describe('POST /add-or-merge', () => {
-  it('returns 200 with one result per DE word', async () => {
+  it('returns 200 with one result per source word', async () => {
     const { app } = makeTestApp()
 
     const res = await supertest(app)
       .post('/add-or-merge')
-      .send({ de: ['Auto', 'Automobil'], en: ['car'] })
+      .send({ source: ['Auto', 'Automobil'], target: ['car'] })
 
     const body = res.body as { merged: boolean; entry: VocabEntry }[]
 
     expect(res.status).toBe(200)
     expect(body).toHaveLength(2)
     expect(body[0].merged).toBe(false)
-    expect(body[0].entry.de).toBe('Auto')
-    expect(body[1].entry.de).toBe('Automobil')
+    expect(body[0].entry.source).toBe('Auto')
+    expect(body[1].entry.source).toBe('Automobil')
   })
 
   it('returns merged=true when an existing entry is found', async () => {
     const { app, repo } = makeTestApp()
 
-    seedEntry(repo, { de: 'Auto', en: ['car'] })
+    seedEntry(repo, { source: 'Auto', target: ['car'] })
 
     const res = await supertest(app)
       .post('/add-or-merge')
-      .send({ de: ['Auto'], en: ['car', 'automobile'] })
+      .send({ source: ['Auto'], target: ['car', 'automobile'] })
 
     const body = res.body as { merged: boolean; entry: VocabEntry }[]
 
     expect(res.status).toBe(200)
     expect(body[0].merged).toBe(true)
-    expect(body[0].entry.en).toContain('automobile')
+    expect(body[0].entry.target).toContain('automobile')
   })
 
-  it('returns 400 when de is missing', async () => {
+  it('returns 400 when source is missing', async () => {
     const { app } = makeTestApp()
 
     const res = await supertest(app)
       .post('/add-or-merge')
-      .send({ en: ['car'] })
+      .send({ target: ['car'] })
 
     expect(res.status).toBe(400)
   })

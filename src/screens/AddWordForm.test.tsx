@@ -16,8 +16,8 @@ vi.mock('../api/vocabApi.ts', () => ({
 function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
   return {
     id: 'entry-1',
-    de: 'Auto',
-    en: ['car'],
+    source: 'Auto',
+    target: ['car'],
     bucket: 0,
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
@@ -40,8 +40,8 @@ describe('AddWordForm', () => {
   it('renders DE and EN input fields and a submit button', () => {
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    expect(screen.getByLabelText('DE:')).toBeInTheDocument()
-    expect(screen.getByLabelText('EN:')).toBeInTheDocument()
+    expect(screen.getByLabelText('Source:')).toBeInTheDocument()
+    expect(screen.getByLabelText('Target:')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
   })
 
@@ -51,18 +51,18 @@ describe('AddWordForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Please enter at least one German and one English word.',
+      'Please enter at least one source and one target word.',
     )
   })
 
   it('shows an error when only DE is filled', async () => {
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'Auto' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'Auto' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Please enter at least one German and one English word.',
+      'Please enter at least one source and one target word.',
     )
   })
 
@@ -71,8 +71,8 @@ describe('AddWordForm', () => {
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'bessern, revidieren' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'amend' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'bessern, revidieren' } })
+    fireEvent.change(screen.getByLabelText('Target:'), { target: { value: 'amend' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     await waitFor(() => {
@@ -85,22 +85,22 @@ describe('AddWordForm', () => {
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'Auto' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'car' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'Auto' } })
+    fireEvent.change(screen.getByLabelText('Target:'), { target: { value: 'car' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Word added: Auto — car')
   })
 
   it('shows "Merged" status when a single entry is merged', async () => {
-    const merged = makeEntry({ de: 'Auto', en: ['car', 'automobile'] })
+    const merged = makeEntry({ source: 'Auto', target: ['car', 'automobile'] })
 
     vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([{ entry: merged, merged: true }])
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'Auto' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'automobile' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'Auto' } })
+    fireEvent.change(screen.getByLabelText('Target:'), { target: { value: 'automobile' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(
@@ -110,14 +110,14 @@ describe('AddWordForm', () => {
 
   it('shows summary when multiple words are submitted', async () => {
     vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue([
-      { entry: makeEntry({ de: 'bessern' }), merged: false },
-      { entry: makeEntry({ de: 'revidieren' }), merged: false },
+      { entry: makeEntry({ source: 'bessern' }), merged: false },
+      { entry: makeEntry({ source: 'revidieren' }), merged: false },
     ])
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'bessern, revidieren' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'amend' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'bessern, revidieren' } })
+    fireEvent.change(screen.getByLabelText('Target:'), { target: { value: 'amend' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('2 words saved (2 added)')
@@ -128,13 +128,13 @@ describe('AddWordForm', () => {
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'Auto' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'car' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'Auto' } })
+    fireEvent.change(screen.getByLabelText('Target:'), { target: { value: 'car' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     await waitFor(() => {
-      expect(screen.getByLabelText('DE:')).toHaveValue('')
-      expect(screen.getByLabelText('EN:')).toHaveValue('')
+      expect(screen.getByLabelText('Source:')).toHaveValue('')
+      expect(screen.getByLabelText('Target:')).toHaveValue('')
     })
   })
 
@@ -145,8 +145,8 @@ describe('AddWordForm', () => {
 
     render(<AddWordForm onSuccess={onSuccess} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'Auto' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'car' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'Auto' } })
+    fireEvent.change(screen.getByLabelText('Target:'), { target: { value: 'car' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     await waitFor(() => {
@@ -159,8 +159,8 @@ describe('AddWordForm', () => {
 
     render(<AddWordForm onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('DE:'), { target: { value: 'Auto' } })
-    fireEvent.change(screen.getByLabelText('EN:'), { target: { value: 'car' } })
+    fireEvent.change(screen.getByLabelText('Source:'), { target: { value: 'Auto' } })
+    fireEvent.change(screen.getByLabelText('Target:'), { target: { value: 'car' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error')
