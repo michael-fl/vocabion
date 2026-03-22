@@ -97,6 +97,12 @@
   margin-top: 3.5rem;
 }
 
+.checkmark {
+  color: var(--color-accent);
+  font-weight: 700;
+  font-size: 1.4em;
+}
+
 .error {
   margin-top: 0.75rem;
   color: var(--color-error);

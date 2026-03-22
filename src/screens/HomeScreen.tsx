@@ -252,7 +252,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
       ) : lastDate !== null ? (
         <div className={styles.infoBanner}>
           {practicedToday
-            ? <p>You have practiced today.</p>
+            ? <p>You have practiced today. <span className={styles.checkmark}>✓</span></p>
             : <p>Last practiced: {formatSessionDate(lastDate)} — don't forget today's session!</p>
           }
         </div>
