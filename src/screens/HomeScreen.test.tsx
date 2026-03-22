@@ -462,6 +462,80 @@ describe('HomeScreen — pause mode', () => {
   })
 })
 
+// ── HomeScreen — last practiced notice ───────────────────────────────────────
+
+describe('HomeScreen — last practiced notice', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows "You have practiced today." when lastSessionDate is today', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 2, 22, 10, 0, 0))
+
+    const today = new Date(2026, 2, 22).toLocaleDateString('en-CA')
+
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(
+      <HomeScreen
+        onStartTraining={vi.fn()}
+        streak={{ count: 5, saveAvailable: false, lastSessionDate: today, nextMilestone: null }}
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.getByText('You have practiced today.')).toBeInTheDocument()
+  })
+
+  it('shows "Last practiced: [date]" when lastSessionDate is a past date', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 2, 22, 10, 0, 0))
+
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(
+      <HomeScreen
+        onStartTraining={vi.fn()}
+        streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-20', nextMilestone: null }}
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.getByText(/Last practiced: 20 March 2026/)).toBeInTheDocument()
+    expect(screen.getByText(/don't forget today's session/)).toBeInTheDocument()
+  })
+
+  it('does not show the notice when lastSessionDate is null', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(
+      <HomeScreen
+        onStartTraining={vi.fn()}
+        streak={{ count: 0, saveAvailable: false, lastSessionDate: null, nextMilestone: null }}
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.queryByText(/Last practiced/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/practiced today/)).not.toBeInTheDocument()
+  })
+
+  it('does not show the notice when streak is null', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(<HomeScreen onStartTraining={vi.fn()} streak={null} />)
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.queryByText(/Last practiced/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/practiced today/)).not.toBeInTheDocument()
+  })
+})
+
 // ── HomeScreen — starred session ──────────────────────────────────────────────
 
 const starredSession = {

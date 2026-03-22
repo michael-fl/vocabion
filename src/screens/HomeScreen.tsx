@@ -13,6 +13,23 @@
 import { useState, useEffect } from 'react'
 
 import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
+
+/**
+ * Formats a `YYYY-MM-DD` date string as a human-readable local date,
+ * e.g. `'2026-03-21'` → `'21 March 2026'`.
+ */
+function formatSessionDate(dateStr: string): string {
+  const parts = dateStr.split('-')
+  const year = parseInt(parts[0] ?? '0', 10)
+  const month = parseInt(parts[1] ?? '1', 10)
+  const day = parseInt(parts[2] ?? '1', 10)
+
+  return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
 import type { Session } from '../../shared/types/Session.ts'
 import * as sessionApi from '../api/sessionApi.ts'
 import type { StarredAvailable } from '../api/sessionApi.ts'
@@ -162,6 +179,9 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
   }
 
   const pause = streak?.pause ?? null
+  const todayStr = new Date().toLocaleDateString('en-CA')
+  const lastDate = streak?.lastSessionDate ?? null
+  const practicedToday = lastDate !== null && lastDate === todayStr
 
   return (
     <div className={styles.screen}>
@@ -179,7 +199,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
         </div>
       )}
 
-      {streak?.saveAvailable === true && (
+      {streak?.saveAvailable === true ? (
         <div className={styles.statusBanner}>
           <p role="status">Your streak is at risk! Save it for 50 credits.</p>
           <div>
@@ -191,11 +211,18 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
             </button>
           </div>
         </div>
-      )}
-
-      {streak !== null && !streak.saveAvailable && pause?.active !== true && isEveningStreakWarning(streak.lastSessionDate, new Date()) && (
-        <p role="status">Your streak is at risk! Start a session now to save it.</p>
-      )}
+      ) : streak !== null && pause?.active !== true && isEveningStreakWarning(streak.lastSessionDate, new Date()) ? (
+        <div className={styles.statusBanner}>
+          <p role="status">Your streak is at risk! Start a session now to save it.</p>
+        </div>
+      ) : lastDate !== null ? (
+        <div className={styles.infoBanner}>
+          {practicedToday
+            ? <p>You have practiced today.</p>
+            : <p>Last practiced: {formatSessionDate(lastDate)} — don't forget today's session!</p>
+          }
+        </div>
+      ) : null}
 
       {error !== null && <p className={styles.error} role="alert">{error}</p>}
 
