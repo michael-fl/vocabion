@@ -125,6 +125,24 @@ export interface CreditsRepository {
    */
   awardStars(n: number): void
 
+  /**
+   * Adds `count` purchased stars to the total.
+   * Unlike `awardStars`, this is additive — it always increases `earned_stars` by `count`.
+   */
+  addStars(count: number): void
+
+  /**
+   * Returns the date (YYYY-MM-DD) until which the "buy stars" offer is snoozed,
+   * or `null` if the offer has never been shown.
+   */
+  getStarsOfferSnoozedUntil(): string | null
+
+  /**
+   * Sets the date until which the "buy stars" offer is snoozed.
+   * Pass `null` to clear the snooze (offer eligible immediately).
+   */
+  setStarsOfferSnoozedUntil(date: string | null): void
+
   /** Returns the current pause state. */
   getPauseState(): PauseState
 

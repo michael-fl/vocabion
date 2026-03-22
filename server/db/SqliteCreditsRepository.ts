@@ -185,6 +185,26 @@ export class SqliteCreditsRepository implements CreditsRepository {
       .run(n)
   }
 
+  addStars(count: number): void {
+    this.db
+      .prepare('UPDATE credits SET earned_stars = earned_stars + ? WHERE id = 1')
+      .run(count)
+  }
+
+  getStarsOfferSnoozedUntil(): string | null {
+    const row = this.db
+      .prepare('SELECT stars_offer_snoozed_until FROM credits WHERE id = 1')
+      .get() as { stars_offer_snoozed_until: string | null } | undefined
+
+    return row?.stars_offer_snoozed_until ?? null
+  }
+
+  setStarsOfferSnoozedUntil(date: string | null): void {
+    this.db
+      .prepare('UPDATE credits SET stars_offer_snoozed_until = ? WHERE id = 1')
+      .run(date)
+  }
+
   getPauseState(): PauseState {
     const row = this.db
       .prepare('SELECT pause_active, pause_start_date, pause_days_used, pause_budget_year FROM credits WHERE id = 1')

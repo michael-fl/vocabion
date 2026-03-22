@@ -25,14 +25,17 @@ import { errorHandler } from './middleware/errorHandler.ts'
 import { createVocabRouter } from './features/vocab/vocabRouter.ts'
 import { createSessionRouter } from './features/session/sessionRouter.ts'
 import { createStreakRouter } from './features/streak/streakRouter.ts'
+import { createStarsRouter } from './features/stars/starsRouter.ts'
 import type { VocabService } from './features/vocab/vocabService.ts'
 import type { SessionService } from './features/session/sessionService.ts'
 import type { StreakService } from './features/streak/StreakService.ts'
+import type { StarsService } from './features/stars/StarsService.ts'
 
 export interface AppServices {
   vocab: VocabService
   session: SessionService
   streak: StreakService
+  stars: StarsService
 }
 
 /**
@@ -50,6 +53,7 @@ export function createApp(services: AppServices): Express {
   app.use('/api/v1/vocab', createVocabRouter(services.vocab))
   app.use('/api/v1/session', createSessionRouter(services.session))
   app.use('/api/v1/streak', createStreakRouter(services.streak))
+  app.use('/api/v1/stars', createStarsRouter(services.stars))
 
   app.use(errorHandler)
 

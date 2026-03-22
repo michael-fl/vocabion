@@ -35,13 +35,18 @@ import * as sessionApi from '../api/sessionApi.ts'
 import type { StarredAvailable } from '../api/sessionApi.ts'
 import * as vocabApi from '../api/vocabApi.ts'
 import * as streakApi from '../api/streakApi.ts'
+import * as starsApi from '../api/starsApi.ts'
+import type { StarsOffer } from '../api/starsApi.ts'
 import { isEveningStreakWarning } from '../utils/streakWarning.ts'
+import { StarsPurchaseDialog } from '../components/StarsPurchaseDialog/StarsPurchaseDialog.tsx'
 import styles from './HomeScreen.module.css'
 
 export interface HomeScreenProps {
   onStartTraining: (session: Session, vocabMap: Map<string, VocabEntry>) => void
   /** Called after pause/resume so the parent can refresh the streak state. */
   onStreakRefresh?: () => void
+  /** Called after a stars purchase so the parent can refresh credits and stars in the header. */
+  onCreditsRefresh?: () => void
   /** Current credit balance — needed to enable/disable the streak-save button. */
   credits?: number | null
   /** Current streak count and save availability. Fetched externally so the header can share the state. */
@@ -52,12 +57,13 @@ export interface HomeScreenProps {
  * Renders the home screen.
  * Calls `onStartTraining` once the session and vocab data are ready.
  */
-export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, streak = null }: HomeScreenProps) {
+export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh, credits = null, streak = null }: HomeScreenProps) {
   // undefined = still loading; null = no open session
   const [openSession, setOpenSession] = useState<Session | null | undefined>(undefined)
   // A session that exists but has 0 answered words — reused silently to avoid a 409 conflict
   const [unstartedSession, setUnstartedSession] = useState<Session | null>(null)
   const [starredAvailable, setStarredAvailable] = useState<StarredAvailable | null>(null)
+  const [starsOffer, setStarsOffer] = useState<StarsOffer | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,9 +71,14 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
     Promise.all([
       sessionApi.getOpenSession(),
       sessionApi.getStarredAvailable(),
+      starsApi.getStarsOffer(),
     ])
-      .then(([session, starred]) => {
+      .then(([session, starred, offer]) => {
         setStarredAvailable(starred)
+
+        if (offer.shouldOffer) {
+          setStarsOffer(offer)
+        }
 
         if (session === null) {
           setOpenSession(null)
@@ -94,6 +105,19 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
         setOpenSession(null)
       })
   }, [])
+
+  async function handleStarsPurchase(count: number) {
+    await starsApi.purchaseStars(count)
+
+    setStarsOffer(null)
+    onCreditsRefresh?.()
+  }
+
+  async function handleStarsSnooze() {
+    await starsApi.snoozeStarsOffer()
+
+    setStarsOffer(null)
+  }
 
   async function handleSaveStreak() {
     setLoading(true)
@@ -184,8 +208,18 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
   const practicedToday = lastDate !== null && lastDate === todayStr
 
   return (
-    <div className={styles.screen}>
-      <h1 className={styles.title}>Home</h1>
+    <>
+      {starsOffer !== null && credits !== null && (
+        <StarsPurchaseDialog
+          offer={starsOffer}
+          credits={credits}
+          onPurchase={handleStarsPurchase}
+          onSnooze={handleStarsSnooze}
+        />
+      )}
+
+      <div className={styles.screen}>
+        <h1 className={styles.title}>Home</h1>
 
       {pause?.active === true && (
         <div className={styles.statusBanner}>
@@ -271,6 +305,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, credits = null, s
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }

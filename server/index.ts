@@ -17,6 +17,7 @@ import { SqliteCreditsRepository } from './db/SqliteCreditsRepository.ts'
 import { VocabService } from './features/vocab/vocabService.ts'
 import { SessionService } from './features/session/sessionService.ts'
 import { StreakService } from './features/streak/StreakService.ts'
+import { StarsService } from './features/stars/StarsService.ts'
 import { createApp } from './app.ts'
 import { logger } from './lib/logger.ts'
 
@@ -33,8 +34,9 @@ const creditsRepo = new SqliteCreditsRepository(db)
 const vocabService = new VocabService(vocabRepo, sessionRepo, creditsRepo)
 const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo)
 const streakService = new StreakService(creditsRepo)
+const starsService = new StarsService(creditsRepo)
 
-const app = createApp({ vocab: vocabService, session: sessionService, streak: streakService })
+const app = createApp({ vocab: vocabService, session: sessionService, streak: streakService, stars: starsService })
 
 app.listen(PORT, () => {
   logger.info({ port: PORT }, 'Server started')

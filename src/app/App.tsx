@@ -143,6 +143,7 @@ function App() {
           setScreen({ name: 'training', session, vocabMap })
         }}
         onStreakRefresh={refreshStreak}
+        onCreditsRefresh={refreshCredits}
         credits={credits}
         streak={streak}
       />

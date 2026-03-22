@@ -25,6 +25,7 @@ export class FakeCreditsRepository implements CreditsRepository {
   private lastDiscoverySessionDate: string | null = null
   private lastStarredSessionDate: string | null = null
   private earnedStars = 0
+  private starsOfferSnoozedUntil: string | null = null
   private pauseState: PauseState = { active: false, startDate: null, daysUsed: 0, budgetYear: 0 }
 
   getBalance(): number {
@@ -124,6 +125,18 @@ export class FakeCreditsRepository implements CreditsRepository {
     if (n > this.earnedStars) {
       this.earnedStars = n
     }
+  }
+
+  addStars(count: number): void {
+    this.earnedStars += count
+  }
+
+  getStarsOfferSnoozedUntil(): string | null {
+    return this.starsOfferSnoozedUntil
+  }
+
+  setStarsOfferSnoozedUntil(date: string | null): void {
+    this.starsOfferSnoozedUntil = date
   }
 
   getPauseState(): PauseState {

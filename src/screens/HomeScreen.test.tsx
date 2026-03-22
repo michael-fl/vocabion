@@ -7,6 +7,7 @@ import { HomeScreen } from './HomeScreen.tsx'
 import { isEveningStreakWarning } from '../utils/streakWarning.ts'
 import * as sessionApi from '../api/sessionApi.ts'
 import * as vocabApi from '../api/vocabApi.ts'
+import * as starsApi from '../api/starsApi.ts'
 
 vi.mock('../api/sessionApi.ts', () => ({
   getOpenSession: vi.fn(),
@@ -20,6 +21,12 @@ vi.mock('../api/streakApi.ts', () => ({
   activatePause: vi.fn(),
   resumePause: vi.fn(),
   PAUSE_BUDGET_DAYS: 14,
+}))
+
+vi.mock('../api/starsApi.ts', () => ({
+  getStarsOffer: vi.fn(),
+  purchaseStars: vi.fn(),
+  snoozeStarsOffer: vi.fn(),
 }))
 
 vi.mock('../api/vocabApi.ts', () => ({
@@ -61,6 +68,12 @@ beforeEach(() => {
     available: false,
     markedCount: 0,
     alreadyDoneToday: false,
+  })
+  // Default: stars offer not shown (so it doesn't interfere with other tests)
+  vi.mocked(starsApi.getStarsOffer).mockResolvedValue({
+    shouldOffer: false,
+    maxBuyable: 0,
+    costPerStar: 500,
   })
 })
 
@@ -615,6 +628,104 @@ describe('HomeScreen — starred session', () => {
     await waitFor(() => {
       expect(vi.mocked(sessionApi.createStarredSession)).toHaveBeenCalledOnce()
       expect(onStartTraining).toHaveBeenCalledWith(starredSession, expect.any(Map))
+    })
+  })
+})
+
+// ── HomeScreen — stars purchase dialog ───────────────────────────────────────
+
+describe('HomeScreen — stars purchase dialog', () => {
+  it('shows the buy-stars dialog when the offer is active and credits are available', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(starsApi.getStarsOffer).mockResolvedValue({
+      shouldOffer: true,
+      maxBuyable: 2,
+      costPerStar: 500,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} credits={1000} />)
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/Buy stars/)).toBeInTheDocument()
+  })
+
+  it('does not show the dialog when shouldOffer is false', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(starsApi.getStarsOffer).mockResolvedValue({
+      shouldOffer: false,
+      maxBuyable: 0,
+      costPerStar: 500,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} credits={1000} />)
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('does not show the dialog when credits prop is null (still loading)', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(starsApi.getStarsOffer).mockResolvedValue({
+      shouldOffer: true,
+      maxBuyable: 2,
+      costPerStar: 500,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} credits={null} />)
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('dismisses the dialog and calls snoozeStarsOffer when "No" is clicked', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(starsApi.getStarsOffer).mockResolvedValue({
+      shouldOffer: true,
+      maxBuyable: 2,
+      costPerStar: 500,
+    })
+    vi.mocked(starsApi.snoozeStarsOffer).mockResolvedValue(undefined)
+
+    render(<HomeScreen onStartTraining={vi.fn()} credits={1000} />)
+
+    await screen.findByRole('dialog')
+
+    fireEvent.click(screen.getByRole('button', { name: 'No' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(starsApi.snoozeStarsOffer)).toHaveBeenCalledOnce()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('calls purchaseStars and onCreditsRefresh when a star option is selected', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(starsApi.getStarsOffer).mockResolvedValue({
+      shouldOffer: true,
+      maxBuyable: 2,
+      costPerStar: 500,
+    })
+    vi.mocked(starsApi.purchaseStars).mockResolvedValue({ stars: 3, credits: 500 })
+
+    const onCreditsRefresh = vi.fn()
+
+    render(<HomeScreen onStartTraining={vi.fn()} credits={1000} onCreditsRefresh={onCreditsRefresh} />)
+
+    await screen.findByRole('dialog')
+
+    // Advance to selection step
+    fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
+
+    await screen.findByText('How many stars?')
+
+    fireEvent.click(screen.getByRole('button', { name: /2 stars/ }))
+
+    await waitFor(() => {
+      expect(vi.mocked(starsApi.purchaseStars)).toHaveBeenCalledWith(2)
+      expect(onCreditsRefresh).toHaveBeenCalledOnce()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
   })
 })
