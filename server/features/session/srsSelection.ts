@@ -154,9 +154,10 @@ export function selectSessionWords(
 /**
  * Selects vocabulary words for a focus session.
  *
- * A focus session targets the words with the highest priority scores across all
- * buckets except bucket 0. Only words with `score >= 2` are eligible as primary
- * candidates; ties within a score group are broken randomly.
+ * A focus session targets the words with the highest priority scores across
+ * buckets 1–5. Bucket 0 (new words) and buckets 6+ (well-learned words) are
+ * excluded from primary candidates. Only words with `score >= 2` are eligible
+ * as primary candidates; ties within a score group are broken randomly.
  *
  * - Returns `null` when fewer than 5 primary candidates exist (session is skipped).
  * - When fewer than `sessionSize` primary candidates exist, remaining slots are
@@ -168,7 +169,7 @@ export function selectSessionWords(
  * @returns Selected entries, or `null` if the focus session should be skipped.
  */
 export function selectFocusWords(all: VocabEntry[], sessionSize: number): VocabEntry[] | null {
-  const primary = sortByScoreThenShuffle(all.filter((e) => e.bucket > 0 && e.score >= 2))
+  const primary = sortByScoreThenShuffle(all.filter((e) => e.bucket > 0 && e.bucket <= 5 && e.score >= 2))
 
   if (primary.length < 5) {
     return null

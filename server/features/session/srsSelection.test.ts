@@ -646,7 +646,7 @@ describe('manually-added preference', () => {
 // ── selectFocusWords ──────────────────────────────────────────────────────────
 
 describe('selectFocusWords', () => {
-  it('returns null when fewer than 5 words have score >= 2 and bucket > 0', () => {
+  it('returns null when fewer than 5 words have score >= 2 and bucket 1–5', () => {
     const entries = [
       makeEntry({ bucket: 1, score: 2 }),
       makeEntry({ bucket: 2, score: 3 }),
@@ -664,11 +664,31 @@ describe('selectFocusWords', () => {
   })
 
   it('excludes bucket 0 words from primary candidates', () => {
-    // 4 qualifying non-zero bucket words + many bucket 0 high-score words
+    // 4 qualifying words in buckets 1–5 + many bucket 0 high-score words
     const qualifying = makeEntries(4, { bucket: 1, score: 5 })
     const bucket0 = makeEntries(10, { bucket: 0, score: 10 })
 
     expect(selectFocusWords([...qualifying, ...bucket0], 10)).toBeNull()
+  })
+
+  it('excludes bucket 6+ words from primary candidates', () => {
+    // 4 qualifying words in buckets 1–5 + many high-score bucket 6+ words
+    const qualifying = makeEntries(4, { bucket: 3, score: 5 })
+    const highBucket = makeEntries(10, { bucket: 6, score: 10 })
+
+    expect(selectFocusWords([...qualifying, ...highBucket], 10)).toBeNull()
+  })
+
+  it('bucket 6+ words can appear in the top-up round', () => {
+    const primary = makeEntries(6, { bucket: 3, score: 2 })
+    const highBucket = makeEntries(10, { bucket: 6, score: 5 })
+    const result = selectFocusWords([...primary, ...highBucket], 10)
+
+    expect(result).toHaveLength(10)
+
+    const highBucketIds = new Set(highBucket.map((e) => e.id))
+
+    expect(result?.some((e) => highBucketIds.has(e.id))).toBe(true)
   })
 
   it('excludes words with score < 2 from primary candidates', () => {

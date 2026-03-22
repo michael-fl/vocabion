@@ -399,7 +399,7 @@ There are six session types: `stress`, `normal`, `repetition`, `focus`, `discove
 
 1. **Stress session check (highest priority):** If the credit balance is ≥ 500, at least 5 words exist in buckets 2+, and the stress session is due (`stress_session_due_at` in the credits table is in the past or null is resolved to within 48 h of first reaching ≥ 500 credits), a stress session is created. At most one automatic stress session per week. See the full rules under *Stress sessions* below.
 2. **Discovery session check:** If the active pool (words in buckets 1–4) has fewer than `DISCOVERY_POOL_THRESHOLD` (80) words **and** at least `discoverySize` (24) bucket-0 words exist **and** no discovery session was already completed today (`last_discovery_session_date` in the credits table), a discovery session is created. At most one discovery session per calendar day.
-3. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket > 0` exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
+3. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket` in 1–5 exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
 4. **Normal/repetition alternation (fallback):** If none of the above conditions are met, sessions alternate based on the last completed session type:
 
 | Last completed session | Next session (if enough due words) |
@@ -428,7 +428,7 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 4. If the total due time-based words across all buckets is still less than `repetitionSize`, the repetition session is skipped (see above).
 
 *Focus sessions* — target the words with the highest priority scores to address problem words.
-1. Only words from buckets 1+ are eligible (bucket 0 is excluded).
+1. Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
 2. Primary candidates: words with `score ≥ 2`, sorted by score descending (ties shuffled randomly). Up to `sessionSize` (default 10) words are taken.
 3. If fewer than 5 primary candidates exist, the focus session is **skipped** and step 3 (normal/repetition) applies instead.
 4. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.

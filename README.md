@@ -158,7 +158,7 @@ When your active pool — words in buckets 1–4 — falls below **80 words**, t
 
 If you have at least 5 words with a **priority score of 2 or higher** (see [Word Priority Score](#word-priority-score) below), the day's first session is a **Focus Session** targeting your most problematic words.
 
-- Only words from buckets 1 and above are eligible (bucket 0 is excluded).
+- Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
 - The top-scoring words fill the session first; if fewer than 10 qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
 - If fewer than 5 words qualify, the focus session is skipped.
 - Only one focus session per calendar day.
