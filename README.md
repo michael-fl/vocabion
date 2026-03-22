@@ -168,12 +168,13 @@ If you have at least 5 words with a **priority score of 2 or higher** (see [Word
 A **Veteran Session** is a periodic review of your most-mastered words — those that have reached bucket 6 or higher. It fires automatically roughly once a week when all of the following conditions are met:
 
 - At least **50 words** exist in buckets 6 and above
+- At least **5 of those words** have a **difficulty ≥ 2**
 - The veteran session is **due** (at least 6 days have passed since the last one)
 
 If your bucket-6+ count first reaches 50, the initial session is scheduled to trigger within the next **48 hours**.
 
 **Session rules:**
-- Up to **12 words** drawn from buckets 6+, sorted by difficulty descending (ties broken randomly) — your hardest veteran words come first.
+- Up to **12 words** drawn from buckets 6+ with **difficulty ≥ 2**, sorted by difficulty descending (ties broken randomly) — your hardest veteran words come first.
 - SRS promotion rules mirror the Focus Session: words that are not yet due are not promoted.
 - If fewer than 5 qualifying words can be selected, the session is skipped.
 
@@ -189,7 +190,7 @@ After a normal session, the next session is a **Repetition Session** — an inte
 
 #### 7. Normal (Learning) Session
 
-The default session type. It draws from both frequency buckets and time-based buckets:
+The default session type, containing up to **12 words**. It draws from both frequency buckets and time-based buckets:
 
 - **Bucket 0**: 1 or 2 new words (random). Words you added manually via the UI are always drawn first.
 - **Buckets 1–3**: the remaining slots are distributed proportionally — a bucket with more words receives more session slots. This is self-tuning as your vocabulary grows.
@@ -198,14 +199,14 @@ The default session type. It draws from both frequency buckets and time-based bu
 
 Within every candidate pool, words are picked highest-score first (ties broken randomly).
 
-**Session type sequence summary (automatic sessions):**
+**Session type sequence summary (automatic sessions, highest priority first):**
 
 | Situation | Session type |
 |---|---|
 | Stress session due, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) | **Stress** |
 | Active pool (buckets 1–4) < 80 words and ≥ 24 bucket-0 words exist | Discovery |
 | 5+ high-score words exist and no focus session today | Focus |
-| Veteran session due and ≥ 50 words in buckets 6+ | Veteran |
+| Veteran session due, ≥ 50 words in buckets 6+, and ≥ 5 of those with difficulty ≥ 2 | Veteran |
 | Last session was normal (and enough due words) | Repetition |
 | Last session was repetition | Normal |
 | Last session was focus or veteran | Picks up the normal/repetition alternation where it left off |
@@ -326,7 +327,13 @@ Stars are a permanent achievement watermark displayed in the header. Once earned
 | ★★★ | Any word reaches bucket 6 for the first time |
 | … | One additional star per new bucket level above 3 |
 
-Stars are derived from the all-time highest bucket ever reached across all your words. The mapping is: **stars = max(0, highest bucket ever − 3)**. Other ways to earn stars may be added in future.
+Stars are derived from the all-time highest bucket ever reached across all your words. The mapping is: **stars = max(0, highest bucket ever − 3)**.
+
+#### Buying Stars
+
+Stars can also be purchased with credits. When your balance reaches **500 or more**, the app offers you the chance to buy up to **3 stars**, at **500 credits each**. The offer is shown automatically — you can buy as many as your balance allows (up to the 3-star cap), or decline to keep your credits.
+
+After any interaction with the offer dialog — whether you buy, decline, or close it — the offer is **snoozed for 7 days** before it reappears.
 
 ---
 

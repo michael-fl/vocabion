@@ -400,7 +400,7 @@ There are seven session types: `stress`, `normal`, `repetition`, `focus`, `disco
 1. **Stress session check (highest priority):** If the credit balance is ≥ 500, at least 5 words exist in buckets 2+, and the stress session is due (`stress_session_due_at` in the credits table is in the past or null is resolved to within 48 h of first reaching ≥ 500 credits), a stress session is created. At most one automatic stress session per week. See the full rules under *Stress sessions* below.
 2. **Discovery session check:** If the active pool (words in buckets 1–4) has fewer than `DISCOVERY_POOL_THRESHOLD` (80) words **and** at least `discoverySize` (24) bucket-0 words exist **and** no discovery session was already completed today (`last_discovery_session_date` in the credits table), a discovery session is created. At most one discovery session per calendar day.
 3. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket` in 1–5 exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
-4. **Veteran session check:** If the veteran session is due (`veteran_session_due_at ≤ today`) and at least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+, and `selectVeteranWords` returns at least `VETERAN_MIN_WORDS` (5) qualifying words, a veteran session is created. The normal/repetition alternation state is **not advanced**. See the full rules under *Veteran sessions* below.
+4. **Veteran session check:** If the veteran session is due (`veteran_session_due_at ≤ today`) and at least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+, and `selectVeteranWords` returns at least `VETERAN_MIN_WORDS` (5) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2), a veteran session is created. The normal/repetition alternation state is **not advanced**. See the full rules under *Veteran sessions* below.
 5. **Normal/repetition alternation (fallback):** If none of the above conditions are met, sessions alternate based on the last completed session type:
 
 | Last completed session | Next session (if enough due words) |
@@ -454,7 +454,7 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 
 *Veteran sessions* — periodic review of mastered words (buckets 6+), firing automatically roughly once a week.
 1. **Trigger conditions:** at least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+, and `veteran_session_due_at ≤ today`. When the bucket-6+ count first reaches 50 and no veteran session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
-2. **Word selection:** `selectVeteranWords(allEntries, sessionSize, VETERAN_MIN_WORDS)` — filters bucket ≥ 6, sorts by difficulty descending (ties shuffled randomly). Returns null if fewer than `VETERAN_MIN_WORDS` (5) words qualify.
+2. **Word selection:** `selectVeteranWords(allEntries, sessionSize, VETERAN_MIN_WORDS)` — filters bucket ≥ 6 **and** difficulty ≥ 2, sorts by difficulty descending (ties shuffled randomly). Returns null if fewer than `VETERAN_MIN_WORDS` (5) words qualify.
 3. **SRS promotion rules:** same as focus sessions — due words (time-based bucket, `lastAskedAt + interval ≤ now`) are promoted one bucket; non-due words are not promoted.
 4. **Scheduling:** after the session completes (any outcome), the next due date is set to `today + VETERAN_INTERVAL_DAYS (6) + random(0–48 h)`.
 5. **Counts toward daily streak** like any other session type.
@@ -1309,6 +1309,50 @@ Migration `024_stress_session.sql` adds one column to the `credits` table:
 - [ ] `TrainingScreen`: countdown timer, live balance, hidden hints
 - [ ] `StressSummaryScreen` + routing in `App.tsx`
 - [ ] Tests for all new/changed code
+
+---
+
+## Buy Stars Feature ✓
+
+### Overview
+
+Users can spend credits to purchase cosmetic prestige stars. The offer dialog appears automatically once the credit balance reaches ≥ 500 and is snoozed for 7 days after any interaction (purchase, decline, or abort) to avoid being intrusive.
+
+### Rules
+
+- **Cost:** `STAR_COST_CREDITS` = 500 credits per star.
+- **Cap per offer:** `MAX_STARS_PER_OFFER` = 3 stars — the user can buy 1–3 stars in a single dialog interaction.
+- **maxBuyable:** `min(floor(balance / 500), 3)` — limited by what the balance can afford.
+- **Suppression:** the offer is not shown when:
+  - balance < 500
+  - the game is paused
+  - the offer was snoozed (`stars_offer_snoozed_until` > today)
+- **Snooze duration:** `STARS_OFFER_SNOOZE_DAYS` = 7 days, set on any interaction.
+
+### Data Model
+
+The `credits` table stores the snooze date:
+
+| Column | Type | Description |
+|---|---|---|
+| `stars_offer_snoozed_until` | TEXT (YYYY-MM-DD) | offer suppressed until this date; null = not snoozed |
+
+`earned_stars INTEGER` (added in migration `020_earned_stars.sql`) holds the persistent star count; `addStars(n)` increments it and never decreases it.
+
+### Backend Design
+
+- **`StarsService`** (`server/features/stars/StarsService.ts`):
+  - `getOffer(today)`: returns `{ shouldOffer, maxBuyable, costPerStar }`.
+  - `purchaseStars(count, today)`: deducts `count × 500` credits, adds `count` stars, snoozes for 7 days. Throws on invalid count or insufficient credits.
+  - `snooze(today)`: records the snooze without a purchase (decline / abort).
+- **`CreditsRepository`**: `getStarsOfferSnoozedUntil()`, `setStarsOfferSnoozedUntil()`, `addStars()`, `getEarnedStars()`.
+- **`starsRouter`** (`server/features/stars/starsRouter.ts`): `GET /api/v1/stars/offer`, `POST /api/v1/stars/purchase`, `POST /api/v1/stars/snooze`.
+
+### Frontend Design
+
+- After a session completes, `SummaryScreen` calls `getStarsOffer()` and displays the buy-stars dialog when `shouldOffer` is true.
+- The dialog shows the cost per star and lets the user choose how many to buy (up to `maxBuyable`), or decline.
+- On purchase or decline/abort, the snooze endpoint is called so the offer disappears for 7 days.
 
 ---
 
