@@ -205,6 +205,20 @@ export class SqliteCreditsRepository implements CreditsRepository {
       .run(date)
   }
 
+  getStressSessionDueAt(): string | null {
+    const row = this.db
+      .prepare('SELECT stress_session_due_at FROM credits WHERE id = 1')
+      .get() as { stress_session_due_at: string | null } | undefined
+
+    return row?.stress_session_due_at ?? null
+  }
+
+  setStressSessionDueAt(date: string | null): void {
+    this.db
+      .prepare('UPDATE credits SET stress_session_due_at = ? WHERE id = 1')
+      .run(date)
+  }
+
   getPauseState(): PauseState {
     const row = this.db
       .prepare('SELECT pause_active, pause_start_date, pause_days_used, pause_budget_year FROM credits WHERE id = 1')

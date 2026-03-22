@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 
 import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET } from './sessionService.ts'
+import { StressSessionService } from './stressSessionService.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
 import { FakeVocabRepository } from '../../test-utils/FakeVocabRepository.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
@@ -70,7 +71,7 @@ beforeEach(() => {
   sessionRepo = new FakeSessionRepository()
   vocabRepo = new FakeVocabRepository()
   creditsRepo = new FakeCreditsRepository()
-  service = new SessionService(sessionRepo, vocabRepo, creditsRepo)
+  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo))
 })
 
 // ── getOpenSession ────────────────────────────────────────────────────────────
@@ -2206,5 +2207,238 @@ describe('createStarredSession', () => {
     const last = sessionRepo.findLastCompletedNonFocus()
 
     expect(last?.type).toBe('normal')
+  })
+})
+
+// ── Stress Session ─────────────────────────────────────────────────────────────
+
+describe('stress session — createSession', () => {
+  function makeQualifyingEntries(count: number, bucket = 3): VocabEntry[] {
+    const entries: VocabEntry[] = []
+
+    for (let i = 0; i < count; i++) {
+      entries.push(makeEntry({ bucket, source: `word${i}`, target: [`t${i}`] }))
+    }
+
+    return entries
+  }
+
+  it('creates a stress session when all conditions are met', () => {
+    creditsRepo.addBalance(500)
+    creditsRepo.setStressSessionDueAt('2026-01-01')
+
+    const entries = makeQualifyingEntries(10)
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('stress')
+  })
+
+  it('schedules the first stress session when balance first hits 500', () => {
+    creditsRepo.addBalance(500)
+
+    const entries = makeQualifyingEntries(10)
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(creditsRepo.getStressSessionDueAt()).not.toBeNull()
+  })
+
+  it('does not create stress session when balance < 500', () => {
+    creditsRepo.addBalance(499)
+    creditsRepo.setStressSessionDueAt('2026-01-01')
+
+    const entries = makeQualifyingEntries(10)
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).not.toBe('stress')
+  })
+
+  it('does not create stress session when due date is in the future', () => {
+    creditsRepo.addBalance(500)
+    creditsRepo.setStressSessionDueAt('9999-12-31')
+
+    const entries = makeQualifyingEntries(10)
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).not.toBe('stress')
+  })
+
+  it('stress session draws only words from buckets >= 2', () => {
+    creditsRepo.addBalance(500)
+    creditsRepo.setStressSessionDueAt('2026-01-01')
+
+    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 0 })) }
+    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 1 })) }
+
+    const qualifying = makeQualifyingEntries(5, 2)
+
+    for (const e of qualifying) { vocabRepo.insert(e) }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('stress')
+
+    for (const w of session.words) {
+      const entry = vocabRepo.findById(w.vocabId)
+      expect(entry?.bucket).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('stress session takes priority over discovery', () => {
+    creditsRepo.addBalance(500)
+    creditsRepo.setStressSessionDueAt('2026-01-01')
+
+    // Active pool < threshold to trigger discovery
+    for (let i = 0; i < 30; i++) { vocabRepo.insert(makeEntry({ bucket: 0 })) }
+    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 3 })) }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('stress')
+  })
+})
+
+describe('stress session — answer scoring', () => {
+  function makeStressSession(words: VocabEntry[]): Session {
+    return makeSession({
+      type: 'stress',
+      words: words.map((e) => ({ vocabId: e.id, status: 'pending' })),
+      status: 'open',
+    })
+  }
+
+  it('deducts fee credits for a wrong answer', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(500)
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    const result = service.submitAnswer(sess.id, entry.id, ['wrong'])
+
+    // fee = floor(500 / 1) = 500, rounded to even = 500
+    expect(result.answerCost).toBe(500)
+    expect(creditsRepo.getBalance()).toBe(0)
+  })
+
+  it('deducts half fee for a partial answer', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog', 'hound'] })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(500)
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    const result = service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    // fee = 500, partial = 250
+    expect(result.answerCost).toBe(250)
+    expect(result.outcome).toBe('partial')
+  })
+
+  it('resets word to bucket 1 on wrong answer', () => {
+    const entry = makeEntry({ bucket: 5, source: 'Hund', target: ['dog'], lastAskedAt: null })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(500)
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    service.submitAnswer(sess.id, entry.id, ['wrong'])
+
+    const updated = vocabRepo.findById(entry.id)
+
+    expect(updated?.bucket).toBe(1)
+  })
+
+  it('does not add a second-chance word for time-based buckets', () => {
+    const entry = makeEntry({ bucket: 4, source: 'Hund', target: ['dog'], lastAskedAt: null })
+    const other = makeEntry({ bucket: 4, source: 'Katze', target: ['cat'], lastAskedAt: null })
+
+    vocabRepo.insert(entry)
+    vocabRepo.insert(other)
+    creditsRepo.addBalance(500)
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    const result = service.submitAnswer(sess.id, entry.id, ['wrong'])
+
+    expect(result.outcome).toBe('incorrect')
+    expect(result.session.words).toHaveLength(1)
+  })
+
+  it('correct answer earns no per-word credits (creditsEarned = 0)', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'], maxBucket: 2 })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(500)
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    const result = service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    expect(result.creditsEarned).toBe(0)
+    expect(result.bucketMilestoneBonus).toBe(0)
+  })
+
+  it('awards +100 perfect bonus for perfect stress session', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(500)
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    const result = service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    expect(result.perfectBonus).toBe(100)
+    expect(creditsRepo.getBalance()).toBe(600)
+  })
+
+  it('schedules next stress session after completion', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(500)
+    creditsRepo.setStressSessionDueAt('2026-01-01')
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    const newDueAt = creditsRepo.getStressSessionDueAt()
+
+    expect(newDueAt).not.toBeNull()
+
+    if (newDueAt !== null) {
+      // Next due at is at least 7 days after today
+      expect(newDueAt > '2026-03-28').toBe(true)
+    }
   })
 })

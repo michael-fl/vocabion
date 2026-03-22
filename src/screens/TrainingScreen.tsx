@@ -197,7 +197,12 @@ export function TrainingScreen({
   const [isMarked, setIsMarked] = useState(false)
   const [markingWord, setMarkingWord] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const firstInputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const submittingRef = useRef(false)
+  /** True during the 2-second grace window after a new stress word appears. Ignores accidental empty submits. */
+  const stressGraceRef = useRef(false)
 
   useEffect(() => {
     firstInputRef.current?.focus()
@@ -245,6 +250,44 @@ export function TrainingScreen({
 
     // All status messages stay visible until the next answer is submitted.
   }, [statusMessage, currentSession, onComplete, correctFeedbackDelayMs, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus])
+
+  // Stress session countdown timer: counts down per word, auto-submits on expiry.
+  useEffect(() => {
+    if (currentSession.type !== 'stress' || currentWord === null) {
+      setTimeLeft(null)
+      return
+    }
+
+    const wordTranslations = deduplicateTranslations(
+      currentSession.direction === 'SOURCE_TO_TARGET' ? currentWord.entry.target : [currentWord.entry.source],
+    )
+    const fieldCount = Math.min(wordTranslations.length, 2)
+    const limit = fieldCount > 1 ? 15 : 10
+
+    stressGraceRef.current = true
+    const graceTimeout = setTimeout(() => { stressGraceRef.current = false }, 2000)
+
+    setTimeLeft(limit)
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval)
+
+          if (!submittingRef.current) {
+            formRef.current?.requestSubmit()
+          }
+
+          return 0
+        }
+
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => { clearInterval(interval); clearTimeout(graceTimeout); stressGraceRef.current = false }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWord?.entry.id, currentWord?.isSecondChance, currentSession.type])
 
   // useMemo must be called unconditionally (before early return) — Rules of Hooks.
   // When currentWord is null the returned value is unused.
@@ -326,14 +369,25 @@ export function TrainingScreen({
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    setStatusMessage(null)
-    setPendingAlternative(null)
-    setError(null)
-    setSubmitting(true)
 
     const trimmed = answers
       .slice(0, requiredCount)
       .map((a) => a.trim())
+
+    // Guard: in a stress session, ignore an all-empty manual submit that arrives within
+    // 2 seconds of the timer starting — it is almost certainly a late "panic" keypress
+    // meant for the previous question that the timer already auto-submitted.
+    const allEmpty = trimmed.every((a) => a.length === 0)
+
+    if (isStress && allEmpty && stressGraceRef.current) {
+      return
+    }
+
+    setStatusMessage(null)
+    setPendingAlternative(null)
+    setError(null)
+    setSubmitting(true)
+    submittingRef.current = true
 
     // An all-empty submission is treated as "I don't know" — still a valid (wrong) answer
     const payload = trimmed.filter((a) => a.length > 0)
@@ -344,6 +398,7 @@ export function TrainingScreen({
 
       setCurrentSession(result.session)
       setStatusMessage(buildStatusMessage(result, translations))
+
       setSessionCreditsEarned((prev) => prev + result.creditsEarned)
       setCompletedSessionCost((prev) => prev + result.answerCost)
       setSessionPerfectBonus(result.perfectBonus)
@@ -385,6 +440,7 @@ export function TrainingScreen({
       setError(err instanceof Error ? err.message : 'Failed to submit answer')
     } finally {
       setSubmitting(false)
+      submittingRef.current = false
     }
   }
 
@@ -468,6 +524,8 @@ export function TrainingScreen({
     }
   }
 
+  const isStress = currentSession.type === 'stress'
+
   return (
     <div className={styles.screen}>
       <div>
@@ -478,10 +536,26 @@ export function TrainingScreen({
               ? 'Focus Session'
               : currentSession.type === 'discovery'
                 ? 'Discovery Session'
-                : 'Learning Session'}
+                : currentSession.type === 'stress'
+                  ? 'Stress Session'
+                  : 'Learning Session'}
         </h2>
         <p className={styles.meta}>{answered} of {total} answered</p>
       </div>
+
+      {isStress && timeLeft !== null && (
+        <div className={styles.stressBar}>
+          <span
+            className={`${styles.stressTimer}${timeLeft <= 5 ? ` ${styles.stressTimerLow}` : ''}`}
+            aria-label={`Time remaining: ${timeLeft} seconds`}
+          >
+            {timeLeft}s
+          </span>
+          {credits !== null && (
+            <span className={styles.stressBalance}>Balance: {credits.toLocaleString()} credits</span>
+          )}
+        </div>
+      )}
 
       {statusMessage !== null && (
         <p
@@ -556,7 +630,7 @@ export function TrainingScreen({
         </p>
       )}
 
-      <form className={styles.form} onSubmit={(e) => void handleSubmit(e)}>
+      <form ref={formRef} className={styles.form} onSubmit={(e) => void handleSubmit(e)}>
         <div className={styles.promptLine}>
           <span>Translate:</span>
           <strong className={styles.prompt}>{prompt}</strong>
@@ -612,13 +686,15 @@ export function TrainingScreen({
             Submit
           </button>
 
-          <button
-            type="button"
-            onClick={() => void handleHint()}
-            disabled={displayedBucket === 0 || credits === null || credits < hintCost || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint}
-          >
-            {displayedBucket === 0 ? 'Hint (auto)' : `Hint (${hintCost} credits)`}
-          </button>
+          {!isStress && (
+            <button
+              type="button"
+              onClick={() => void handleHint()}
+              disabled={displayedBucket === 0 || credits === null || credits < hintCost || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint}
+            >
+              {displayedBucket === 0 ? 'Hint (auto)' : `Hint (${hintCost} credits)`}
+            </button>
+          )}
 
           {currentSession.type === 'discovery' && (
             <button

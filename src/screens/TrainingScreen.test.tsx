@@ -1330,3 +1330,113 @@ describe('mark word on partial answer without new alternatives', () => {
     expect(screen.queryByRole('button', { name: /Add ".*" as alternative/ })).not.toBeInTheDocument()
   })
 })
+
+// ── Stress session ────────────────────────────────────────────────────────────
+
+describe('stress session', () => {
+  it('shows "Stress Session" title', () => {
+    const entry = makeEntry({ bucket: 3 })
+    const session = makeSession({ type: 'stress' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Stress Session' })).toBeInTheDocument()
+  })
+
+  it('hides the hint button', () => {
+    const entry = makeEntry({ bucket: 3 })
+    const session = makeSession({ type: 'stress' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} credits={1000} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.queryByRole('button', { name: /Hint/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the timer bar with initial time for a single-field word', () => {
+    const entry = makeEntry({ bucket: 3, target: ['table'] })
+    const session = makeSession({ type: 'stress' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} credits={1000} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.getByLabelText('Time remaining: 10 seconds')).toBeInTheDocument()
+  })
+
+  it('shows the timer bar with initial time for a two-field word', () => {
+    const entry = makeEntry({ bucket: 3, target: ['bicycle', 'bike'] })
+    const session = makeSession({ type: 'stress' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} credits={1000} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.getByLabelText('Time remaining: 15 seconds')).toBeInTheDocument()
+  })
+
+  it('shows the credit balance in the timer bar', () => {
+    const entry = makeEntry({ bucket: 3 })
+    const session = makeSession({ type: 'stress' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} credits={750} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.getByText('Balance: 750 credits')).toBeInTheDocument()
+  })
+
+  it('does not show a timer bar for a normal session', () => {
+    const entry = makeEntry({ bucket: 3 })
+    const session = makeSession({ type: 'normal' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} credits={1000} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.queryByLabelText(/Time remaining/)).not.toBeInTheDocument()
+  })
+
+  it('auto-submits when the timer reaches zero', async () => {
+    vi.useFakeTimers()
+
+    const entry = makeEntry({ bucket: 3, target: ['table'] })
+    const session = makeSession({ type: 'stress' })
+    const completedSession: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+      status: 'completed',
+    }
+
+    vi.mocked(sessionApi.submitAnswer).mockResolvedValue({
+      correct: false,
+      outcome: 'incorrect',
+      sessionCompleted: true,
+      answerCost: 0,
+      creditsEarned: 0,
+      perfectBonus: 0,
+      bucketMilestoneBonus: 0,
+      streakCredit: 0,
+      creditsSpent: 0,
+      session: completedSession,
+      newBucket: 2,
+    })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    // Advance past the 10-second limit; the interval callback fires synchronously.
+    vi.advanceTimersByTime(11000)
+
+    // Restore real timers before waitFor so its internal polling works.
+    vi.useRealTimers()
+
+    await waitFor(() => {
+      expect(sessionApi.submitAnswer).toHaveBeenCalledTimes(1)
+    })
+  })
+})

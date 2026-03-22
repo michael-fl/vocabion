@@ -107,9 +107,43 @@ There is no upper limit on buckets — the longer you practice a word without mi
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are four automatic types, chosen in this priority order. A fifth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are five automatic types, chosen in this priority order. A sixth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
-#### 1. Discovery Session (highest priority)
+#### 1. Stress Session (highest priority, weekly)
+
+A **Stress Session** is a high-stakes timed challenge that fires automatically at most once per week when all of the following conditions are met:
+
+- Your credit balance is **500 or higher**
+- At least **5 words** exist in buckets 2 and above
+- The stress session is **due** (at least a week has passed since the last one)
+
+If you have never had a stress session and your balance reaches 500 for the first time, the first session will be scheduled to trigger within the next **48 hours**.
+
+**Session rules:**
+- Up to **24 words** are drawn randomly from all buckets above 1 — words are selected regardless of whether they are due, and without preference for high-scored words.
+- **No hints** — the hint button is not available.
+- **No second chance** — a wrong answer on a time-based word does not generate a second-chance word.
+- **Time limit per question** — 15 seconds for one answer field, 25 seconds for two. The timer resets on every new question. When it runs out, whatever is typed is submitted automatically (empty fields count as wrong).
+
+The timer and your current credit balance are displayed prominently during the session so you are always aware of the pressure.
+
+**Scoring:**
+
+| Outcome | Credit effect | Bucket effect |
+|---|---|---|
+| Fully correct | none | promoted one bucket if due; unchanged if not yet due |
+| Partially correct | −½ × fee | stays in current bucket |
+| Wrong or timed out | −1 × fee | reset to bucket 1 |
+
+The **per-answer fee** is `floor(500 ÷ session size)`, rounded down to the nearest even number. For the maximum session size of 24 words this is **20 credits per wrong answer** (10 for partial).
+
+**Perfect session:** if every answer in the session is fully correct, a **+100 credit bonus** is awarded. This is the only way to earn credits during a stress session.
+
+After each stress session completes, the next one is scheduled for **7 days + up to 48 random hours** later.
+
+---
+
+#### 2. Discovery Session
 
 When your active pool — words in buckets 1–4 — falls below **80 words**, the app injects a **Discovery Session** to replenish it. This session contains exactly **24 words**, all drawn from bucket 0 (new words you haven't practiced yet). Manually added words are drawn first, then sorted by priority score.
 
@@ -120,7 +154,7 @@ When your active pool — words in buckets 1–4 — falls below **80 words**, t
 - **Push back** — a "Push back (N left)" button lets you skip a word and keep it in bucket 0 for a future session. You have **10 free push-backs per session**; the button is disabled once the budget is exhausted.
 - **Perfect session bonus: +100 credits** — awarded if you answer all words correctly with no push-backs (replaces the standard +10 bonus).
 
-#### 2. Focus Session (once per day)
+#### 3. Focus Session (once per day)
 
 If you have at least 5 words with a **priority score of 2 or higher** (see [Word Priority Score](#word-priority-score) below), the day's first session is a **Focus Session** targeting your most problematic words.
 
@@ -129,7 +163,7 @@ If you have at least 5 words with a **priority score of 2 or higher** (see [Word
 - If fewer than 5 words qualify, the focus session is skipped.
 - Only one focus session per calendar day.
 
-#### 3. Repetition Session
+#### 4. Repetition Session
 
 After a normal session, the next session is a **Repetition Session** — an intensive review of time-based words (buckets 4+) that are currently overdue.
 
@@ -137,7 +171,7 @@ After a normal session, the next session is a **Repetition Session** — an inte
 - No frequency bucket words (0–3) are included.
 - If fewer than 24 due words exist across all time-based buckets, the repetition session is skipped and a normal session runs instead. The next session will try repetition again.
 
-#### 4. Normal (Learning) Session
+#### 5. Normal (Learning) Session
 
 The default session type. It draws from both frequency buckets and time-based buckets:
 
@@ -152,13 +186,14 @@ Within every candidate pool, words are picked highest-score first (ties broken r
 
 | Situation | Session type |
 |---|---|
+| Stress session due, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) | **Stress** |
 | Active pool (buckets 1–4) < 80 words and ≥ 24 bucket-0 words exist | Discovery |
 | 5+ high-score words exist and no focus session today | Focus |
 | Last session was normal (and enough due words) | Repetition |
 | Last session was repetition | Normal |
 | Last session was focus | Picks up the normal/repetition alternation where it left off |
 
-#### 5. ★ Session (manual, once per day)
+#### 6. ★ Session (manual, once per day)
 
 A **★ Session** lets you practice all your starred (★) words in one focused run. It is started manually via the **"Start ★ session"** button on the Home screen and is available at most once per calendar day.
 
@@ -225,6 +260,7 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 | Word reaches a new highest bucket for the first time | +1 per bucket level |
 | Perfect session — normal/repetition/focus (no mistakes, no hints, no second-chance words) | +10 |
 | Perfect discovery session (all correct, no push-backs) | +100 |
+| Perfect stress session (all answers fully correct) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |
 | Streak milestone reached | +10 to +1 000 (see Streaks) |
 | First time any word globally reaches a bucket never seen before (≥ 6) | +(N−5)×100 (bucket 6 → +100, bucket 7 → +200, …) |
@@ -237,6 +273,8 @@ Each word only earns the credit for a given bucket level once — falling back a
 |---|---|
 | Hint during a session | 10–(n−2)×10 credits depending on bucket |
 | Wrong answer (deducted automatically; free in discovery sessions) | 1 credit |
+| Wrong answer in a stress session | floor(500 ÷ session size) credits, rounded to nearest even number |
+| Partially correct answer in a stress session | Half of the per-answer fee |
 | Save a streak (see Streaks) | 50 credits |
 
 Your balance is shown in the header on every screen and updated after each answer.

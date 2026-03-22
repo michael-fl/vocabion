@@ -13,6 +13,7 @@ import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
 import { VocabService } from '../vocab/vocabService.ts'
 import { SessionService } from '../session/sessionService.ts'
+import { StressSessionService } from '../session/stressSessionService.ts'
 import { StreakService } from './StreakService.ts'
 import type { StreakInfo } from './StreakService.ts'
 
@@ -21,7 +22,7 @@ function makeApp() {
   const sessionRepo = new FakeSessionRepository()
   const creditsRepo = new FakeCreditsRepository()
   const vocabService = new VocabService(vocabRepo, sessionRepo, creditsRepo)
-  const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo)
+  const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo))
   const streakService = new StreakService(creditsRepo)
 
   return { app: createApp({ vocab: vocabService, session: sessionService, streak: streakService }), creditsRepo }

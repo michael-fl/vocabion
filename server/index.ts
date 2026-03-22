@@ -16,6 +16,7 @@ import { SqliteSessionRepository } from './db/SqliteSessionRepository.ts'
 import { SqliteCreditsRepository } from './db/SqliteCreditsRepository.ts'
 import { VocabService } from './features/vocab/vocabService.ts'
 import { SessionService } from './features/session/sessionService.ts'
+import { StressSessionService } from './features/session/stressSessionService.ts'
 import { StreakService } from './features/streak/StreakService.ts'
 import { StarsService } from './features/stars/StarsService.ts'
 import { createApp } from './app.ts'
@@ -32,7 +33,8 @@ const sessionRepo = new SqliteSessionRepository(db)
 const creditsRepo = new SqliteCreditsRepository(db)
 
 const vocabService = new VocabService(vocabRepo, sessionRepo, creditsRepo)
-const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo)
+const stressSessionService = new StressSessionService(creditsRepo)
+const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo, stressSessionService)
 const streakService = new StreakService(creditsRepo)
 const starsService = new StarsService(creditsRepo)
 

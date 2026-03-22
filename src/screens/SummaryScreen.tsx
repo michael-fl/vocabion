@@ -34,6 +34,8 @@ export interface SummaryScreenProps {
 
 /** Renders a summary of a completed training session. */
 export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onBack }: SummaryScreenProps) {
+  const isStress = session.type === 'stress'
+  const sessionLabel = session.type === 'stress' ? 'Stress Session complete' : 'Session complete'
   const originalWords = session.words.filter((w) => w.secondChanceFor === undefined)
   const secondChanceWords = session.words.filter((w) => w.secondChanceFor !== undefined)
 
@@ -47,7 +49,7 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
 
   return (
     <div className={styles.screen}>
-      <h1 className={styles.heading}>Session complete</h1>
+      <h1 className={styles.heading}>{sessionLabel}</h1>
 
       {bucketMilestoneBonus > 0 && (
         <div className={styles.bucketMilestoneBanner} role="status">
@@ -72,41 +74,55 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
       <div className={styles.card}>
         <h2 className={styles.cardHeading}>Results</h2>
 
-        <p className={styles.statRow}>
-          Correct: {originalCorrect} / {originalWords.length}
-        </p>
+        <div className={styles.statRowGroup}>
+          <p className={styles.statRow}>
+            Correct: {originalCorrect} / {originalWords.length}
+          </p>
 
-        <p className={styles.statRow}>
-          Incorrect: {originalIncorrect} / {originalWords.length}
-        </p>
+          <p className={styles.statRow}>
+            Incorrect: {originalIncorrect} / {originalWords.length}
+          </p>
+        </div>
       </div>
 
       <div className={styles.card}>
         <h2 className={styles.cardHeading}>Credits</h2>
 
-        <p className={styles.statRow}>
-          Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
-        </p>
+        <div className={styles.statRowGroup}>
+          {!isStress && (
+            <p className={styles.statRow}>
+              Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
+            </p>
+          )}
 
-        <p className={styles.statRow}>
-          Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
-        </p>
+          {!isStress && (
+            <p className={styles.statRow}>
+              Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
+            </p>
+          )}
 
-        <p className={styles.statRow}>
-          Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
-        </p>
-
-        {streakCredit > 0 && milestoneLabel !== undefined && (
           <p className={styles.statRow}>
-            Streak milestone: {milestoneLabel}! +{streakCredit} credits
+            Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
           </p>
-        )}
 
-        {streakCredit > 0 && milestoneLabel === undefined && (
-          <p className={styles.statRow}>
-            Daily streak bonus: +{streakCredit} credits
-          </p>
-        )}
+          {perfectBonus > 0 && (
+            <p className={styles.statRow}>
+              Perfect session bonus: +{perfectBonus} credits
+            </p>
+          )}
+
+          {streakCredit > 0 && milestoneLabel !== undefined && (
+            <p className={styles.statRow}>
+              Streak milestone: {milestoneLabel}! +{streakCredit} credits
+            </p>
+          )}
+
+          {streakCredit > 0 && milestoneLabel === undefined && (
+            <p className={styles.statRow}>
+              Daily streak bonus: +{streakCredit} credits
+            </p>
+          )}
+        </div>
 
         <hr className={styles.divider} />
 
@@ -119,13 +135,15 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
         <div className={styles.card}>
           <h2 className={styles.cardHeading}>Second-chance words</h2>
 
-          <p className={styles.statRow}>
-            Correct: {secondChanceCorrect} / {secondChanceWords.length}
-          </p>
+          <div className={styles.statRowGroup}>
+            <p className={styles.statRow}>
+              Correct: {secondChanceCorrect} / {secondChanceWords.length}
+            </p>
 
-          <p className={styles.statRow}>
-            Incorrect: {secondChanceIncorrect} / {secondChanceWords.length}
-          </p>
+            <p className={styles.statRow}>
+              Incorrect: {secondChanceIncorrect} / {secondChanceWords.length}
+            </p>
+          </div>
         </div>
       )}
 

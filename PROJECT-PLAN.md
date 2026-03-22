@@ -395,11 +395,12 @@ the frontend "Due in" display.
 
 **Session types:**
 
-There are five session types: `normal`, `repetition`, `focus`, `discovery`, and `starred`. The first four are chosen automatically on each `createSession` call as follows:
+There are six session types: `stress`, `normal`, `repetition`, `focus`, `discovery`, and `starred`. The first five are chosen automatically on each `createSession` call as follows:
 
-1. **Discovery session check (highest priority):** If the active pool (words in buckets 1–4) has fewer than `DISCOVERY_POOL_THRESHOLD` (80) words **and** at least `discoverySize` (24) bucket-0 words exist **and** no discovery session was already completed today (`last_discovery_session_date` in the credits table), a discovery session is created. At most one discovery session per calendar day.
-2. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket > 0` exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
-3. **Normal/repetition alternation (fallback):** If neither condition above is met, sessions alternate based on the last completed session type:
+1. **Stress session check (highest priority):** If the credit balance is ≥ 500, at least 5 words exist in buckets 2+, and the stress session is due (`stress_session_due_at` in the credits table is in the past or null is resolved to within 48 h of first reaching ≥ 500 credits), a stress session is created. At most one automatic stress session per week. See the full rules under *Stress sessions* below.
+2. **Discovery session check:** If the active pool (words in buckets 1–4) has fewer than `DISCOVERY_POOL_THRESHOLD` (80) words **and** at least `discoverySize` (24) bucket-0 words exist **and** no discovery session was already completed today (`last_discovery_session_date` in the credits table), a discovery session is created. At most one discovery session per calendar day.
+3. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket > 0` exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
+4. **Normal/repetition alternation (fallback):** If none of the above conditions are met, sessions alternate based on the last completed session type:
 
 | Last completed session | Next session (if enough due words) |
 |---|---|
@@ -433,6 +434,22 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 4. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
 5. `last_focus_session_date` is recorded when the session **completes**. Only one focus session per calendar day.
 
+*Stress sessions* — high-stakes timed challenge that fires automatically (silently replacing the normal "Start new session" flow) when all trigger conditions are met.
+1. **Trigger conditions:** credit balance ≥ 500, at least 5 words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When the balance first reaches ≥ 500 and no stress session has ever been scheduled, the first due date is set to `now + random(0–48 h)`.
+2. **Word selection:** Up to 24 words (`stressSize = 24`) drawn randomly from all words in buckets 2+. Words are selected regardless of whether they are due, and without preference for high-scored words — pure random shuffle.
+3. **No hints:** the hint button is hidden for the entire session.
+4. **No second-chance words:** a wrong answer on a time-based word does NOT insert a second-chance word.
+5. **Time limit per question:** 15 seconds when only one answer field is shown; 25 seconds when two fields are shown. The timer resets on each new word. When it expires, whatever is typed is auto-submitted (empty fields count as wrong).
+6. **Scoring (per wrong/partial answer):**
+   - `fee = floor(500 / sessionSize)` rounded down to the nearest even number (max session size 24 → fee = 20).
+   - Wrong or timed out: deduct `fee` credits; word reset to bucket 1.
+   - Partially correct: deduct `fee / 2` credits; word stays in current bucket.
+   - Fully correct: no credit cost; word is promoted one bucket **only if it is due** (same rule as repetition sessions).
+7. **Perfect session bonus:** +100 credits if every answer in the session is fully correct. This is the only way to earn credits during a stress session. No other credit earning applies (no bucket-milestone credits, no new-bucket credits).
+8. **Scheduling:** after the session completes (regardless of outcome), the next due date is set to `now + 7 days + random(0–48 h)`.
+9. **Counts toward daily streak** like any other session type.
+10. **Summary screen:** a dedicated `StressSummaryScreen` shows correct/wrong counts, credits gained or lost, and the perfect bonus if applicable.
+
 *Starred sessions* — on-demand review of all words the user has starred (★), triggered manually via the "Start ★ session" button on the Home screen.
 1. All words with `marked = true` are included, capped at **100**.
 2. Words are sorted by score descending (ties shuffled randomly) — the trickiest starred words come first.
@@ -443,7 +460,7 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Discovery Session"** for discovery, **"Starred Session"** for starred.
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Discovery Session"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred.
 
 **Session size — how many questions will be asked:**
 
@@ -568,7 +585,8 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Repetition session word selection | `srsSelection.ts` — `selectRepetitionWords()` | ✓ complete |
 | Focus session word selection | `srsSelection.ts` — `selectFocusWords()` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
-| Session type selection (discovery priority → focus → normal/rep) | `sessionService.ts` — `createSession()` | ✓ complete |
+| Session type selection (stress priority → discovery → focus → normal/rep) | `sessionService.ts` — `createSession()` | planned |
+| Stress session word selection | `srsSelection.ts` — `selectStressWords()` | planned |
 | Push back word (discovery sessions only) | `sessionService.ts` — `pushBackWord()` | ✓ complete |
 | Bucket promotion / demotion | `server/features/session/sessionService.ts` | ✓ complete |
 | Second-chance flow | `sessionService.ts` — `handleWrongAnswer()` / `handleCorrectAnswer()` | ✓ complete |
@@ -613,11 +631,12 @@ The bonus fires at most once per bucket level: if bucket 6 becomes empty again a
 **Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints. The bonus amount depends on session type:
 - **Normal / repetition / focus:** **+10 credits.**
 - **Discovery:** **+100 credits** — all words must be answered correctly with no push-backs (a `pushed_back` word counts as non-correct and disqualifies the bonus).
+- **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts). This is the only way to earn credits during a stress session; no bucket-milestone or new-bucket credits apply.
 
-All conditions that must hold (except discovery, which has no second-chance words or paid hints):
+All conditions that must hold (except discovery, which has no second-chance words or paid hints; and stress, which has no hints and no second-chance words):
 1. Every word in the session was answered correctly (no `'incorrect'` or `'pushed_back'` status).
-2. No second-chance words were triggered (no word has `secondChanceFor` set).
-3. The hint button was not clicked even once during the session.
+2. No second-chance words were triggered (no word has `secondChanceFor` set). *(Not applicable to stress sessions.)*
+3. The hint button was not clicked even once during the session. *(Hints are unavailable in stress sessions.)*
 
 The `hintsUsed` flag is passed as part of the final answer submission payload so the server can enforce this condition without requiring a separate endpoint. The bonus is shown as a distinct line item in the session summary and included in the Total.
 
@@ -989,6 +1008,7 @@ Replace the current flat layout with a proper single-page app shell:
 
 - Starred session: a new on-demand session type (`type = 'starred'`) that includes all marked (★) words, capped at 100, score-sorted. Accessible via a second button on the Home screen. Limited to one per calendar day; `last_starred_session_date` in the credits table. Migration `018_starred_session.sql` adds the column; migration `019_session_type_starred.sql` rebuilds the sessions table to add `'starred'` to the type CHECK constraint.
 - Earned stars: a persistent watermark (`earned_stars INTEGER` in the credits table, migration `020_earned_stars.sql`) displayed as amber ★ characters in the header. Stars only ever increase. Currently awarded when any word reaches a new personal-best bucket ≥ 4 (bucket 4 → 1 star, bucket 5 → 2 stars, …). The award logic is decoupled from the bucket number via `CreditsRepository.awardStars(n)` — other earning mechanisms can be added later without changing the storage model.
+- Buy stars: users can purchase cosmetic earned-stars for 500 credits each (max 3 per offer). A `StarsPurchaseDialog` pops up automatically on the Home screen when the balance ≥ 500, the feature is not paused, and the snooze period has expired. Any interaction (buy, No, Cancel) snoozes the offer for 7 days. Migration `023_stars_offer_snooze.sql` adds `stars_offer_snoozed_until TEXT` to the credits table. `StarsService` handles offer logic, purchase validation, and snooze. `starsRouter` exposes `GET /api/v1/stars/offer`, `POST /api/v1/stars/purchase`, and `POST /api/v1/stars/snooze`.
 
 **Planned — Language-neutral rename (de/en → source/target)**
 
@@ -1189,3 +1209,92 @@ Reaching certain streak lengths triggers a special reward **instead of** the nor
 - [x] `SummaryScreen` — celebrate milestone when `milestoneLabel` is set
 - [x] `TrainingScreen` / `App.tsx` — thread `milestoneLabel` through `onComplete` callback
 - [x] Tests for all new/changed code
+
+---
+
+## Stress Session Feature
+
+### Overview
+
+A high-stakes timed session type that fires automatically at most once per week when the user has accumulated ≥ 500 credits and has a sufficient active vocabulary. The session challenges the user under time pressure, deducting credits for wrong or partial answers and awarding a +100 bonus for a perfect run.
+
+### Trigger Conditions
+
+- Credit balance ≥ 500.
+- At least 5 words exist in buckets 2+.
+- `stress_session_due_at` (YYYY-MM-DD UTC) is ≤ today **or** has never been set (see first-trigger logic below).
+
+**First trigger:** when the credit balance reaches ≥ 500 for the first time and `stress_session_due_at` is still null, it is set immediately to `today + random(0–48 h)`. This ensures the first stress session fires within two days of the user becoming eligible, without being an immediate surprise.
+
+The trigger is checked inside `createSession()` — if all conditions are met, a stress session is created silently (the user just clicks "Start new session" and gets a stress session).
+
+### Session Rules
+
+- **Size:** up to 24 words (`stressSize = 24`), drawn randomly from all words in buckets 2+ regardless of due status.
+- **No hints:** the hint button is hidden for the entire session.
+- **No second-chance words:** a wrong answer does not insert a follow-up word.
+- **Time limit per question:** 15 s (one answer field) / 25 s (two answer fields). The timer resets on each new word. Expiry auto-submits whatever is typed; empty fields count as fully wrong.
+
+### Scoring
+
+| Outcome | Credit effect | Bucket effect |
+|---|---|---|
+| Fully correct | none | promoted one bucket if due; unchanged if not yet due |
+| Partially correct | −½ × fee | stays in current bucket |
+| Wrong or timed out | −1 × fee | reset to bucket 1 |
+
+**Per-answer fee:** `floor(500 ÷ sessionSize)` rounded down to the nearest even number. For the maximum session size of 24: fee = 20 credits (10 for partial).
+
+**Perfect session bonus:** +100 credits if every answer is fully correct (no partials, no timeouts). This is the only way to earn credits during a stress session. Bucket-milestone and new-bucket-milestone bonuses do not apply.
+
+### Scheduling
+
+After each stress session completes (any outcome), the next due date is set to `today + 7 days + random(0–48 h)`.
+
+### Data Model
+
+Migration `024_stress_session.sql` adds one column to the `credits` table:
+
+| Column | Type | Description |
+|---|---|---|
+| `stress_session_due_at` | TEXT (YYYY-MM-DD) | next eligible date for a stress session; null = not yet scheduled |
+
+### Backend Design
+
+- **`CreditsRepository`** — two new methods: `getStressSessionDueAt(): string | null`, `setStressSessionDueAt(date: string | null): void`.
+- **`SqliteCreditsRepository`** + **`FakeCreditsRepository`** — implement the new methods.
+- **`StressSessionService`** (new file `server/features/session/stressSessionService.ts`):
+  - `isAvailable(today, balance, qualifyingWordCount)`: returns true when all trigger conditions are met.
+  - `scheduleNext(today)`: sets `stress_session_due_at` to `today + 7 days + random 0–48 h`.
+  - `schedulefirst(today)`: sets `stress_session_due_at` to `today + random 0–48 h` (used when balance first reaches ≥ 500).
+- **`SessionService`** modifications:
+  - `createSession()`: check stress trigger before discovery; if eligible, create session with `type = 'stress'`.
+  - `submitAnswer()` for stress sessions: apply fee-based credit deduction for wrong/partial; no second-chance; no bucket-milestone/new-bucket credit; call `scheduleNext` on session completion; award +100 perfect bonus if applicable.
+  - `shared/types/Session.ts`: add `'stress'` to the `SessionType` union.
+- **`sessionRouter`** — no new routes needed; stress session uses the same `POST /api/v1/session` and `POST /api/v1/session/:id/answer` as all other session types.
+
+### Frontend Design
+
+- **`TrainingScreen`**: detect `session.type === 'stress'`:
+  - Show countdown timer (15 s or 25 s depending on field count). Timer resets on each new word.
+  - Display live credit balance prominently.
+  - Hide hint button.
+  - On timer expiry: auto-submit with whatever is currently typed.
+- **`StressSummaryScreen`** (new screen): shown after a stress session completes (instead of the regular `SummaryScreen`). Displays correct/partial/wrong counts, total credits lost, and the perfect-session bonus if earned.
+- **`App.tsx`**: route to `StressSummaryScreen` when session type is `'stress'`.
+
+### Implementation Checklist
+
+- [ ] Migration `024_stress_session.sql`: add `stress_session_due_at TEXT` to `credits`
+- [ ] `CreditsRepository`: add `getStressSessionDueAt()`, `setStressSessionDueAt()`
+- [ ] `SqliteCreditsRepository` + `FakeCreditsRepository`: implement new methods
+- [ ] `server/db/database.test.ts`: bump migration count 23 → 24
+- [ ] `shared/types/Session.ts`: add `'stress'` to `SessionType`
+- [ ] `StressSessionService`: `isAvailable()`, `scheduleNext()`, `scheduleFirst()`; unit tests
+- [ ] `SessionService.createSession()`: stress check as highest priority
+- [ ] `SessionService.submitAnswer()`: stress-specific scoring (fee, perfect bonus, no second-chance, no milestone credits)
+- [ ] `SessionService` tests for stress scoring
+- [ ] `srsSelection.ts`: `selectStressWords()` — random draw from buckets 2+
+- [ ] `TrainingScreen`: countdown timer, live balance, hidden hints
+- [ ] `StressSummaryScreen` + routing in `App.tsx`
+- [ ] Tests for all new/changed code

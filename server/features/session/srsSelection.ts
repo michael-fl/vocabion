@@ -237,6 +237,34 @@ export function selectDiscoveryWords(all: VocabEntry[], sessionSize: number): Vo
   return candidates.slice(0, sessionSize)
 }
 
+/**
+ * Selects vocabulary words for a stress session.
+ *
+ * Draws randomly from all words in buckets 2+, regardless of due status.
+ * No score-based preference — pure random selection.
+ *
+ * Returns `null` when fewer than `minWords` qualifying words exist, so the
+ * caller can fall back to the next session type.
+ *
+ * @param all - All vocabulary entries.
+ * @param sessionSize - Maximum number of words to include (e.g. 24).
+ * @param minWords - Minimum qualifying words required (e.g. 5).
+ * @returns Up to `sessionSize` randomly selected entries from buckets 2+, or `null` if not enough exist.
+ */
+export function selectStressWords(
+  all: VocabEntry[],
+  sessionSize: number,
+  minWords: number,
+): VocabEntry[] | null {
+  const candidates = all.filter((e) => e.bucket >= 2)
+
+  if (candidates.length < minWords) {
+    return null
+  }
+
+  return shuffle(candidates).slice(0, sessionSize)
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 function shuffle<T>(arr: readonly T[]): T[] {

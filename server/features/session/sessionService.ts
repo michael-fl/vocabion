@@ -7,7 +7,7 @@
  *
  * @example
  * ```ts
- * const service = new SessionService(sessionRepo, vocabRepo)
+ * const service = new SessionService(sessionRepo, vocabRepo, creditsRepo, stressService)
  * const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
  * ```
  */
@@ -19,11 +19,13 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
 import { checkAnswerDetailed } from './answerValidation.ts'
 import type { TypoMatch } from './answerValidation.ts'
-import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, isDue } from './srsSelection.ts'
+import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, isDue } from './srsSelection.ts'
 import { getIntervalMs } from '../../../shared/utils/srsInterval.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
+import type { StressSessionService } from './stressSessionService.ts'
+import { STRESS_MIN_CREDITS, STRESS_MIN_WORDS, STRESS_SESSION_SIZE, calcStressFee } from './stressSessionService.ts'
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -136,6 +138,7 @@ export class SessionService {
     private readonly sessionRepo: SessionRepository,
     private readonly vocabRepo: VocabRepository,
     private readonly creditsRepo: CreditsRepository,
+    private readonly stressService: StressSessionService,
   ) {}
 
   /** Returns the currently open session, or `undefined` if none exists. */
@@ -175,9 +178,21 @@ export class SessionService {
     let selected = this.vocabRepo.findAll().slice(0, 0) // typed empty array
     let sessionType: SessionType
 
-    // Discovery session has the highest priority: triggered when the active pool
-    // (buckets 1–4) falls below the threshold, enough new words exist, and no
-    // discovery session has already been completed today.
+    // When the balance first reaches >= 500, schedule the initial stress session window.
+    const balance = this.creditsRepo.getBalance()
+
+    if (balance >= STRESS_MIN_CREDITS) {
+      this.stressService.scheduleFirst(today)
+    }
+
+    // Stress session has the highest priority: fires automatically once per week
+    // when the user has >= 500 credits and enough qualifying words.
+    const qualifyingWordCount = allEntries.filter((e) => e.bucket >= 2).length
+    const stressCandidates = this.stressService.isAvailable(today, balance, qualifyingWordCount)
+      ? selectStressWords(allEntries, STRESS_SESSION_SIZE, STRESS_MIN_WORDS)
+      : null
+
+    // Discovery session candidates (computed regardless of stress, to keep logic flat)
     const lastDiscoveryDate = this.creditsRepo.getLastDiscoverySessionDate()
     const activePoolCount = allEntries.filter((e) => e.bucket >= 1 && e.bucket <= 4).length
     const discoveryCandidates =
@@ -185,7 +200,10 @@ export class SessionService {
         ? selectDiscoveryWords(allEntries, discSize)
         : null
 
-    if (discoveryCandidates !== null) {
+    if (stressCandidates !== null) {
+      selected = stressCandidates
+      sessionType = 'stress'
+    } else if (discoveryCandidates !== null) {
       selected = discoveryCandidates
       sessionType = 'discovery'
     } else {
@@ -382,13 +400,18 @@ export class SessionService {
     let answerCost = 0
     let bucketMilestoneBonus = 0
 
+    // Stress sessions use fee-based credit deductions and no second-chance.
+    // Correct answers still promote the word (if due), but earn no credits.
+    const isStress = session.type === 'stress'
+    const stressFee = isStress ? calcStressFee(session.words.length) : undefined
+
     if (correct) {
-      const result = this.handleCorrectAnswer(word, entry, updatedWords, wordIndex, now, checkResult.typos)
+      const result = this.handleCorrectAnswer(word, entry, updatedWords, wordIndex, now, checkResult.typos, !isStress)
       outcome = result.outcome
       creditsEarned = result.creditsEarned
       bucketMilestoneBonus = result.bucketMilestoneBonus
     } else {
-      const result = this.handleWrongAnswer(word, entry, updatedWords, wordIndex, now, session.words, isPartial, checkResult.typos, session.type === 'discovery')
+      const result = this.handleWrongAnswer(word, entry, updatedWords, wordIndex, now, session.words, isPartial, checkResult.typos, session.type === 'discovery', stressFee)
       outcome = result.outcome
       answerCost = result.answerCost
     }
@@ -429,13 +452,19 @@ export class SessionService {
         this.creditsRepo.setLastStarredSessionDate(now.slice(0, 10))
       }
 
+      if (updatedSession.type === 'stress') {
+        this.stressService.scheduleNext(now.slice(0, 10))
+      }
+
       const isPerfect =
         !hintsUsed &&
         updatedWords.every((w) => w.status === 'correct') &&
         updatedWords.every((w) => w.secondChanceFor === undefined)
 
       if (isPerfect) {
-        perfectBonus = updatedSession.type === 'discovery' ? 100 : 10
+        const isLargePerfectBonus = updatedSession.type === 'discovery' || updatedSession.type === 'stress'
+
+        perfectBonus = isLargePerfectBonus ? 100 : 10
         this.creditsRepo.addBalance(perfectBonus)
       }
 
@@ -608,6 +637,7 @@ export class SessionService {
     wordIndex: number,
     now: string,
     typos: TypoMatch[],
+    earnCredits = true,
   ): { outcome: AnswerOutcome; creditsEarned: number; bucketMilestoneBonus: number } {
     updatedWords[wordIndex] = { ...word, status: 'correct' }
 
@@ -644,10 +674,10 @@ export class SessionService {
       return { outcome: typos.length > 0 ? 'correct_typo' : 'correct', creditsEarned: 0, bucketMilestoneBonus: 0 }
     }
 
-    // Normal correct answer: promote; update credits when a new maxBucket is reached
+    // Correct answer: promote the word.
     const newBucket = entry.bucket + 1
     const newMaxBucket = Math.max(entry.maxBucket, newBucket)
-    const creditDelta = newMaxBucket > entry.maxBucket ? 1 : 0
+    const creditDelta = earnCredits && newMaxBucket > entry.maxBucket ? 1 : 0
 
     this.vocabRepo.update({ ...entry, bucket: newBucket, maxBucket: newMaxBucket, lastAskedAt: now })
 
@@ -657,7 +687,7 @@ export class SessionService {
 
     // Earned stars: 1 star per bucket above 3 (bucket 4 → 1 star, bucket 5 → 2 stars, …).
     // Stars are a watermark — awardStars only increases the count, never decreases it.
-    if (creditDelta > 0 && newBucket >= 4) {
+    if (earnCredits && creditDelta > 0 && newBucket >= 4) {
       this.creditsRepo.awardStars(newBucket - 3)
     }
 
@@ -665,7 +695,7 @@ export class SessionService {
     // Bucket 6 → +100, bucket 7 → +200, bucket N → +(N − 5) × 100.
     let bucketMilestoneBonus = 0
 
-    if (newBucket >= 6 && newBucket > this.creditsRepo.getMaxBucketEver()) {
+    if (earnCredits && newBucket >= 6 && newBucket > this.creditsRepo.getMaxBucketEver()) {
       bucketMilestoneBonus = (newBucket - 5) * 100
       this.creditsRepo.addBalance(bucketMilestoneBonus)
       this.creditsRepo.setMaxBucketEver(newBucket)
@@ -684,12 +714,19 @@ export class SessionService {
     isPartial: boolean,
     typos: TypoMatch[],
     free = false,
+    stressFee?: number,
   ): { outcome: AnswerOutcome; answerCost: number } {
     updatedWords[wordIndex] = { ...word, status: 'incorrect' }
 
-    // Discovery sessions are free — wrong answers never charge credits.
+    // Compute the answer cost: stress uses fee-based deductions; discovery is free; others deduct 1.
     const balance = this.creditsRepo.getBalance()
-    const answerCost = free ? 0 : Math.min(1, balance)
+    let answerCost: number
+
+    if (stressFee !== undefined) {
+      answerCost = Math.min(isPartial ? stressFee / 2 : stressFee, balance)
+    } else {
+      answerCost = free ? 0 : Math.min(1, balance)
+    }
 
     if (answerCost > 0) {
       this.creditsRepo.addBalance(-answerCost)
@@ -722,7 +759,10 @@ export class SessionService {
     }
 
     if (isPartial) {
-      if (entry.bucket === 0) {
+      if (stressFee !== undefined) {
+        // Stress partial: word stays in its current bucket regardless of bucket number
+        this.vocabRepo.update({ ...entry, lastAskedAt: now })
+      } else if (entry.bucket === 0) {
         // Bucket 0 words always advance to bucket 1, even on a partial answer
         this.vocabRepo.update({ ...entry, bucket: 1, lastAskedAt: now })
       } else {
@@ -731,6 +771,13 @@ export class SessionService {
       }
 
       return { outcome: typos.length > 0 ? 'partial_typo' : 'partial', answerCost }
+    }
+
+    if (stressFee !== undefined) {
+      // Stress wrong: reset to bucket 1 (same as normal session), no second-chance flow
+      this.vocabRepo.update({ ...entry, bucket: 1, lastAskedAt: now })
+
+      return { outcome: 'incorrect', answerCost }
     }
 
     if (entry.bucket >= 4) {

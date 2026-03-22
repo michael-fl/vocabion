@@ -143,6 +143,18 @@ export interface CreditsRepository {
    */
   setStarsOfferSnoozedUntil(date: string | null): void
 
+  /**
+   * Returns the date (YYYY-MM-DD) when the next automatic stress session becomes available,
+   * or `null` if no stress session has been scheduled yet (user has never reached ≥ 500 credits).
+   */
+  getStressSessionDueAt(): string | null
+
+  /**
+   * Sets the date (YYYY-MM-DD) when the next stress session becomes available.
+   * Pass `null` to clear the scheduled date.
+   */
+  setStressSessionDueAt(date: string | null): void
+
   /** Returns the current pause state. */
   getPauseState(): PauseState
 

@@ -134,3 +134,37 @@
   flex-wrap: wrap;
   margin-top: 0.25rem;
 }
+
+.stressBar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  background-color: color-mix(in srgb, var(--color-error) 8%, var(--color-card-bg));
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+  font-size: 0.9rem;
+}
+
+.stressBalance {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.stressTimer {
+  font-size: 1.5rem;
+  font-weight: 700;
+  min-width: 2.5rem;
+  text-align: center;
+  color: var(--color-error);
+}
+
+.stressTimerLow {
+  animation: timerPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}

@@ -19,7 +19,7 @@ export type { SessionWord }
 export type SessionDirection = 'SOURCE_TO_TARGET' | 'TARGET_TO_SOURCE'
 
 /** The type of a training session. */
-export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery' | 'starred'
+export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery' | 'starred' | 'stress'
 
 /**
  * A training session. At most one session can be open at a time.
@@ -40,6 +40,8 @@ export interface Session {
    *   the active pool (buckets 1–4) falls below a threshold.
    * - `starred` — reviews all words the user has starred (marked with ★), up to 100;
    *   limited to once per day and started explicitly by the user.
+   * - `stress` — high-stakes timed challenge drawn from buckets 2+; fires automatically
+   *   at most once per week when the credit balance reaches ≥ 500.
    */
   type: SessionType
 
@@ -89,7 +91,7 @@ export function isSession(value: unknown): value is Session {
     return false
   }
 
-  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'discovery' && type !== 'starred') {
+  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'discovery' && type !== 'starred' && type !== 'stress') {
     return false
   }
 
