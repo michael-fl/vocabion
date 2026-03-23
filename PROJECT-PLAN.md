@@ -1083,6 +1083,68 @@ The codebase currently has German/English hardcoded throughout. This refactoring
 - [ ] `scripts/IMPORT-VOCAB.md` — update format documentation
 - [ ] `server/db/database.test.ts` — update migration count
 
+## Focus Replay (planned)
+
+After completing a focus session where more than **30% of answers were wrong or partial**, the session summary screen offers the user a one-time chance to replay the same session.
+
+**Trigger conditions (all must be met):**
+- The completed session is of type `focus`
+- Error rate ≥ 25%: `(wrong + partial answers) / total words >= 0.25` (e.g. 3 or more errors in a 12-word session)
+- The session has not already been replayed (enforced by a flag so the offer never appears twice for the same original session)
+
+**The offer:**
+- Displayed on the **session summary screen**, below the regular summary content — a clearly visible prompt and a single "Play again" button
+- If the user declines (or navigates away), the offer is gone permanently for that session
+- The shuffle rotation is unaffected either way — it continues normally from wherever it left off
+
+**The replay session:**
+- Contains the **exact same words** as the original, but **reshuffled** (random new order)
+- Stored as a plain `focus` session — no special marker or flag
+- Treated as a fully independent new session: earns credits, perfect bonus, bucket promotions, and streak credit exactly as any other session would (streak +1 only fires if it is the first session of that calendar day)
+- The replay itself cannot trigger another replay offer — one replay per original session maximum
+
+**Implementation notes:**
+- `SummaryScreen`: after a focus session completes, compute the error rate from the completed session's word list; if ≥ 25% of words were wrong or partial, render the replay prompt and button
+- `sessionApi`: new `POST /api/v1/sessions/:id/replay` endpoint (or reuse `createSession` with a `replayOf` body param) that creates a new open session with the same word list reshuffled
+- `SessionService.createReplaySession(originalSessionId)`: looks up the completed session, reshuffles its words, inserts a new session
+- No new `SessionType` value needed — replay sessions are plain `focus`
+- No DB migration needed
+
+---
+
+## Breakthrough Session (planned)
+
+A session type that concentrates on words that are **one correct answer away from a bucket milestone** — promoting them efficiently in a single focused run.
+
+**Trigger conditions (all must be met):**
+- At least **5 qualifying words** exist (across all three pool categories below)
+- Part of the **shuffle rotation** alongside the other automatic session types
+
+**Word pool — three categories, deduplicated into a flat pool first:**
+1. **Bucket 3 words** — one step from entering the time-based SRS system (bucket 4). Always eligible regardless of due date (frequency bucket).
+2. **Bucket 5 words that are due** — one step from veteran territory (bucket 6). Only due words are included; non-due words cannot be promoted.
+3. **Words in the current highest occupied bucket that are due** (if time-based) or unconditionally (if frequency) — one step from setting a new personal `maxBucket` record, earning 5 credits + a star (if bucket ≥ 4) + potential bucket-milestone bonus.
+
+Deduplication: a word that falls into more than one category (e.g. highest bucket is 5 and it is due) is counted once, assigned to the first matching category for distribution purposes.
+
+**Word selection:**
+- Session size: up to **12 words**.
+- Slots are distributed **proportionally** by the relative size of each category within the flat pool — matching the bucket 1–3 distribution logic in normal sessions.
+- Within each category, words are sorted by score descending (ties broken randomly).
+
+**SRS promotion rules:** same as normal/focus sessions — correct answer promotes by one bucket; due time-based words are promoted; non-due are not (though non-due words only reach this pool via category 1, where due-ness is not a requirement).
+
+**Session title in UI:** "Breakthrough Session"
+
+**Implementation notes:**
+- New `SessionType` value: `'breakthrough'`
+- New `selectBreakthroughWords(allEntries, sessionSize, minWords)` in `srsSelection.ts`
+- Add to `SHUFFLED_TYPES` constant and `trySelectType()` in `sessionService.ts`
+- New DB migration to add `'breakthrough'` to the sessions type CHECK constraint
+- `TrainingScreen`: show "Breakthrough Session" label in the session title area
+
+---
+
 **Phase 7 (continued) — Vocabulary CRUD + Import/Export**
 
 The vocab list screen, add-word form, and hint feature are done. Remaining Phase 7 items:
