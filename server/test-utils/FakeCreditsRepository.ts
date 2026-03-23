@@ -21,7 +21,6 @@ export class FakeCreditsRepository implements CreditsRepository {
   private streakStartDate: string | null = null
   private streakWeeksAwarded = 0
   private streakMonthsAwarded = 0
-  private lastFocusSessionDate: string | null = null
   private lastDiscoverySessionDate: string | null = null
   private lastStarredSessionDate: string | null = null
   private earnedStars = 0
@@ -93,14 +92,6 @@ export class FakeCreditsRepository implements CreditsRepository {
 
   setStreakMonthsAwarded(count: number): void {
     this.streakMonthsAwarded = count
-  }
-
-  getLastFocusSessionDate(): string | null {
-    return this.lastFocusSessionDate
-  }
-
-  setLastFocusSessionDate(date: string): void {
-    this.lastFocusSessionDate = date
   }
 
   getLastDiscoverySessionDate(): string | null {

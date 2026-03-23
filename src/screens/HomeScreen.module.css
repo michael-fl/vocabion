@@ -108,3 +108,9 @@
   color: var(--color-error);
   font-size: 0.875rem;
 }
+
+.emptyVocabHint {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #888);
+  margin: 0;
+}

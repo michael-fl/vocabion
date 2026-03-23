@@ -64,6 +64,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
   const [unstartedSession, setUnstartedSession] = useState<Session | null>(null)
   const [starredAvailable, setStarredAvailable] = useState<StarredAvailable | null>(null)
   const [starsOffer, setStarsOffer] = useState<StarsOffer | null>(null)
+  const [hasVocab, setHasVocab] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -72,8 +73,10 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
       sessionApi.getOpenSession(),
       sessionApi.getStarredAvailable(),
       starsApi.getStarsOffer(),
+      vocabApi.listVocab(),
     ])
-      .then(([session, starred, offer]) => {
+      .then(([session, starred, offer, entries]) => {
+        setHasVocab(entries.length > 0)
         setStarredAvailable(starred)
 
         if (offer.shouldOffer) {
@@ -103,6 +106,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load session')
         setOpenSession(null)
+        setHasVocab(false)
       })
   }, [])
 
@@ -269,9 +273,12 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
                 Continue session
               </button>
             ) : (
-              <button className={styles.primaryButton} onClick={() => void handleStart()} disabled={loading}>
+              <button className={styles.primaryButton} onClick={() => void handleStart()} disabled={loading || hasVocab === false}>
                 Start new session
               </button>
+            )}
+            {hasVocab === false && (
+              <p className={styles.emptyVocabHint}>No words in vocabulary — import some words to get started.</p>
             )}
             <button
               className={styles.secondaryButton}

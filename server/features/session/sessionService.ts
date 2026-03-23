@@ -136,13 +136,33 @@ export interface AnswerResult {
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
+/** The automatic session types that participate in the shuffle rotation. */
+const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'veteran', 'repetition', 'normal']
+
+/** Fisher-Yates shuffle. Returns a new array. */
+function shuffleTypes(types: SessionType[]): SessionType[] {
+  const out = [...types]
+
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+
+  return out
+}
+
 export class SessionService {
+  private sequence: SessionType[] = []
+  private sequenceIndex = 0
+
   constructor(
     private readonly sessionRepo: SessionRepository,
     private readonly vocabRepo: VocabRepository,
     private readonly creditsRepo: CreditsRepository,
     private readonly stressService: StressSessionService,
     private readonly veteranService: VeteranSessionService,
+    /** Override the shuffle function — used in tests to get a deterministic sequence. */
+    private readonly shuffleFn: (types: SessionType[]) => SessionType[] = shuffleTypes,
   ) {}
 
   /** Returns the currently open session, or `undefined` if none exists. */
@@ -153,11 +173,11 @@ export class SessionService {
   /**
    * Creates a new training session using the SRS word selection algorithm.
    *
-   * Session types alternate: every second session is a repetition session
-   * (drawn exclusively from due time-based buckets 4+). If a repetition session
-   * is due but fewer than `size` words are currently due in the time-based
-   * buckets, the repetition is skipped and a normal session is created instead;
-   * the next session will try repetition again.
+   * Session types are drawn from a shuffled round-robin sequence containing all
+   * six automatic types (stress, discovery, focus, veteran, repetition, normal).
+   * The sequence is advanced until a type whose eligibility conditions are met is
+   * found. When the sequence is exhausted it is reshuffled. Starred sessions are
+   * always manual and never part of this rotation.
    *
    * @throws {ApiError} 409 if a session is already open.
    * @throws {ApiError} 400 if no vocabulary entries are available at all.
@@ -174,90 +194,46 @@ export class SessionService {
     }
 
     const allEntries = this.vocabRepo.findAll()
+
+    if (allEntries.length === 0) {
+      throw new ApiError(400, 'No vocabulary entries are available for a session')
+    }
+
     const now = new Date()
     const today = now.toISOString().slice(0, 10)
-
     const discSize = options.discoverySize ?? 24
     const repSize = options.repetitionSize ?? 24
-    let selected = this.vocabRepo.findAll().slice(0, 0) // typed empty array
-    let sessionType: SessionType
-
-    // When the balance first reaches >= 500, schedule the initial stress session window.
     const balance = this.creditsRepo.getBalance()
+    const bucket6PlusCount = allEntries.filter((e) => e.bucket >= 6).length
 
+    // Trigger first-time scheduling for timed session types.
     if (balance >= STRESS_MIN_CREDITS) {
       this.stressService.scheduleFirst(today)
     }
-
-    // When bucket-6+ words first reach the minimum, schedule the initial veteran session window.
-    const bucket6PlusCount = allEntries.filter((e) => e.bucket >= 6).length
 
     if (bucket6PlusCount >= VETERAN_MIN_BUCKET6_WORDS) {
       this.veteranService.scheduleFirst(today)
     }
 
-    // Stress session has the highest priority: fires automatically once per week
-    // when the user has >= 500 credits and enough qualifying words.
-    const qualifyingWordCount = allEntries.filter((e) => e.bucket >= 2).length
-    const stressCandidates = this.stressService.isAvailable(today, balance, qualifyingWordCount)
-      ? selectStressWords(allEntries, STRESS_SESSION_SIZE, STRESS_MIN_WORDS)
-      : null
+    // Advance through the shuffled sequence until a qualifying type is found.
+    // Normal always qualifies (words exist), so the loop always terminates.
+    let selected: VocabEntry[] | null = null
+    let sessionType: SessionType = 'normal'
 
-    // Discovery session candidates (computed regardless of stress, to keep logic flat)
-    const lastDiscoveryDate = this.creditsRepo.getLastDiscoverySessionDate()
-    const activePoolCount = allEntries.filter((e) => e.bucket >= 1 && e.bucket <= 4).length
-    const discoveryCandidates =
-      lastDiscoveryDate !== today && activePoolCount < DISCOVERY_POOL_THRESHOLD
-        ? selectDiscoveryWords(allEntries, discSize)
-        : null
+    while (selected === null) {
+      if (this.sequenceIndex >= this.sequence.length) {
+        this.sequence = this.shuffleFn(SHUFFLED_TYPES)
+        this.sequenceIndex = 0
+      }
 
-    if (stressCandidates !== null) {
-      selected = stressCandidates
-      sessionType = 'stress'
-    } else if (discoveryCandidates !== null) {
-      selected = discoveryCandidates
-      sessionType = 'discovery'
-    } else {
-      // Focus session is next in priority: squeeze one in if none has completed today.
-      const lastFocusDate = this.creditsRepo.getLastFocusSessionDate()
-      const focusCandidates = lastFocusDate !== today ? selectFocusWords(allEntries, options.size) : null
+      const candidate = this.sequence[this.sequenceIndex]
+      this.sequenceIndex++
 
-      if (focusCandidates !== null) {
-        selected = focusCandidates
-        sessionType = 'focus'
-      } else {
-        // Veteran session is next: fires roughly weekly when >= 50 words are in buckets 6+.
-        const veteranCandidates = this.veteranService.isAvailable(today, bucket6PlusCount)
-          ? selectVeteranWords(allEntries, options.size, VETERAN_MIN_WORDS)
-          : null
+      const words = this.trySelectType(candidate, allEntries, today, balance, bucket6PlusCount, options, now, discSize, repSize)
 
-        if (veteranCandidates !== null) {
-          selected = veteranCandidates
-          sessionType = 'veteran'
-        } else {
-          // Determine intended type: alternate from the last completed non-focus session.
-          // Focus/veteran sessions are skipped so they don't disturb the normal/repetition alternation.
-          // No previous non-focus session → start with 'normal'.
-          const lastType = this.sessionRepo.findLastCompletedNonFocus()?.type
-          const intendedType: SessionType = lastType === 'normal' ? 'repetition' : 'normal'
-
-          if (intendedType === 'repetition') {
-            const candidates = selectRepetitionWords(allEntries, repSize, now)
-
-            if (candidates.length >= repSize) {
-              selected = candidates
-              sessionType = 'repetition'
-            } else {
-              // Not enough due time-based words — skip repetition, create normal session.
-              // The next call will see a 'normal' last-session and try repetition again.
-              selected = selectSessionWords(allEntries, options.size, now)
-              sessionType = 'normal'
-            }
-          } else {
-            selected = selectSessionWords(allEntries, options.size, now)
-            sessionType = 'normal'
-          }
-        }
+      if (words !== null) {
+        selected = words
+        sessionType = candidate
       }
     }
 
@@ -364,6 +340,62 @@ export class SessionService {
   }
 
   /**
+   * Returns the word selection for a given candidate session type, or `null` if
+   * the type's eligibility conditions are not currently met (in which case the
+   * caller skips it and tries the next type in the sequence).
+   */
+  private trySelectType(
+    type: SessionType,
+    allEntries: VocabEntry[],
+    today: string,
+    balance: number,
+    bucket6PlusCount: number,
+    options: CreateSessionOptions,
+    now: Date,
+    discSize: number,
+    repSize: number,
+  ): VocabEntry[] | null {
+    switch (type) {
+      case 'stress': {
+        const qualifyingCount = allEntries.filter((e) => e.bucket >= 2).length
+
+        return this.stressService.isAvailable(today, balance, qualifyingCount)
+          ? selectStressWords(allEntries, STRESS_SESSION_SIZE, STRESS_MIN_WORDS)
+          : null
+      }
+      case 'discovery': {
+        const lastDiscoveryDate = this.creditsRepo.getLastDiscoverySessionDate()
+        const activePoolCount = allEntries.filter((e) => e.bucket >= 1 && e.bucket <= 4).length
+
+        if (lastDiscoveryDate === today || activePoolCount >= DISCOVERY_POOL_THRESHOLD) {
+          return null
+        }
+
+        return selectDiscoveryWords(allEntries, discSize)
+      }
+      case 'focus':
+        return selectFocusWords(allEntries, options.size)
+      case 'veteran':
+        return this.veteranService.isAvailable(today, bucket6PlusCount)
+          ? selectVeteranWords(allEntries, options.size, VETERAN_MIN_WORDS)
+          : null
+      case 'repetition': {
+        const words = selectRepetitionWords(allEntries, repSize, now)
+
+        return words.length >= repSize ? words : null
+      }
+      case 'normal': {
+        const words = selectSessionWords(allEntries, options.size, now)
+
+        return words.length > 0 ? words : null
+      }
+      default:
+        // 'starred' is never in the automatic rotation.
+        return null
+    }
+  }
+
+  /**
    * Processes the user's answer for a word in the given session.
    *
    * Handles frequency-bucket answers (simple promote/demote), time-bucket
@@ -461,10 +493,6 @@ export class SessionService {
     let milestoneLabel: string | undefined
 
     if (sessionCompleted) {
-      if (updatedSession.type === 'focus') {
-        this.creditsRepo.setLastFocusSessionDate(now.slice(0, 10))
-      }
-
       if (updatedSession.type === 'discovery') {
         this.creditsRepo.setLastDiscoverySessionDate(now.slice(0, 10))
       }

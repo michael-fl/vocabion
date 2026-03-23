@@ -107,9 +107,9 @@ There is no upper limit on buckets — the longer you practice a word without mi
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are six automatic types, chosen in this priority order. A seventh type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are six automatic types drawn from a **shuffled round-robin rotation**: the app cycles through all six types in a random order, skipping any that aren't eligible, and reshuffles when all six have been considered. A seventh type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
-#### 1. Stress Session (highest priority, weekly)
+#### Stress Session (weekly)
 
 A **Stress Session** is a high-stakes timed challenge that fires automatically at most once per week when all of the following conditions are met:
 
@@ -120,7 +120,11 @@ A **Stress Session** is a high-stakes timed challenge that fires automatically a
 If you have never had a stress session and your balance reaches 500 for the first time, the first session will be scheduled to trigger within the next **48 hours**.
 
 **Session rules:**
-- Up to **24 words** are drawn randomly from all buckets above 1 — words are selected regardless of whether they are due, and without preference for high-scored words.
+- Up to **24 words** are selected across three difficulty tiers (each tier is randomly shuffled internally):
+  - **Tier A (up to 8 words):** difficulty ≥ 4
+  - **Tier B (up to 8 words):** difficulty ≥ 2 (excluding tier A picks)
+  - **Tier C (remaining slots):** any word (excluding prior picks)
+  Words are selected regardless of whether they are due. Any unfilled tier slots carry forward to tier C, so the session always reaches up to 24 words.
 - **No hints** — the hint button is not available.
 - **No second chance** — a wrong answer on a time-based word does not generate a second-chance word.
 - **Time limit per question** — 15 seconds for one answer field, 25 seconds for two. The timer resets on every new question. When it runs out, whatever is typed is submitted automatically (empty fields count as wrong).
@@ -143,27 +147,26 @@ After each stress session completes, the next one is scheduled for **7 days + up
 
 ---
 
-#### 2. Discovery Session
+#### Discovery Session
 
 When your active pool — words in buckets 1–4 — falls below **80 words**, the app injects a **Discovery Session** to replenish it. This session contains exactly **24 words**, all drawn from bucket 0 (new words you haven't practiced yet). Manually added words are drawn first, then sorted by priority score.
 
 **Special rules for Discovery Sessions:**
-- **Once per day** — at most one discovery session per calendar day. If a discovery session was already completed today, the next one will be offered no earlier than the following day.
+- **Once per day** — at most one discovery session per calendar day. If a discovery session was already completed today, the type is skipped in the rotation until the following day.
 - **No credit costs** — wrong answers never deduct credits.
 - **Hints are free and automatic** — the first 1–2 characters of each answer are always revealed; no paid hint button is shown.
 - **Push back** — a "Push back (N left)" button lets you skip a word and keep it in bucket 0 for a future session. You have **10 free push-backs per session**; the button is disabled once the budget is exhausted.
 - **Perfect session bonus: +100 credits** — awarded if you answer all words correctly with no push-backs (replaces the standard +10 bonus).
 
-#### 3. Focus Session (once per day)
+#### Focus Session
 
-If you have at least 5 words with a **priority score of 2 or higher** (see [Word Priority Score](#word-priority-score) below), the day's first session is a **Focus Session** targeting your most problematic words.
+If you have at least 5 words with a **priority score of 2 or higher** (see [Word Priority Score](#word-priority-score) below), a **Focus Session** is eligible, targeting your most problematic words.
 
 - Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
 - The top-scoring words fill the session first; if fewer than 10 qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
-- If fewer than 5 words qualify, the focus session is skipped.
-- Only one focus session per calendar day.
+- If fewer than 5 words qualify, the focus session is skipped in the current rotation cycle.
 
-#### 4. Veteran Session (weekly, once ≥ 50 words reach bucket 6+)
+#### Veteran Session (weekly, once ≥ 50 words reach bucket 6+)
 
 A **Veteran Session** is a periodic review of your most-mastered words — those that have reached bucket 6 or higher. It fires automatically roughly once a week when all of the following conditions are met:
 
@@ -180,15 +183,15 @@ If your bucket-6+ count first reaches 50, the initial session is scheduled to tr
 
 After each veteran session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
-#### 6. Repetition Session
+#### Repetition Session
 
-After a normal session, the next session is a **Repetition Session** — an intensive review of time-based words (buckets 4+) that are currently overdue.
+A **Repetition Session** is an intensive review of time-based words (buckets 4+) that are currently overdue.
 
 - Contains up to 24 words, all from due time-based buckets (4 and above).
 - No frequency bucket words (0–3) are included.
-- If fewer than 24 due words exist across all time-based buckets, the repetition session is skipped and a normal session runs instead. The next session will try repetition again.
+- If fewer than 24 due words exist across all time-based buckets, the repetition session is skipped in the current rotation cycle.
 
-#### 7. Normal (Learning) Session
+#### Normal (Learning) Session
 
 The default session type, containing up to **12 words**. It draws from both frequency buckets and time-based buckets:
 
@@ -199,19 +202,18 @@ The default session type, containing up to **12 words**. It draws from both freq
 
 Within every candidate pool, words are picked highest-score first (ties broken randomly).
 
-**Session type sequence summary (automatic sessions, highest priority first):**
+**Session type eligibility at a glance (each type is checked every rotation cycle):**
 
-| Situation | Session type |
+| Session type | Eligible when… |
 |---|---|
-| Stress session due, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) | **Stress** |
-| Active pool (buckets 1–4) < 80 words and ≥ 24 bucket-0 words exist | Discovery |
-| 5+ high-score words exist and no focus session today | Focus |
-| Veteran session due, ≥ 50 words in buckets 6+, and ≥ 5 of those with difficulty ≥ 2 | Veteran |
-| Last session was normal (and enough due words) | Repetition |
-| Last session was repetition | Normal |
-| Last session was focus or veteran | Picks up the normal/repetition alternation where it left off |
+| Stress | Due date reached, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) |
+| Discovery | Active pool (buckets 1–4) < 80 words, ≥ 24 bucket-0 words, not already done today |
+| Focus | 5+ words with score ≥ 2 exist in buckets 1–5 |
+| Veteran | Due date reached, ≥ 50 words in buckets 6+, ≥ 5 of those with difficulty ≥ 2 |
+| Repetition | ≥ 24 due time-based words (buckets 4+) exist |
+| Normal | Always eligible (fallback — at least one word in vocabulary) |
 
-#### 8. ★ Session (manual, once per day)
+#### ★ Session (manual, once per day)
 
 A **★ Session** lets you practice all your starred (★) words in one focused run. It is started manually via the **"Start ★ session"** button on the Home screen and is available at most once per calendar day.
 

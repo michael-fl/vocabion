@@ -129,20 +129,6 @@ export class SqliteCreditsRepository implements CreditsRepository {
       .run(count)
   }
 
-  getLastFocusSessionDate(): string | null {
-    const row = this.db
-      .prepare('SELECT last_focus_session_date FROM credits WHERE id = 1')
-      .get() as { last_focus_session_date: string | null } | undefined
-
-    return row?.last_focus_session_date ?? null
-  }
-
-  setLastFocusSessionDate(date: string): void {
-    this.db
-      .prepare('UPDATE credits SET last_focus_session_date = ? WHERE id = 1')
-      .run(date)
-  }
-
   getLastDiscoverySessionDate(): string | null {
     const row = this.db
       .prepare('SELECT last_discovery_session_date FROM credits WHERE id = 1')

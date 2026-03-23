@@ -75,6 +75,8 @@ beforeEach(() => {
     maxBuyable: 0,
     costPerStar: 500,
   })
+  // Default: non-empty vocabulary so the Start button is enabled
+  vi.mocked(vocabApi.listVocab).mockResolvedValue([mockEntry])
 })
 
 describe('HomeScreen', () => {
@@ -179,6 +181,41 @@ describe('HomeScreen', () => {
     })
 
     expect(vi.mocked(sessionApi.createSession)).not.toHaveBeenCalled()
+  })
+})
+
+describe('HomeScreen — empty vocabulary', () => {
+  it('disables the "Start new session" button when vocab is empty', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(vocabApi.listVocab).mockResolvedValue([])
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    const btn = await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(btn).toBeDisabled()
+  })
+
+  it('shows a hint message when vocab is empty', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(vocabApi.listVocab).mockResolvedValue([])
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.getByText(/No words in vocabulary/)).toBeInTheDocument()
+  })
+
+  it('enables the button when vocab is non-empty', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(vocabApi.listVocab).mockResolvedValue([mockEntry])
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    const btn = await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(btn).not.toBeDisabled()
   })
 })
 

@@ -74,7 +74,9 @@ beforeEach(() => {
   sessionRepo = new FakeSessionRepository()
   vocabRepo = new FakeVocabRepository()
   creditsRepo = new FakeCreditsRepository()
-  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo))
+  // Use identity shuffle so the sequence is always [stress, discovery, focus, veteran, repetition, normal].
+  // This makes type-selection tests deterministic without relying on alternation state.
+  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), (types) => [...types])
 })
 
 // ── getOpenSession ────────────────────────────────────────────────────────────
@@ -1633,64 +1635,6 @@ describe('createSession — focus session', () => {
     expect(session.type).toBe('normal')
   })
 
-  it('does not create a focus session when one was already completed today', () => {
-    for (let i = 0; i < 10; i++) {
-      vocabRepo.insert(makeHighScoreEntry())
-    }
-
-    const today = new Date().toISOString().slice(0, 10)
-
-    creditsRepo.setLastFocusSessionDate(today)
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
-
-    expect(session.type).not.toBe('focus')
-  })
-
-  it('records last_focus_session_date when focus session completes', () => {
-    const entry = makeEntry({ bucket: 1, score: 2, source: 'Tisch', target: ['table'] })
-
-    vocabRepo.insert(entry)
-
-    // Seed enough for focus selection (need 5; use 1-word session for simplicity)
-    for (let i = 0; i < 4; i++) {
-      vocabRepo.insert(makeHighScoreEntry())
-    }
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 5 })
-
-    expect(session.type).toBe('focus')
-
-    // Complete the session by answering all words correctly
-    for (const word of session.words) {
-      const e = vocabRepo.findById(word.vocabId)
-      if (e !== undefined) {
-        service.submitAnswer(session.id, word.vocabId, e.target)
-      }
-    }
-
-    const today = new Date().toISOString().slice(0, 10)
-
-    expect(creditsRepo.getLastFocusSessionDate()).toBe(today)
-  })
-
-  it('does not record focus date while session is still open', () => {
-    for (let i = 0; i < 5; i++) {
-      vocabRepo.insert(makeHighScoreEntry({ source: 'Wort', target: ['word'] }))
-    }
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 5 })
-
-    expect(session.type).toBe('focus')
-
-    // Answer only the first word
-    const firstWord = session.words[0]
-
-    service.submitAnswer(session.id, firstWord.vocabId, ['word'])
-
-    expect(creditsRepo.getLastFocusSessionDate()).toBeNull()
-  })
-
   it('focus session takes priority over normal/repetition alternation', () => {
     // Previous session was 'normal', so alternation would pick 'repetition'
     // But focus conditions are met, so 'focus' wins
@@ -1707,52 +1651,6 @@ describe('createSession — focus session', () => {
     expect(session.type).toBe('focus')
   })
 
-  it('resumes normal/repetition alternation after focus session (no previous non-focus session → normal)', () => {
-    for (let i = 0; i < 5; i++) {
-      vocabRepo.insert(makeHighScoreEntry())
-    }
-
-    for (let i = 0; i < 10; i++) {
-      vocabRepo.insert(makeEntry({ bucket: 0 }))
-    }
-
-    // Simulate focus already done today
-    const today = new Date().toISOString().slice(0, 10)
-
-    creditsRepo.setLastFocusSessionDate(today)
-
-    // No previous non-focus session → alternation picks 'normal'
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
-
-    expect(session.type).toBe('normal')
-  })
-
-  it('picks repetition after normal → focus sequence (focus does not break alternation)', () => {
-    const DAY_MS = 24 * 60 * 60 * 1000
-
-    // Enough due time-based words for a repetition session
-    for (let i = 0; i < 24; i++) {
-      vocabRepo.insert(makeEntry({
-        bucket: 4,
-        lastAskedAt: new Date(Date.now() - 2 * DAY_MS).toISOString(),
-      }))
-    }
-
-    // Last non-focus completed session was 'normal' → alternation should pick 'repetition'
-    sessionRepo.insert(makeSession({ status: 'completed', type: 'normal' }))
-
-    // A focus session was also completed (most recent overall) but should be ignored for alternation
-    sessionRepo.insert(makeSession({ status: 'completed', type: 'focus', createdAt: '2026-06-01T10:00:00Z' }))
-
-    // Focus already done today → skip focus check
-    const today = new Date().toISOString().slice(0, 10)
-
-    creditsRepo.setLastFocusSessionDate(today)
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 24 })
-
-    expect(session.type).toBe('repetition')
-  })
 })
 
 // ── createSession — discovery session ─────────────────────────────────────────
@@ -2193,24 +2091,6 @@ describe('createStarredSession', () => {
     expect(creditsRepo.getLastStarredSessionDate()).toBe(today)
   })
 
-  it('does not disrupt the normal/repetition alternation cycle', () => {
-    // After a normal session, the next non-special session should be repetition.
-    // If we complete a starred session in between, it should not affect this.
-    const entry = makeEntry({ marked: true, source: 'Hund', target: ['dog'] })
-
-    vocabRepo.insert(entry)
-    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
-    sessionRepo.insert(makeSession({ type: 'normal', status: 'completed' }))
-
-    const starredSess = service.createStarredSession('SOURCE_TO_TARGET')
-
-    service.submitAnswer(starredSess.id, entry.id, ['dog'])
-
-    // findLastCompletedNonFocus should still return the normal session
-    const last = sessionRepo.findLastCompletedNonFocus()
-
-    expect(last?.type).toBe('normal')
-  })
 })
 
 // ── Stress Session ─────────────────────────────────────────────────────────────

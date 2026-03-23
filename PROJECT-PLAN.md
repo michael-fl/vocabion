@@ -395,23 +395,25 @@ the frontend "Due in" display.
 
 **Session types:**
 
-There are seven session types: `stress`, `normal`, `repetition`, `focus`, `discovery`, `starred`, and `veteran`. The first six are chosen automatically on each `createSession` call as follows:
+There are seven session types: `stress`, `normal`, `repetition`, `focus`, `discovery`, `starred`, and `veteran`. The first six are chosen automatically on each `createSession` call using a **shuffled round-robin rotation**:
 
-1. **Stress session check (highest priority):** If the credit balance is ≥ 500, at least 5 words exist in buckets 2+, and the stress session is due (`stress_session_due_at` in the credits table is in the past or null is resolved to within 48 h of first reaching ≥ 500 credits), a stress session is created. At most one automatic stress session per week. See the full rules under *Stress sessions* below.
-2. **Discovery session check:** If the active pool (words in buckets 1–4) has fewer than `DISCOVERY_POOL_THRESHOLD` (80) words **and** at least `discoverySize` (24) bucket-0 words exist **and** no discovery session was already completed today (`last_discovery_session_date` in the credits table), a discovery session is created. At most one discovery session per calendar day.
-3. **Focus session check:** If no focus session has been completed today (`last_focus_session_date` in the credits table), and at least 5 words with `score ≥ 2` and `bucket` in 1–5 exist, a focus session is created. The normal/repetition alternation state is **not advanced** — it picks up where it left off after the focus session is completed.
-4. **Veteran session check:** If the veteran session is due (`veteran_session_due_at ≤ today`) and at least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+, and `selectVeteranWords` returns at least `VETERAN_MIN_WORDS` (5) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2), a veteran session is created. The normal/repetition alternation state is **not advanced**. See the full rules under *Veteran sessions* below.
-5. **Normal/repetition alternation (fallback):** If none of the above conditions are met, sessions alternate based on the last completed session type:
+- `SessionService` maintains a private in-memory sequence of the six automatic types, shuffled with Fisher-Yates at startup and reshuffled each time all six positions have been visited.
+- On each `createSession` call the service advances the sequence index, calling `trySelectType()` for the current candidate. If the candidate's eligibility conditions are met, that session type is used. Otherwise the candidate is skipped and the next one in the sequence is tried.
+- The sequence is server-side state — it persists across browser refreshes but resets when the server restarts.
+- `starred` is never part of the rotation; it is always manually triggered.
 
-| Last completed session | Next session (if enough due words) |
+**Eligibility conditions per type:**
+
+| Type | Eligible when |
 |---|---|
-| none (first ever session) | normal |
-| normal | repetition |
-| repetition | normal |
-| focus | determined by last non-focus/non-veteran completed session (same alternation) |
-| veteran | determined by last non-focus/non-veteran completed session (same alternation) |
+| `stress` | balance ≥ 500, ≥ 5 words in buckets 2+, `stress_session_due_at ≤ today` |
+| `discovery` | active pool (buckets 1–4) < `DISCOVERY_POOL_THRESHOLD` (80), ≥ `discoverySize` (24) bucket-0 words exist, not already done today (`last_discovery_session_date`) |
+| `focus` | ≥ 5 words with `score ≥ 2` and `bucket` in 1–5 |
+| `veteran` | `veteran_session_due_at ≤ today`, ≥ `VETERAN_MIN_BUCKET6_WORDS` (50) in buckets 6+, `selectVeteranWords` returns ≥ `VETERAN_MIN_WORDS` (5) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2) |
+| `repetition` | ≥ `repetitionSize` (24) due time-based words (buckets 4+) exist |
+| `normal` | always eligible (at least one word in vocabulary) |
 
-If a repetition session is due but fewer than `repetitionSize` due time-based words exist, the repetition is **skipped** and a normal session is created instead. Because the fallback session is also stored as `'normal'`, the next session will try repetition again.
+An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tests to inject a deterministic sequence.
 
 *Discovery sessions* — inject new words when the active pool is running low. Default size: **24 words** (`discoverySize` parameter, default 24).
 1. Only bucket-0 words are included.
@@ -432,13 +434,16 @@ If a repetition session is due but fewer than `repetitionSize` due time-based wo
 *Focus sessions* — target the words with the highest priority scores to address problem words.
 1. Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
 2. Primary candidates: words with `score ≥ 2`, sorted by score descending (ties shuffled randomly). Up to `sessionSize` (default 10) words are taken.
-3. If fewer than 5 primary candidates exist, the focus session is **skipped** and step 3 (normal/repetition) applies instead.
+3. If fewer than 5 primary candidates exist, the focus session is **skipped** in the current rotation cycle.
 4. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
-5. `last_focus_session_date` is recorded when the session **completes**. Only one focus session per calendar day.
 
 *Stress sessions* — high-stakes timed challenge that fires automatically (silently replacing the normal "Start new session" flow) when all trigger conditions are met.
 1. **Trigger conditions:** credit balance ≥ 500, at least 5 words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When the balance first reaches ≥ 500 and no stress session has ever been scheduled, the first due date is set to `now + random(0–48 h)`.
-2. **Word selection:** Up to 24 words (`stressSize = 24`) drawn randomly from all words in buckets 2+. Words are selected regardless of whether they are due, and without preference for high-scored words — pure random shuffle.
+2. **Word selection:** `selectStressWords(allEntries, stressSize=24, minWords=5)` — selects across three difficulty tiers (each shuffled randomly within the tier):
+   - Tier A (up to 8): difficulty ≥ 4
+   - Tier B (up to 8): difficulty ≥ 2, excluding tier A picks
+   - Tier C (remaining slots up to 24): any word, excluding prior picks
+   Words are drawn from the full vocabulary (all buckets), regardless of whether they are due. Unfilled tier slots carry forward to tier C.
 3. **No hints:** the hint button is hidden for the entire session.
 4. **No second-chance words:** a wrong answer on a time-based word does NOT insert a second-chance word.
 5. **Time limit per question:** 15 seconds when only one answer field is shown; 25 seconds when two fields are shown. The timer resets on each new word. When it expires, whatever is typed is auto-submitted (empty fields count as wrong).
@@ -594,7 +599,7 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Repetition session word selection | `srsSelection.ts` — `selectRepetitionWords()` | ✓ complete |
 | Focus session word selection | `srsSelection.ts` — `selectFocusWords()` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
-| Session type selection (stress → discovery → focus → veteran → normal/rep) | `sessionService.ts` — `createSession()` | ✓ complete |
+| Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal) | `sessionService.ts` — `createSession()` | ✓ complete |
 | Stress session word selection | `srsSelection.ts` — `selectStressWords()` | planned |
 | Push back word (discovery sessions only) | `sessionService.ts` — `pushBackWord()` | ✓ complete |
 | Bucket promotion / demotion | `server/features/session/sessionService.ts` | ✓ complete |
@@ -1369,7 +1374,7 @@ A periodic automatic review of fully-mastered words (buckets 6+), firing roughly
 
 **First trigger:** when the bucket-6+ count first reaches 50 and `veteran_session_due_at` is still null, it is set to `today + random(0–48 h)`. This ensures the first veteran session fires within two days of the user becoming eligible.
 
-The trigger is checked inside `createSession()` — priority: stress → discovery → focus → **veteran** → normal/repetition.
+The trigger is checked inside `createSession()` via the shuffled round-robin rotation; veteran is eligible whenever its due date and word-count conditions are met.
 
 ### Session Rules
 

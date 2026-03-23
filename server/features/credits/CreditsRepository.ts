@@ -87,15 +87,6 @@ export interface CreditsRepository {
   setStreakMonthsAwarded(count: number): void
 
   /**
-   * Returns the date (YYYY-MM-DD) on which the last focus session was completed,
-   * or `null` if no focus session has ever been completed.
-   */
-  getLastFocusSessionDate(): string | null
-
-  /** Records that a focus session was completed on the given date (YYYY-MM-DD). */
-  setLastFocusSessionDate(date: string): void
-
-  /**
    * Returns the date (YYYY-MM-DD) on which the last discovery session was completed,
    * or `null` if no discovery session has ever been completed.
    */
