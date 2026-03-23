@@ -103,8 +103,9 @@ export interface AnswerResult {
    */
   typos?: TypoMatch[]
   /**
-   * Credits deducted for this specific wrong answer: 1 if the balance was ≥ 1,
-   * otherwise 0. 0 for correct answers. Balance never goes negative.
+   * Credits deducted for this specific wrong answer: 1 if the balance was ≥ 1 and the
+   * word is not a "virgin" word (bucket ≤ 1 and maxBucket ≤ 1), otherwise 0.
+   * 0 for correct answers. Balance never goes negative.
    */
   answerCost: number
   /**
@@ -114,7 +115,7 @@ export interface AnswerResult {
   creditsEarned: number
   /**
    * Bonus credits awarded for completing the session with a perfect score (no mistakes,
-   * no hints, and no second-chance words). 10 on a perfect session, 0 otherwise.
+   * no hints, and no second-chance words). 20 on a perfect session, 0 otherwise.
    */
   perfectBonus: number
   /**
@@ -517,7 +518,7 @@ export class SessionService {
       if (isPerfect) {
         const isLargePerfectBonus = updatedSession.type === 'discovery' || updatedSession.type === 'stress'
 
-        perfectBonus = isLargePerfectBonus ? 100 : 10
+        perfectBonus = isLargePerfectBonus ? 100 : 20
         this.creditsRepo.addBalance(perfectBonus)
       }
 
@@ -734,7 +735,7 @@ export class SessionService {
     // Correct answer: promote the word.
     const newBucket = entry.bucket + 1
     const newMaxBucket = Math.max(entry.maxBucket, newBucket)
-    const creditDelta = earnCredits && newMaxBucket > entry.maxBucket ? 1 : 0
+    const creditDelta = earnCredits && newMaxBucket > entry.maxBucket ? 5 : 0
 
     this.vocabRepo.update({ ...entry, bucket: newBucket, maxBucket: newMaxBucket, lastAskedAt: now })
 
@@ -775,14 +776,17 @@ export class SessionService {
   ): { outcome: AnswerOutcome; answerCost: number } {
     updatedWords[wordIndex] = { ...word, status: 'incorrect' }
 
-    // Compute the answer cost: stress uses fee-based deductions; discovery is free; others deduct 1.
+    // Compute the answer cost: stress uses fee-based deductions; discovery is free;
+    // virgin words (bucket ≤ 1 and maxBucket ≤ 1 — never seen a higher bucket) are free;
+    // all others deduct 1 credit.
     const balance = this.creditsRepo.getBalance()
     let answerCost: number
 
     if (stressFee !== undefined) {
       answerCost = Math.min(isPartial ? stressFee / 2 : stressFee, balance)
     } else {
-      answerCost = free ? 0 : Math.min(1, balance)
+      const isVirginWord = entry.bucket <= 1 && entry.maxBucket <= 1
+      answerCost = (free || isVirginWord) ? 0 : Math.min(1, balance)
     }
 
     if (answerCost > 0) {

@@ -156,7 +156,7 @@ When your active pool — words in buckets 1–4 — falls below **80 words**, t
 - **No credit costs** — wrong answers never deduct credits.
 - **Hints are free and automatic** — the first 1–2 characters of each answer are always revealed; no paid hint button is shown.
 - **Push back** — a "Push back (N left)" button lets you skip a word and keep it in bucket 0 for a future session. You have **10 free push-backs per session**; the button is disabled once the budget is exhausted.
-- **Perfect session bonus: +100 credits** — awarded if you answer all words correctly with no push-backs (replaces the standard +10 bonus).
+- **Perfect session bonus: +100 credits** — awarded if you answer all words correctly with no push-backs (replaces the standard +20 bonus).
 
 #### Focus Session
 
@@ -294,8 +294,8 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 
 | How | Amount |
 |---|---|
-| Word reaches a new highest bucket for the first time | +1 per bucket level |
-| Perfect session — normal/repetition/focus (no mistakes, no hints, no second-chance words) | +10 |
+| Word reaches a new highest bucket for the first time | +5 per bucket level |
+| Perfect session — normal/repetition/focus/veteran/★ (no mistakes, no hints, no second-chance words) | +20 |
 | Perfect discovery session (all correct, no push-backs) | +100 |
 | Perfect stress session (all answers fully correct) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |
@@ -309,10 +309,12 @@ Each word only earns the credit for a given bucket level once — falling back a
 | How | Cost |
 |---|---|
 | Hint during a session | 10–(n−2)×10 credits depending on bucket |
-| Wrong answer (deducted automatically; free in discovery sessions) | 1 credit |
+| Wrong answer (free in discovery sessions and for virgin words — see below) | 1 credit |
 | Wrong answer in a stress session | floor(500 ÷ session size) credits, rounded to nearest even number |
 | Partially correct answer in a stress session | Half of the per-answer fee |
 | Save a streak (see Streaks) | 50 credits |
+
+**Virgin words are free:** a word is considered a *virgin word* when its current bucket is ≤ 1 **and** it has never reached a higher bucket (`maxBucket ≤ 1`). Wrong answers on virgin words never deduct a credit — this protects newly introduced words that haven't yet proven themselves. Once a word has ever climbed to bucket 2 or above, it is no longer virgin and wrong answers cost the usual 1 credit, even if it has since fallen back.
 
 Your balance is shown in the header on every screen and updated after each answer.
 

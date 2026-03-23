@@ -256,7 +256,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
     expect(vocabRepo.findById(entry.id)?.lastAskedAt).not.toBeNull()
   })
 
-  it('updates maxBucket and earns 1 credit when promoted into bucket 4 for the first time', () => {
+  it('updates maxBucket and earns 5 credits when promoted into bucket 4 for the first time', () => {
     const entry = makeEntry({ bucket: 3, maxBucket: 3, target: ['word'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
@@ -266,10 +266,10 @@ describe('submitAnswer — correct on frequency bucket', () => {
     const result = service.submitAnswer(session.id, entry.id, ['word'])
 
     expect(vocabRepo.findById(entry.id)?.maxBucket).toBe(4)
-    expect(result.creditsEarned).toBe(1)
+    expect(result.creditsEarned).toBe(5)
   })
 
-  it('earns 1 credit when promoted into bucket 1 for the first time', () => {
+  it('earns 5 credits when promoted into bucket 1 for the first time', () => {
     const entry = makeEntry({ bucket: 0, maxBucket: 0, target: ['word'] })
     const other = makeEntry()
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }, { vocabId: other.id, status: 'pending' }] })
@@ -280,7 +280,7 @@ describe('submitAnswer — correct on frequency bucket', () => {
 
     const result = service.submitAnswer(session.id, entry.id, ['word'])
 
-    expect(result.creditsEarned).toBe(1)
+    expect(result.creditsEarned).toBe(5)
   })
 
   it('does not decrease maxBucket or add credits when the new bucket is lower than maxBucket', () => {
@@ -985,13 +985,13 @@ describe('submitAnswer — answer cost', () => {
     const result = service.submitAnswer(session.id, entry.id, ['table'])
 
     expect(result.answerCost).toBe(0)
-    // Balance: 10 initial + 1 bucket credit (bucket 0→1) + 10 perfect bonus; no streak credit (first-ever session)
-    expect(creditsRepo.getBalance()).toBe(21)
+    // Balance: 10 initial + 5 bucket credit (bucket 0→1) + 20 perfect bonus; no streak credit (first-ever session)
+    expect(creditsRepo.getBalance()).toBe(35)
   })
 
   it('deducts 1 credit immediately for a wrong answer and returns answerCost = 1', () => {
-    const e1 = makeEntry({ target: ['table'] })
-    const e2 = makeEntry({ target: ['chair'] })
+    const e1 = makeEntry({ bucket: 2, maxBucket: 2, target: ['table'] })
+    const e2 = makeEntry({ bucket: 2, maxBucket: 2, target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1007,7 +1007,7 @@ describe('submitAnswer — answer cost', () => {
   })
 
   it('returns answerCost = 0 and does not go negative when balance is 0', () => {
-    const entry = makeEntry({ target: ['table'] })
+    const entry = makeEntry({ bucket: 2, maxBucket: 2, target: ['table'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
 
     vocabRepo.insert(entry)
@@ -1022,8 +1022,8 @@ describe('submitAnswer — answer cost', () => {
   })
 
   it('deducts across multiple wrong answers, stopping at 0 balance', () => {
-    const e1 = makeEntry({ target: ['table'] })
-    const e2 = makeEntry({ target: ['chair'] })
+    const e1 = makeEntry({ bucket: 2, maxBucket: 2, target: ['table'] })
+    const e2 = makeEntry({ bucket: 2, maxBucket: 2, target: ['chair'] })
     const session = makeSession({ words: [{ vocabId: e1.id, status: 'pending' }, { vocabId: e2.id, status: 'pending' }] })
 
     vocabRepo.insert(e1)
@@ -1039,6 +1039,48 @@ describe('submitAnswer — answer cost', () => {
     // Session completes → no streak credit (first-ever session, streak = 1)
     expect(creditsRepo.getBalance()).toBe(0)
   })
+
+  it('does not deduct credits for a virgin word in bucket 0 answered wrongly', () => {
+    const entry = makeEntry({ bucket: 0, maxBucket: 0, target: ['table'] })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+    creditsRepo.addBalance(10)
+
+    const result = service.submitAnswer(session.id, entry.id, ['wrong'])
+
+    expect(result.answerCost).toBe(0)
+    expect(creditsRepo.getBalance()).toBe(10)
+  })
+
+  it('does not deduct credits for a word in bucket 1 that has never been higher', () => {
+    const entry = makeEntry({ bucket: 1, maxBucket: 1, target: ['table'] })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+    creditsRepo.addBalance(10)
+
+    const result = service.submitAnswer(session.id, entry.id, ['wrong'])
+
+    expect(result.answerCost).toBe(0)
+    expect(creditsRepo.getBalance()).toBe(10)
+  })
+
+  it('deducts 1 credit for a word that fell back to bucket 1 but previously reached a higher bucket', () => {
+    const entry = makeEntry({ bucket: 1, maxBucket: 4, target: ['table'] })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+    creditsRepo.addBalance(10)
+
+    const result = service.submitAnswer(session.id, entry.id, ['wrong'])
+
+    expect(result.answerCost).toBe(1)
+    expect(creditsRepo.getBalance()).toBe(9)
+  })
 })
 
 // ── perfect session bonus ─────────────────────────────────────────────────────
@@ -1053,7 +1095,7 @@ describe('submitAnswer — perfect session bonus', () => {
 
     const result = service.submitAnswer(session.id, entry.id, ['table'])
 
-    expect(result.perfectBonus).toBe(10)
+    expect(result.perfectBonus).toBe(20)
     expect(result.sessionCompleted).toBe(true)
   })
 
@@ -1120,8 +1162,8 @@ describe('submitAnswer — perfect session bonus', () => {
 
     service.submitAnswer(session.id, entry.id, ['table'])
 
-    // Perfect bonus (+10) + bucket credit (+1, bucket 0→1) on top of initial 5; no streak credit (first-ever session, streak = 1)
-    expect(creditsRepo.getBalance()).toBe(16)
+    // Perfect bonus (+20) + bucket credit (+5, bucket 0→1) on top of initial 5; no streak credit (first-ever session, streak = 1)
+    expect(creditsRepo.getBalance()).toBe(30)
   })
 
   it('does not award a bonus when hints were used', () => {

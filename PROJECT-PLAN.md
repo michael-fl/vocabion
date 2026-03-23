@@ -421,7 +421,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 3. A **push back** action is available: the user can remove a word from the session and keep it in bucket 0 for a future discovery session. Budget: **10 push-backs per session** (`DISCOVERY_PUSHBACK_BUDGET`). After a push-back the session continues with the next pending word; if no pending words remain the session completes.
 4. Wrong answers never deduct credits (`free = true` path in `handleWrongAnswer`).
 5. Hints are always free and automatic (bucket 0 auto-hint; no paid button shown).
-6. Perfect session bonus: **+100 credits** (instead of the standard +10) when all words are answered correctly with no push-backs.
+6. Perfect session bonus: **+100 credits** (instead of the standard +20) when all words are answered correctly with no push-backs.
 
 *Normal sessions* — focus on frequency learning (buckets 0–3 + up to 1 due word per time-based bucket). Described in detail below under "Session size". Default size: **12 words** (`size` parameter, default 12). If the total is still below `sessionSize` after frequency + 1-per-due-bucket selection, two fill-up phases run: first with additional due time-based words (lowest bucket first), then with non-due time-based words (lowest bucket first). Already-selected words are excluded from both phases.
 
@@ -614,10 +614,10 @@ time-based pass does **not** apply here — multiple words may be taken from the
 
 The user earns credits each time a word reaches a new personal highest bucket for the first time:
 
-- **All buckets:** +1 credit per bucket level.
+- **All buckets:** +5 credits per bucket level.
 - If a word falls back and climbs to the same bucket again, **no additional credit** is awarded — each bucket level is counted only once per word.
 
-**Storage:** The balance is kept as a single integer in the `credits` table (migration `004_credits.sql`), incremented whenever a word's `maxBucket` increases. The delta per promotion is always 1. This counter is also updated during bulk import when imported entries carry `bucket > 0`.
+**Storage:** The balance is kept as a single integer in the `credits` table (migration `004_credits.sql`), incremented whenever a word's `maxBucket` increases. The delta per promotion is always 5. This counter is also updated during bulk import when imported entries carry `bucket > 0`.
 
 **`maxBucket`:** Each `VocabEntry` stores the highest bucket ever reached (`max_bucket` column, migration `003_max_bucket.sql`). It is updated whenever a correct answer promotes a word past its current `maxBucket`. It never decreases.
 
@@ -632,7 +632,9 @@ The user earns credits each time a word reaches a new personal highest bucket fo
 | 5 | 30 credits |
 | n ≥ 5 | min(10 × (n − 2), 30) credits — capped at 30 |
 
-**Session cost:** **1 credit is deducted immediately per incorrectly answered word** (including second-chance words), at the moment the wrong answer is submitted — mirroring how credits are earned immediately for correct answers. If the balance is 0 the deduction is skipped — the balance never goes negative. The session summary shows credits earned, credits spent on hints, and the total session cost (accumulated wrong-answer deductions). **Exception: discovery sessions are entirely free — wrong answers never deduct credits.**
+**Session cost:** **1 credit is deducted immediately per incorrectly answered word** (including second-chance words), at the moment the wrong answer is submitted — mirroring how credits are earned immediately for correct answers. If the balance is 0 the deduction is skipped — the balance never goes negative. The session summary shows credits earned, credits spent on hints, and the total session cost (accumulated wrong-answer deductions). **Exceptions — wrong answers are free for:**
+- **Discovery sessions** — entirely free, no credit deductions.
+- **Virgin words** — a word is virgin when `entry.bucket <= 1 && entry.maxBucket <= 1` (never reached bucket 2 or above). Once a word has ever climbed higher, it is no longer virgin and wrong answers cost the usual 1 credit, even if the word has since fallen back.
 
 **New-bucket milestone bonus:** A scaling bonus is awarded the first time any word is promoted into a bucket that has never existed before, subject to two conditions:
 1. The new bucket number is ≥ 6.
@@ -643,7 +645,7 @@ The bonus scales linearly: **bucket N → +(N−5)×100 credits** (bucket 6 = +1
 The bonus fires at most once per bucket level: if bucket 6 becomes empty again after a wrong answer and a different word later climbs into bucket 6, no second bonus is paid. The `bucketMilestoneBonus` field on `AnswerResult` carries the amount (0 or the scaled value) so the UI can display a celebration message.
 
 **Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints. The bonus amount depends on session type:
-- **Normal / repetition / focus:** **+10 credits.**
+- **Normal / repetition / focus / veteran / starred:** **+20 credits.**
 - **Discovery:** **+100 credits** — all words must be answered correctly with no push-backs (a `pushed_back` word counts as non-correct and disqualifies the bonus).
 - **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts). This is the only way to earn credits during a stress session; no bucket-milestone or new-bucket credits apply.
 
