@@ -1091,7 +1091,7 @@ The codebase currently has German/English hardcoded throughout. This refactoring
 
 ## Focus Replay (planned)
 
-After completing a focus session where more than **30% of answers were wrong or partial**, the session summary screen offers the user a one-time chance to replay the same session.
+After completing a focus session where **25% or more of answers were wrong or partial**, the session summary screen offers the user a one-time chance to replay the same session.
 
 **Trigger conditions (all must be met):**
 - The completed session is of type `focus`
@@ -1148,6 +1148,47 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 - Add to `SHUFFLED_TYPES` constant and `trySelectType()` in `sessionService.ts`
 - New DB migration to add `'breakthrough'` to the sessions type CHECK constraint
 - `TrainingScreen`: show "Breakthrough Session" label in the session title area
+
+---
+
+## Recovery Session (planned)
+
+A session type that targets words which were once well-learned but have since regressed — words the player used to know but has apparently forgotten again. The goal is to recover that lost knowledge through focused re-consolidation.
+
+**Eligibility (per word — both conditions must hold):**
+- `maxBucket ≥ 6` — the word once reached veteran territory, meaning it was genuinely mastered
+- `maxBucket − bucket ≥ 2` — it has since fallen back by at least 2 full bucket levels
+
+Example: a word that peaked at bucket 6 and now sits at bucket 2 qualifies (gap = 4). A word that peaked at bucket 4 and is now at bucket 3 does not (gap = 1, not enough regression). A word that peaked at bucket 3 does not qualify at all (maxBucket too low — early-learning noise, not a real regression).
+
+**Trigger conditions (all must be met):**
+- At least **5 qualifying words** exist
+- Part of the **shuffle rotation** alongside the other automatic session types
+
+**Word selection:**
+- Draw from all qualifying comeback candidates, **regardless of due date** — the point is targeted recovery, not SRS scheduling
+- Session size: up to **12 words**
+- Sort by **gap descending** (`maxBucket − bucket`) as primary criterion — biggest regressions first; then by **score descending** as tiebreaker
+- If more than 12 candidates exist, take the 12 highest-ranked
+
+**Session mechanics:** identical to a normal session — hints available, second-chance flow applies for time-based wrong answers, same credit rules.
+
+**Session title in UI:** "Recovery Session"
+
+**Implementation notes:**
+- New `SessionType` value: `'recovery'`
+- New `selectRecoveryWords(allEntries, sessionSize, minWords)` in `srsSelection.ts`
+- Add to `SHUFFLED_TYPES` constant and `trySelectType()` in `sessionService.ts`
+- New DB migration to add `'recovery'` to the sessions type CHECK constraint
+- `TrainingScreen`: show "Recovery Session" label in the session title area
+
+**To-do:**
+- [ ] `shared/types/Session.ts`: add `'recovery'` to the `SessionType` union
+- [ ] `srsSelection.ts`: implement `selectRecoveryWords()` with gap + score sorting
+- [ ] `SessionService.createSession()`: add recovery check to `trySelectType()`
+- [ ] `SessionService` tests for recovery word selection and trigger threshold
+- [ ] New DB migration for `'recovery'` type CHECK constraint
+- [ ] `TrainingScreen`: display "Recovery Session" label
 
 ---
 
