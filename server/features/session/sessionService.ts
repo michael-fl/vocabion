@@ -870,25 +870,36 @@ export class SessionService {
     return s?.words.some((w) => w.status !== 'pending') === true
   }
 
+  /**
+   * Selects a second-chance word that is not already part of the session,
+   * preferring difficult and high-scored words.
+   *
+   * Each candidate is scored as `difficulty * 2 + bucket`. Candidates are sorted
+   * descending by this score and the top tier — the larger of (top 5) or (top 25%)
+   * — is collected. The final word is picked at random from that tier, so the
+   * selection is biased toward hard words without being fully deterministic.
+   */
   private selectSecondChanceWord(
     sessionWords: SessionWord[],
     originalEntry: VocabEntry,
   ): VocabEntry | undefined {
     const usedIds = new Set(sessionWords.map((w) => w.vocabId))
-    const bucket = originalEntry.bucket
 
-    for (const b of [bucket, bucket - 1, bucket + 1, bucket - 2, bucket + 2, bucket + 3]) {
-      if (b < 0) {
-        continue
-      }
+    const candidates = this.vocabRepo
+      .findAll()
+      .filter((e) => !usedIds.has(e.id) && e.id !== originalEntry.id)
 
-      const candidates = this.vocabRepo.findByBucket(b).filter((e) => !usedIds.has(e.id))
-
-      if (candidates.length > 0) {
-        return candidates[Math.floor(Math.random() * candidates.length)]
-      }
+    if (candidates.length === 0) {
+      return undefined
     }
 
-    return undefined
+    const scored = candidates
+      .map((e) => ({ entry: e, score: e.difficulty * 2 + e.bucket }))
+      .sort((a, b) => b.score - a.score)
+
+    const topN = Math.max(5, Math.ceil(scored.length * 0.25))
+    const topTier = scored.slice(0, topN)
+
+    return topTier[Math.floor(Math.random() * topTier.length)].entry
   }
 }

@@ -228,7 +228,7 @@ A **★ Session** lets you practice all your starred (★) words in one focused 
 
 When you answer a time-based word (bucket 4+) **fully wrong**, the app gives you a second chance:
 
-1. A different word from the same bucket is inserted immediately after the current one.
+1. A second word is inserted immediately after the current one — chosen from the full vocabulary (excluding words already in the session), preferring words with higher difficulty and higher bucket so the second chance is not too easy.
 2. How you answer that second word affects the original:
    - **Second word correct** → original word drops one bucket (not back to 1). If the new bucket is still time-based (≥ 4), the word is scheduled to be due again within 24 hours — so it will appear in the next day's repetition session for quick consolidation.
    - **Second word wrong or partial** → original word is reset to bucket 1.

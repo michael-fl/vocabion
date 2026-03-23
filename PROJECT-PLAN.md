@@ -542,8 +542,14 @@ prevents the SRS schedule from being accidentally accelerated by early reviews.
 A **fully wrong** answer on a time-based word triggers a second-chance flow:
 
 1. The user is warned that the answer was wrong.
-2. A second word (word 2) is drawn from the same bucket. If that bucket has no other word
-   available, the next lower or next higher non-empty bucket is used instead.
+2. A second word (word 2) is selected from the full vocabulary (all words not already in the
+   session). Candidates are scored by `difficulty * 2 + bucket` (difficulty weighted 2× over
+   bucket so intrinsically hard words outrank mere high-bucket words). Candidates are sorted
+   descending by this score and a **top tier** is formed — whichever is larger: the top 5
+   candidates or the top 25% of the pool. Word 2 is picked at random from that top tier, so
+   the selection is biased toward difficult/high-scored words without being fully deterministic.
+   If no eligible candidates exist, no second-chance word is inserted and word 1 is demoted
+   immediately.
 3. The outcome depends on how word 2 is answered. Word 2 **never changes bucket** — its
    sole purpose is to give word 1 a chance to avoid a full reset:
    - Word 2 **correct** → word 1 moves to `bucket − 1`; word 2 stays in its current bucket;
