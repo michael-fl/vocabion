@@ -2,6 +2,13 @@
   max-width: 960px;
 }
 
+.stickyTop {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-content-bg);
+}
+
 .title {
   margin-bottom: 1.5rem;
 }
@@ -36,10 +43,34 @@
 /* ─── Collapsible section (details/summary) ──────────────────────────────── */
 
 .section {
+  /* Light mode: tint with the accent colour.
+     Dark mode: tint with chrome-muted (a clean light blue/grey) to avoid dirty
+     amber-on-navy colour mixing. */
+  --tint-color: var(--color-accent);
+  --group-tint: 0%;
+  --group-tint-hover: 5%;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
 }
+
+/* ─── Group tints — light mode ───────────────────────────────────────────── */
+
+.groupBeginner    { --group-tint:  4%; --group-tint-hover:  9%; }
+.groupLearning    { --group-tint:  8%; --group-tint-hover: 13%; }
+.groupEstablished { --group-tint: 12%; --group-tint-hover: 17%; }
+.groupVeteran     { --group-tint: 18%; --group-tint-hover: 23%; border-color: color-mix(in srgb, var(--tint-color) 20%, var(--color-border)); }
+.groupMaster      { --group-tint: 25%; --group-tint-hover: 30%; border-color: color-mix(in srgb, var(--tint-color) 35%, var(--color-border)); }
+.groupLegend      { --group-tint: 33%; --group-tint-hover: 38%; border-color: color-mix(in srgb, var(--tint-color) 50%, var(--color-border)); }
+
+/* ─── Group tints — dark mode (same accent colour, lower percentages) ────── */
+
+:global(html[data-mode='dark']) .groupBeginner    { --group-tint:  2%; --group-tint-hover:  6%; }
+:global(html[data-mode='dark']) .groupLearning    { --group-tint:  4%; --group-tint-hover:  8%; }
+:global(html[data-mode='dark']) .groupEstablished { --group-tint:  6%; --group-tint-hover: 10%; }
+:global(html[data-mode='dark']) .groupVeteran     { --group-tint:  8%; --group-tint-hover: 12%; }
+:global(html[data-mode='dark']) .groupMaster      { --group-tint: 11%; --group-tint-hover: 15%; }
+:global(html[data-mode='dark']) .groupLegend      { --group-tint: 14%; --group-tint-hover: 18%; }
 
 .sectionSummary {
   display: flex;
@@ -50,7 +81,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-content-text);
-  background: var(--color-card-bg);
+  background: color-mix(in srgb, var(--tint-color) var(--group-tint), var(--color-card-bg));
   user-select: none;
   list-style: none;
 }
@@ -74,7 +105,83 @@
 }
 
 .sectionSummary:hover {
+  background: color-mix(in srgb, var(--tint-color) var(--group-tint-hover), var(--color-card-bg));
+}
+
+/* ─── Synthetic sections (Marked / Scored — cross-bucket views) ──────────── */
+
+.sectionSynthetic {
+  border-left: 3px solid var(--color-accent);
+}
+
+.sectionSynthetic .sectionSummary {
+  background: var(--color-card-bg);
+  font-style: italic;
+}
+
+.sectionSynthetic .sectionSummary::before {
+  font-style: normal;
+}
+
+.sectionSynthetic .sectionSummary:hover {
   background: color-mix(in srgb, var(--color-accent) 5%, var(--color-card-bg));
+}
+
+/* ─── Bucket range label (right-aligned in summary) ─────────────────────── */
+
+.bucketRange {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  opacity: 0.75;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Unearned (locked) group placeholders ───────────────────────────────── */
+
+.sectionEmpty {
+  overflow: hidden;
+  border-color: var(--color-border);
+}
+
+.sectionSummaryLocked {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: color-mix(in srgb, var(--color-muted) 5%, var(--color-card-bg));
+  opacity: 0.5;
+  user-select: none;
+  list-style: none;
+  cursor: default;
+}
+
+.sectionSummaryLocked::before {
+  content: '–';
+  font-size: 1rem;
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+}
+
+/* ─── Bucket separator row within multi-bucket group tables ─────────────── */
+
+.bucketSeparatorRow { }
+
+.bucketSeparatorCell {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  background: color-mix(in srgb, var(--color-chrome-bg) 4%, var(--color-card-bg));
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tableWrapper {

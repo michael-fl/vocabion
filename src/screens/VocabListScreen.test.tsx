@@ -54,7 +54,7 @@ describe('VocabListScreen', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
 
-  it('renders one collapsible section per bucket', async () => {
+  it('renders one collapsible section per bucket group', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
       makeEntry({ bucket: 0 }),
       makeEntry({ bucket: 2 }),
@@ -63,9 +63,9 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    expect(await screen.findByText(/Bucket 0/)).toBeInTheDocument()
-    expect(screen.getByText(/Bucket 2/)).toBeInTheDocument()
-    expect(screen.getByText(/Bucket 5/)).toBeInTheDocument()
+    expect(await screen.findByText(/New/)).toBeInTheDocument()
+    expect(screen.getByText(/Learning/)).toBeInTheDocument()
+    expect(screen.getByText(/Established/)).toBeInTheDocument()
   })
 
   it('shows word count in the bucket summary', async () => {
@@ -77,11 +77,11 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    expect(await screen.findByText(/Bucket 0 — 2 words/)).toBeInTheDocument()
-    expect(screen.getByText(/Bucket 1 — 1 word/)).toBeInTheDocument()
+    expect(await screen.findByText(/New — 2 words/)).toBeInTheDocument()
+    expect(screen.getByText(/Beginner — 1 word/)).toBeInTheDocument()
   })
 
-  it('renders buckets in ascending order', async () => {
+  it('renders bucket groups in ascending order', async () => {
     vi.mocked(vocabApi.listVocab).mockResolvedValue([
       makeEntry({ bucket: 5 }),
       makeEntry({ bucket: 0 }),
@@ -90,15 +90,15 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    await screen.findByText(/Bucket 0/)
+    await screen.findByText(/New/)
 
     const summaries = screen.getAllByRole('group').map((el) =>
       el.querySelector('summary')?.textContent ?? '',
     )
 
-    expect(summaries[0]).toMatch(/Bucket 0/)
-    expect(summaries[1]).toMatch(/Bucket 2/)
-    expect(summaries[2]).toMatch(/Bucket 5/)
+    expect(summaries[0]).toMatch(/New/)
+    expect(summaries[1]).toMatch(/Learning/)
+    expect(summaries[2]).toMatch(/Established/)
   })
 
   it('bucket sections are collapsed by default', async () => {
@@ -108,7 +108,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    await screen.findByText(/Bucket 0/)
+    await screen.findByText(/New/)
 
     // The <details> element should not have the open attribute
     const details = document.querySelector('details')
@@ -124,7 +124,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    const summary = await screen.findByText(/Bucket 0/)
+    const summary = await screen.findByText(/New/)
 
     fireEvent.click(summary)
 
@@ -141,7 +141,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    const summary = await screen.findByText(/Bucket 0/)
+    const summary = await screen.findByText(/New/)
 
     fireEvent.click(summary)
 
@@ -158,7 +158,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
 
     expect(screen.getByRole('link', { name: 'Gemüse' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'vegetable' })).toBeInTheDocument()
@@ -172,7 +172,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 4/))
+    fireEvent.click(await screen.findByText(/Established/))
 
     expect(screen.getByRole('columnheader', { name: 'Due in' })).toBeInTheDocument()
   })
@@ -184,7 +184,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
 
     expect(screen.queryByRole('columnheader', { name: 'Due in' })).not.toBeInTheDocument()
   })
@@ -196,7 +196,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 4/))
+    fireEvent.click(await screen.findByText(/Established/))
 
     expect(screen.getByText('due now')).toBeInTheDocument()
   })
@@ -211,7 +211,7 @@ describe('VocabListScreen', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 4/))
+    fireEvent.click(await screen.findByText(/Established/))
 
     expect(screen.getByText(/in \d+ (day|hour|minute)/)).toBeInTheDocument()
   })
@@ -255,7 +255,7 @@ describe('Marked section', () => {
 
     render(<VocabListScreen />)
 
-    await screen.findByText(/Bucket 0/)
+    await screen.findByText(/New/)
 
     expect(screen.queryByText(/^Marked —/)).not.toBeInTheDocument()
   })
@@ -300,9 +300,11 @@ describe('Marked section', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/^Marked —/))
+    const summary = await screen.findByText(/^Marked —/)
+    fireEvent.click(summary)
 
-    expect(screen.getByRole('columnheader', { name: 'Bucket' })).toBeInTheDocument()
+    const details = summary.closest('details')!
+    expect(within(details).getByRole('columnheader', { name: 'Bucket' })).toBeInTheDocument()
   })
 
   it('shows Due in for time-based words in the Marked section', async () => {
@@ -325,7 +327,7 @@ describe('Marked section', () => {
     render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/^Marked —/))
-    fireEvent.click(screen.getByText(/Bucket 0/))
+    fireEvent.click(screen.getByText(/New/))
 
     // "Tisch" and "table" should each appear twice (once per section)
     expect(screen.getAllByText('Tisch')).toHaveLength(2)
@@ -353,7 +355,7 @@ describe('Scored section', () => {
 
     render(<VocabListScreen />)
 
-    await screen.findByText(/Bucket 0/)
+    await screen.findByText(/New/)
 
     expect(screen.queryByText(/^Scored —/)).not.toBeInTheDocument()
   })
@@ -399,7 +401,7 @@ describe('Scored section', () => {
     render(<VocabListScreen />)
 
     fireEvent.click(await screen.findByText(/^Scored —/))
-    fireEvent.click(screen.getByText(/Bucket 0/))
+    fireEvent.click(screen.getByText(/New/))
 
     expect(screen.getAllByText('Tisch')).toHaveLength(2)
     expect(screen.getAllByText('table')).toHaveLength(2)
@@ -416,7 +418,7 @@ describe('star toggle', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
 
     // Marked section also has a button, so there may be multiple — both should show ★
     expect(screen.getAllByRole('button', { name: 'Unmark' }).length).toBeGreaterThanOrEqual(1)
@@ -429,7 +431,7 @@ describe('star toggle', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
 
     expect(screen.getByRole('button', { name: 'Mark' })).toBeInTheDocument()
     expect(screen.queryByText('★')).not.toBeInTheDocument()
@@ -443,7 +445,7 @@ describe('star toggle', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
     fireEvent.click(screen.getByRole('button', { name: 'Mark' }))
 
     expect(vocabApi.setVocabMarked).toHaveBeenCalledWith(entry.id, true)
@@ -457,9 +459,9 @@ describe('star toggle', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
 
-    const section = screen.getByText(/Bucket 0/).closest('details')
+    const section = screen.getByText(/New/).closest('details')
     if (section === null) { throw new Error('details not found') }
     fireEvent.click(within(section).getByRole('button', { name: 'Unmark' }))
 
@@ -474,7 +476,7 @@ describe('star toggle', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
     fireEvent.click(screen.getByRole('button', { name: 'Mark' }))
 
     // After the API resolves the button(s) should flip to ★ (word may appear in multiple sections)
@@ -491,7 +493,7 @@ describe('star toggle', () => {
 
     render(<VocabListScreen />)
 
-    fireEvent.click(await screen.findByText(/Bucket 0/))
+    fireEvent.click(await screen.findByText(/New/))
 
     const btn = screen.getByRole('button', { name: 'Mark' })
 
