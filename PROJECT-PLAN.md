@@ -660,7 +660,7 @@ The user earns credits each time a word reaches a new personal highest bucket fo
 1. The new bucket number is ≥ 6.
 2. The bucket number exceeds `max_bucket_ever` — a global high-water mark stored in the `credits` table (migration `007_bucket_milestone.sql`) that tracks the highest bucket ever reached across all words. It never decreases.
 
-The bonus scales linearly: **bucket N → +(N−5)×100 credits** (bucket 6 = +100, bucket 7 = +200, bucket 8 = +300, …).
+The bonus scales linearly and is capped at 500: **bucket N → min((N−5)×100, 500) credits** (bucket 6 = +100, bucket 7 = +200, …, bucket 10+ = +500).
 
 The bonus fires at most once per bucket level: if bucket 6 becomes empty again after a wrong answer and a different word later climbs into bucket 6, no second bonus is paid. The `bucketMilestoneBonus` field on `AnswerResult` carries the amount (0 or the scaled value) so the UI can display a celebration message.
 
@@ -1017,7 +1017,7 @@ Replace the current flat layout with a proper single-page app shell:
 | Mark / favourite words (star toggle in training, ★ in vocab list) | done |
 | Score-based word preference (`score` field, `srsScore.ts`, recalculated on answer/mark) | done |
 | Score backfill migration (008) for pre-existing entries | done |
-| Bucket milestone bonus (+100 credits first time any word enters a never-seen bucket ≥ 6) | done |
+| Bucket milestone bonus (first time any word enters a never-seen bucket ≥ 6; min((N−5)×100, 500), capped at 500) | done |
 | Manually-added word priority (`manuallyAdded` flag, migration 009, always drawn first in bucket 0) | done |
 | Vocabulary edit / delete UI | not started |
 | Import / Export UI | not started |
@@ -1026,7 +1026,7 @@ Replace the current flat layout with a proper single-page app shell:
 | App shell layout (header, sidebar, right panel, footer) | done |
 | Theme system (Scholar / Slate / Forest, CSS variables, picker) | done |
 | Starred session (once-per-day session for all marked words, up to 100, score-sorted) | done |
-| Earned stars (watermark in header — 1 star per new bucket above 3, never decreases) | done |
+| Earned stars (+1 star when any word globally first enters Established/Veteran/Master/Legend, additive) | done |
 | Language-neutral rename (de/en → source/target throughout code and DB) | planned |
 
 ---
@@ -1037,7 +1037,7 @@ Replace the current flat layout with a proper single-page app shell:
 
 - Daily practice streaks: migration 010 adds `streak_count`, `last_session_date`, `streak_save_pending` to `credits` table. `StreakService` computes streak state (active / at-risk / lost). `streakRouter` exposes `GET /api/v1/streak` and `POST /api/v1/streak/save`. `SessionService` awards +1 streak credit when the first session of the day extends a streak to ≥ 2 days (no credit for day 1 or after a gap). HomeScreen always shows streak count, warning banner when at-risk, evening warning (≥ 20:00 + last session was yesterday), and save button. SummaryScreen shows +1 streak credit line. `src/api/streakApi.ts` provides typed fetch wrappers.
 - Score-based word selection: `score` column on `vocab_entries` (migration 006), backfill migration 008, `srsScore.ts` utility, `sortByScoreThenShuffle` in `srsSelection.ts`. VocabListScreen shows Score column; TrainingScreen shows `[score: N]` debug label.
-- Bucket milestone bonus: +100 credits the first time any word globally enters a bucket ≥ 6 that has never existed before. `max_bucket_ever` in credits table (migration 007). `CreditsRepository.getMaxBucketEver/setMaxBucketEver`. `bucketMilestoneBonus` field on `AnswerResult`; TrainingScreen shows celebration message.
+- Bucket milestone bonus: min((N−5)×100, 500) credits the first time any word globally enters a bucket ≥ 6 that has never existed before (capped at 500 from bucket 10 / Master onwards). `max_bucket_ever` in credits table (migration 007). `CreditsRepository.getMaxBucketEver/setMaxBucketEver`. `bucketMilestoneBonus` field on `AnswerResult`; TrainingScreen shows celebration message.
 - Manually-added word priority: `manuallyAdded: boolean` on `VocabEntry` (migration 009). Words added via the UI "Add word" form are always drawn first in bucket 0 (all of them, overriding the normal 1-or-2 draw count). Flag is cleared after first session inclusion. JSON-imported words are never flagged.
 
 - Word difficulty score: a permanent `difficulty` field on `VocabEntry` (migration `025_difficulty.sql` adds `max_score` and `difficulty` columns, backfilled from existing data). Formula: `spaceBonus + multipleBonus + lengthBonus + maxScore`, where `maxScore` is the all-time highest priority score. `computeDifficulty()` in `shared/utils/difficulty.ts`. Recomputed in `VocabService` (create, update, import, setMarked) and `SessionService` (answer submit). `VocabListScreen` shows a Difficulty column in every table.
@@ -1045,7 +1045,14 @@ Replace the current flat layout with a proper single-page app shell:
 **Recently added**
 
 - Starred session: a new on-demand session type (`type = 'starred'`) that includes all marked (★) words, capped at 100, score-sorted. Accessible via a second button on the Home screen. Limited to one per calendar day; `last_starred_session_date` in the credits table. Migration `018_starred_session.sql` adds the column; migration `019_session_type_starred.sql` rebuilds the sessions table to add `'starred'` to the type CHECK constraint.
-- Earned stars: a persistent watermark (`earned_stars INTEGER` in the credits table, migration `020_earned_stars.sql`) displayed as amber ★ characters in the header. Stars only ever increase. Currently awarded when any word reaches a new personal-best bucket ≥ 4 (bucket 4 → 1 star, bucket 5 → 2 stars, …). The award logic is decoupled from the bucket number via `CreditsRepository.awardStars(n)` — other earning mechanisms can be added later without changing the storage model.
+- Earned stars: a persistent counter (`earned_stars INTEGER` in the credits table, migration `020_earned_stars.sql`) displayed as amber ★ characters in the header. Stars only ever increase. Awarded as **+1 star** when any word globally first enters a named group boundary (Established b4, Veteran b6, Master b10, Legend b14), tracked via `max_bucket_ever`. Uses `CreditsRepository.addStars(1)` (additive).
+
+  | First word ever enters | Stars |
+  |---|---|
+  | Established (bucket 4) | +1 |
+  | Veteran (bucket 6) | +1 |
+  | Master (bucket 10) | +1 |
+  | Legend (bucket 14) | +1 |
 - Buy stars: users can purchase cosmetic earned-stars for 500 credits each (max 3 per offer). A `StarsPurchaseDialog` pops up automatically on the Home screen when the balance ≥ 500, the feature is not paused, and the snooze period has expired. Any interaction (buy, No, Cancel) snoozes the offer for 7 days. Migration `023_stars_offer_snooze.sql` adds `stars_offer_snoozed_until TEXT` to the credits table. `StarsService` handles offer logic, purchase validation, and snooze. `starsRouter` exposes `GET /api/v1/stars/offer`, `POST /api/v1/stars/purchase`, and `POST /api/v1/stars/snooze`.
 
 **Planned — Language-neutral rename (de/en → source/target)**

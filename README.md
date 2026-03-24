@@ -313,7 +313,7 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 | Perfect stress session (all answers fully correct) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |
 | Streak milestone reached | +10 to +1 000 (see Streaks) |
-| First time any word globally reaches a bucket never seen before (≥ 6) | +(N−5)×100 (bucket 6 → +100, bucket 7 → +200, …) |
+| First time any word globally reaches a bucket never seen before (≥ 6) | min((N−5)×100, 500) — bucket 6 → +100, …, bucket 10+ → +500 (cap) |
 
 Each word only earns the credit for a given bucket level once — falling back and climbing again pays nothing extra.
 
@@ -335,16 +335,16 @@ Your balance is shown in the header on every screen and updated after each answe
 
 ### Earned Stars
 
-Stars are a permanent achievement watermark displayed in the header. Once earned, a star can never be lost.
+Stars are a permanent achievement displayed in the header. Once earned, a star can never be lost.
 
-| Stars | Requirement |
+You earn **+1 star** the first time any word globally enters a new named group. Stars are permanent and additive — once earned, they are never lost.
+
+| First word ever enters | Stars |
 |---|---|
-| ★ | Any word reaches bucket 4 for the first time |
-| ★★ | Any word reaches bucket 5 for the first time |
-| ★★★ | Any word reaches bucket 6 for the first time |
-| … | One additional star per new bucket level above 3 |
-
-Stars are derived from the all-time highest bucket ever reached across all your words. The mapping is: **stars = max(0, highest bucket ever − 3)**.
+| Established (bucket 4) | +1 |
+| Veteran (bucket 6) | +1 |
+| Master (bucket 10) | +1 |
+| Legend (bucket 14) | +1 |
 
 #### Buying Stars
 

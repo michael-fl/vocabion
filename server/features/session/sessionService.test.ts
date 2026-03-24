@@ -1277,6 +1277,130 @@ describe('markWordCorrect', () => {
   })
 })
 
+// ── earned stars ──────────────────────────────────────────────────────────────
+
+describe('submitAnswer — earned stars', () => {
+  it('awards +1 star when first entering Established (bucket 4)', () => {
+    const entry = makeEntry({ target: ['word'], bucket: 3, maxBucket: 3 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(1)
+    expect(creditsRepo.getMaxBucketEver()).toBe(4)
+  })
+
+  it('does not award a star for bucket 5 (within Established, not a group boundary)', () => {
+    creditsRepo.setMaxBucketEver(4)
+    const entry = makeEntry({ target: ['word'], bucket: 4, maxBucket: 4 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(0)
+    expect(creditsRepo.getMaxBucketEver()).toBe(5)
+  })
+
+  it('awards +1 star when first entering Veteran (bucket 6)', () => {
+    creditsRepo.setMaxBucketEver(5)
+    const entry = makeEntry({ target: ['word'], bucket: 5, maxBucket: 5 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(1)
+    expect(creditsRepo.getMaxBucketEver()).toBe(6)
+  })
+
+  it('does not award a star for buckets 7–9 (within Veteran)', () => {
+    creditsRepo.setMaxBucketEver(6)
+    const entry = makeEntry({ target: ['word'], bucket: 6, maxBucket: 6 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(0)
+    expect(creditsRepo.getMaxBucketEver()).toBe(7)
+  })
+
+  it('awards +1 star when first entering Master (bucket 10)', () => {
+    creditsRepo.setMaxBucketEver(9)
+    const entry = makeEntry({ target: ['word'], bucket: 9, maxBucket: 9 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(1)
+    expect(creditsRepo.getMaxBucketEver()).toBe(10)
+  })
+
+  it('awards +1 star when first entering Legend (bucket 14)', () => {
+    creditsRepo.setMaxBucketEver(13)
+    const entry = makeEntry({ target: ['word'], bucket: 13, maxBucket: 13 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(1)
+    expect(creditsRepo.getMaxBucketEver()).toBe(14)
+  })
+
+  it('does not award a star when the bucket already existed globally', () => {
+    creditsRepo.setMaxBucketEver(4)
+    const entry = makeEntry({ target: ['word'], bucket: 3, maxBucket: 3 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(0)
+  })
+
+  it('does not award a star for buckets 1–3', () => {
+    const entry = makeEntry({ target: ['word'], bucket: 0, maxBucket: 0 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(0)
+  })
+
+  it('does not award a star in a stress session', () => {
+    const entry = makeEntry({ target: ['word'], bucket: 3, maxBucket: 3 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }], type: 'stress' })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(creditsRepo.getEarnedStars()).toBe(0)
+  })
+})
+
 // ── bucket milestone bonus ─────────────────────────────────────────────────────
 
 describe('submitAnswer — bucket milestone bonus', () => {
@@ -1331,6 +1455,34 @@ describe('submitAnswer — bucket milestone bonus', () => {
     const result = service.submitAnswer(session.id, entry.id, ['word'])
 
     expect(result.bucketMilestoneBonus).toBe(0)
+  })
+
+  it('awards 500 credits when bucket 10 (Master) is reached for the first time (cap)', () => {
+    creditsRepo.setMaxBucketEver(9)
+    const entry = makeEntry({ target: ['word'], bucket: 9, maxBucket: 9 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    const result = service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(result.bucketMilestoneBonus).toBe(500)
+    expect(creditsRepo.getMaxBucketEver()).toBe(10)
+  })
+
+  it('awards 500 credits (cap) when bucket 11 is reached for the first time', () => {
+    creditsRepo.setMaxBucketEver(10)
+    const entry = makeEntry({ target: ['word'], bucket: 10, maxBucket: 10 })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    const result = service.submitAnswer(session.id, entry.id, ['word'])
+
+    expect(result.bucketMilestoneBonus).toBe(500)
+    expect(creditsRepo.getMaxBucketEver()).toBe(11)
   })
 
   it('returns bucketMilestoneBonus = 0 for a wrong answer', () => {

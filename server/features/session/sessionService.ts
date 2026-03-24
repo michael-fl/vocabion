@@ -119,8 +119,9 @@ export interface AnswerResult {
    */
   perfectBonus: number
   /**
-   * One-time bonus of 100 credits awarded when a word is promoted into a bucket
-   * number ≥ 6 that has never existed before (global high-water mark). 0 otherwise.
+   * One-time credit bonus awarded the first time any word globally reaches a bucket ≥ 6
+   * that has never existed before. Scales as min((N−5)×100, 500). 0 otherwise.
+   * A +1 star is also awarded when that new bucket is a group boundary (4, 6, 10, 14).
    */
   bucketMilestoneBonus: number
   /**
@@ -743,20 +744,24 @@ export class SessionService {
       this.creditsRepo.addBalance(creditDelta)
     }
 
-    // Earned stars: 1 star per bucket above 3 (bucket 4 → 1 star, bucket 5 → 2 stars, …).
-    // Stars are a watermark — awardStars only increases the count, never decreases it.
-    if (earnCredits && creditDelta > 0 && newBucket >= 4) {
-      this.creditsRepo.awardStars(newBucket - 3)
-    }
-
-    // New-bucket milestone bonus: scales linearly when a bucket ≥ 6 is created for the first time.
-    // Bucket 6 → +100, bucket 7 → +200, bucket N → +(N − 5) × 100.
+    // New global bucket: fires the first time any word reaches a bucket level never seen before.
+    // Awards +1 star when first entering a named group (Established b4, Veteran b6, Master b10, Legend b14).
+    // Awards a scaled credit bonus for buckets ≥ 6, capped at 500
+    // (bucket 6 → +100, bucket 7 → +200, …, bucket 10+ → +500).
+    const GROUP_STAR_BUCKETS = new Set([4, 6, 10, 14])
     let bucketMilestoneBonus = 0
 
-    if (earnCredits && newBucket >= 6 && newBucket > this.creditsRepo.getMaxBucketEver()) {
-      bucketMilestoneBonus = (newBucket - 5) * 100
-      this.creditsRepo.addBalance(bucketMilestoneBonus)
+    if (earnCredits && newBucket >= 4 && newBucket > this.creditsRepo.getMaxBucketEver()) {
       this.creditsRepo.setMaxBucketEver(newBucket)
+
+      if (GROUP_STAR_BUCKETS.has(newBucket)) {
+        this.creditsRepo.addStars(1)
+      }
+
+      if (newBucket >= 6) {
+        bucketMilestoneBonus = Math.min((newBucket - 5) * 100, 500)
+        this.creditsRepo.addBalance(bucketMilestoneBonus)
+      }
     }
 
     return { outcome: typos.length > 0 ? 'correct_typo' : 'correct', creditsEarned: creditDelta, bucketMilestoneBonus }

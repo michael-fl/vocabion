@@ -48,16 +48,16 @@ describe('isDue', () => {
     expect(isDue(entry, NOW)).toBe(true)
   })
 
-  it('returns true for bucket 4 when 22 or more hours have passed', () => {
-    const twentyTwoHoursAgo = new Date(NOW.getTime() - 22 * 60 * 60 * 1000).toISOString()
-    const entry = makeEntry({ bucket: 4, lastAskedAt: twentyTwoHoursAgo })
+  it('returns true for bucket 4 when 24 or more hours have passed', () => {
+    const twentyFourHoursAgo = new Date(NOW.getTime() - 24 * 60 * 60 * 1000).toISOString()
+    const entry = makeEntry({ bucket: 4, lastAskedAt: twentyFourHoursAgo })
 
     expect(isDue(entry, NOW)).toBe(true)
   })
 
-  it('returns false for bucket 4 when fewer than 22 hours have passed', () => {
-    const twentyOneHoursAgo = new Date(NOW.getTime() - 21 * 60 * 60 * 1000).toISOString()
-    const entry = makeEntry({ bucket: 4, lastAskedAt: twentyOneHoursAgo })
+  it('returns false for bucket 4 when fewer than 24 hours have passed', () => {
+    const twentyThreeHoursAgo = new Date(NOW.getTime() - 23 * 60 * 60 * 1000).toISOString()
+    const entry = makeEntry({ bucket: 4, lastAskedAt: twentyThreeHoursAgo })
 
     expect(isDue(entry, NOW)).toBe(false)
   })
@@ -223,7 +223,7 @@ describe('selectSessionWords — time-based words', () => {
 
   it('excludes time-based words that are not yet due', () => {
     const freqEntries = makeEntries(10, { bucket: 0 })
-    // bucket 4 → 22 h interval; asked 12 hours ago → not yet due
+    // bucket 4 → 1 day interval; asked 12 hours ago → not yet due
     const recentDate = new Date(NOW.getTime() - 12 * 60 * 60 * 1000).toISOString()
     const notDueEntry = makeEntry({ bucket: 4, lastAskedAt: recentDate })
 

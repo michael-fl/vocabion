@@ -615,6 +615,7 @@ export function TrainingScreen({
                 ))}&quot;</span>
                 <button
                   type="button"
+                  className={`${styles.starBtn}${pendingAlternative.altMarked ? ` ${styles.starBtnMarked}` : ''}`}
                   aria-label={pendingAlternative.altMarked ? `Unmark "${altPrompt}"` : `Mark "${altPrompt}"`}
                   onClick={() => void handleToggleAltMark()}
                 >
@@ -641,6 +642,7 @@ export function TrainingScreen({
           </span>
           <button
             type="button"
+            className={`${styles.starBtn}${isMarked ? ` ${styles.starBtnMarked}` : ''}`}
             aria-label={isMarked ? 'Unmark word' : 'Mark word'}
             onClick={() => void handleToggleMark()}
             disabled={markingWord}

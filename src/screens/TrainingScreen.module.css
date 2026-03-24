@@ -168,3 +168,33 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.45; }
 }
+
+/* ─── Star button ────────────────────────────────────────────────────────── */
+
+.starBtn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  padding: 0.2rem 0.4rem;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-muted);
+  transition: color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.starBtn:hover:not(:disabled) {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  transform: scale(1.1);
+}
+
+.starBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.starBtnMarked {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
