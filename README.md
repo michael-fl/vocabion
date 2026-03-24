@@ -84,16 +84,18 @@ Vocabion helps you memorize German–English vocabulary using **spaced repetitio
 
 Every word lives in a numbered **bucket** that reflects how well you know it:
 
-| Bucket | Meaning | Review frequency |
-|--------|---------|-----------------|
-| 0 | New — never seen | Every session |
-| 1 | Seen, still shaky | Every session |
-| 2 | Getting there | Every session |
-| 3 | Fairly solid | Every session |
-| 4 | Long-term memory | Once per day (22 h) |
-| 5 | Long-term memory | Once per week |
-| 6 | Long-term memory | Once per 2 weeks |
-| 7+ | Long-term memory | Once per (N − 4) weeks |
+| Bucket | Group | Review frequency |
+|--------|-------|-----------------|
+| 0 | New | Every session |
+| 1 | Beginner | Every session |
+| 2–3 | Learning | Every session |
+| 4 | Established | Once per day |
+| 5 | Established | Once per week |
+| 6–9 | Veteran | Once per (N − 4) weeks (2–5 weeks) |
+| 10 | Master | Once per 6 weeks |
+| 11 | Master | Once per 8 weeks |
+| 12–13 | Master | Once per 12 weeks |
+| 14+ | Legend | Once per 12 weeks (cap) |
 
 **Correct answer** → word moves up one bucket.
 **Wrong answer** → word is reset to bucket 1 (never back to 0).
@@ -101,7 +103,18 @@ Every word lives in a numbered **bucket** that reflects how well you know it:
 
 Bucket 0 is reserved for words you've never seen. Getting one wrong won't send you back there.
 
-There is no upper limit on buckets — the longer you practice a word without mistakes, the higher it can go.
+There is no upper limit on buckets — the longer you practice a word without mistakes, the higher it can go. The review interval is capped at 12 weeks from bucket 12 onwards.
+
+#### Minimum time to reach a status group
+
+The table below shows the earliest possible time to reach each group, assuming every answer is correct and words are reviewed exactly when due (starting from bucket 4):
+
+| Status | Enters at bucket | Min. time from bucket 4 | Approx. |
+|--------|-----------------|------------------------|---------|
+| Established | 4 | immediately | — |
+| Veteran | 6 | 8 days | ~1 week |
+| Master | 10 | 106 days | ~15 weeks |
+| Legend | 14 | 372 days | ~1 year |
 
 ---
 

@@ -379,19 +379,33 @@ Counts are cascaded (each bucket is capped at `remaining − already_assigned`) 
 **Time-based buckets (4 and above)** — selected only when the word is *due*, based on how
 long ago it was last asked:
 
-| Bucket | Review interval | Words per session |
-|---|---|---|
-| 4 | once per 22 hours | 0 or 1 |
-| 5 | once per 1 week  | 0 or 1 |
-| 6 | once per 2 weeks | 0 or 1 |
-| N (N ≥ 5) | once per (N − 4) weeks | 0 or 1 |
+| Bucket | Group | Review interval | Words per session |
+|---|---|---|---|
+| 4 | Established | once per 1 day | 0 or 1 |
+| 5 | Established | once per 1 week | 0 or 1 |
+| 6–9 | Veteran | once per (N − 4) weeks (2–5 weeks) | 0 or 1 |
+| 10 | Master | once per 6 weeks | 0 or 1 |
+| 11 | Master | once per 8 weeks | 0 or 1 |
+| 12–13 | Master | once per 12 weeks | 0 or 1 |
+| 14+ | Legend | once per 12 weeks (cap) | 0 or 1 |
 
-A word from bucket 4 is included when at least 22 hours have elapsed since `lastAskedAt`.
-A word from bucket N (N ≥ 5) is included when at least (N − 4) weeks have elapsed.
+A word from bucket 4 is included when at least 1 day has elapsed since `lastAskedAt`.
+A word from bucket N (5 ≤ N ≤ 10) is included when at least (N − 4) weeks have elapsed.
+Bucket 11 uses an 8-week interval; bucket 12 and above are capped at 12 weeks.
 A `null` value (never asked) is treated as always due. At most one word per time-based
 bucket appears in any single session. The shared helper `shared/utils/srsInterval.ts`
-(`getIntervalMs`) encodes this formula and is used by both the server selection logic and
+(`getIntervalMs`) encodes this schedule and is used by both the server selection logic and
 the frontend "Due in" display.
+
+**Minimum time to reach a status group** (assuming perfect answers, reviewed exactly when due,
+starting from bucket 4):
+
+| Status | Enters at bucket | Min. time from bucket 4 | Approx. |
+|--------|-----------------|------------------------|---------|
+| Established | 4 | immediately | — |
+| Veteran | 6 | 8 days | ~1 week |
+| Master | 10 | 106 days | ~15 weeks |
+| Legend | 14 | 372 days | ~1 year |
 
 **Session types:**
 

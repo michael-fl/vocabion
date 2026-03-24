@@ -39,22 +39,22 @@ import styles from './VocabListScreen.module.css'
 function bucketGroupName(bucket: number): string {
   if (bucket === 0) { return 'New' }
   if (bucket === 1) { return 'Beginner' }
-  if (bucket <= 3) { return 'Learning' }
-  if (bucket <= 5) { return 'Established' }
-  if (bucket <= 7) { return 'Veteran' }
-  if (bucket <= 11) { return 'Master' }
+  if (bucket <= 3)  { return 'Learning' }
+  if (bucket <= 5)  { return 'Established' }
+  if (bucket <= 9)  { return 'Veteran' }
+  if (bucket <= 13) { return 'Master' }
   return 'Legend'
 }
 
 /** Ordered list of all bucket groups, including those not yet reached. */
 const ALL_GROUP_DEFS = [
-  { name: 'New',         bucketRange: '0',    multiGroup: false },
-  { name: 'Beginner',    bucketRange: '1',    multiGroup: false },
-  { name: 'Learning',    bucketRange: '2–3',  multiGroup: true },
-  { name: 'Established', bucketRange: '4–5',  multiGroup: true },
-  { name: 'Veteran',     bucketRange: '6–7',  multiGroup: true },
-  { name: 'Master',      bucketRange: '8–11', multiGroup: true },
-  { name: 'Legend',      bucketRange: '12+',  multiGroup: true },
+  { name: 'New',         bucketRange: '0',     multiGroup: false },
+  { name: 'Beginner',    bucketRange: '1',     multiGroup: false },
+  { name: 'Learning',    bucketRange: '2–3',   multiGroup: true },
+  { name: 'Established', bucketRange: '4–5',   multiGroup: true },
+  { name: 'Veteran',     bucketRange: '6–9',   multiGroup: true },
+  { name: 'Master',      bucketRange: '10–13', multiGroup: true },
+  { name: 'Legend',      bucketRange: '14+',   multiGroup: true },
 ] as const
 
 /** Maps group name → Phosphor icon component. */

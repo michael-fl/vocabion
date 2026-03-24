@@ -52,32 +52,32 @@ describe('formatDueIn', () => {
   })
 
   it('returns "due now" when exactly at the interval boundary', () => {
-    // bucket 4 → 22 h interval; asked exactly 22 hours ago
-    expect(formatDueIn(makeEntry(4, hoursAgo(22)), NOW)).toBe('due now')
+    // bucket 4 → 1 day (24 h) interval; asked exactly 24 hours ago
+    expect(formatDueIn(makeEntry(4, hoursAgo(24)), NOW)).toBe('due now')
   })
 
   it('returns minutes when less than 1 hour remains', () => {
-    // bucket 4 → 22 h = 1320 min; asked 1261 min ago → 59 min left
-    const lastAskedAt = new Date(NOW.getTime() - (1320 - 59) * 60 * 1000).toISOString()
+    // bucket 4 → 1 day = 1440 min; asked 1381 min ago → 59 min left
+    const lastAskedAt = new Date(NOW.getTime() - (1440 - 59) * 60 * 1000).toISOString()
 
     expect(formatDueIn(makeEntry(4, lastAskedAt), NOW)).toBe('in 59 minutes')
   })
 
   it('uses singular "minute" for exactly 1 minute remaining', () => {
-    // bucket 4 → 22 h = 1320 min; asked 1319 min ago → 1 min left
-    const lastAskedAt = new Date(NOW.getTime() - (1320 - 1) * 60 * 1000).toISOString()
+    // bucket 4 → 1 day = 1440 min; asked 1439 min ago → 1 min left
+    const lastAskedAt = new Date(NOW.getTime() - (1440 - 1) * 60 * 1000).toISOString()
 
     expect(formatDueIn(makeEntry(4, lastAskedAt), NOW)).toBe('in 1 minute')
   })
 
   it('returns hours when less than 1 day remains', () => {
-    // bucket 4 → 22 h; asked 2 hours ago → 20 hours left
-    expect(formatDueIn(makeEntry(4, hoursAgo(2)), NOW)).toBe('in 20 hours')
+    // bucket 4 → 24 h; asked 2 hours ago → 22 hours left
+    expect(formatDueIn(makeEntry(4, hoursAgo(2)), NOW)).toBe('in 22 hours')
   })
 
   it('uses singular "hour" for exactly 1 hour remaining', () => {
-    // bucket 4 → 22 h; asked 21 hours ago → 1 hour left
-    expect(formatDueIn(makeEntry(4, hoursAgo(21)), NOW)).toBe('in 1 hour')
+    // bucket 4 → 24 h; asked 23 hours ago → 1 hour left
+    expect(formatDueIn(makeEntry(4, hoursAgo(23)), NOW)).toBe('in 1 hour')
   })
 
   it('returns days when less than 7 days remain', () => {
