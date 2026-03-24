@@ -25,6 +25,8 @@ import type { Session } from '../../shared/types/Session.ts'
 import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 import { getCreditsInfo } from '../api/creditsApi.ts'
 import { getStreak } from '../api/streakApi.ts'
+import { createReplaySession } from '../api/sessionApi.ts'
+import { listVocab } from '../api/vocabApi.ts'
 import type { StreakInfo } from '../api/streakApi.ts'
 import { useTheme } from '../hooks/useTheme.ts'
 import { AppLayout } from '../components/AppLayout/AppLayout.tsx'
@@ -39,8 +41,8 @@ const APP_VERSION: string = __APP_VERSION__
 
 type AppScreen =
   | { name: 'home' }
-  | { name: 'training'; session: Session; vocabMap: Map<string, VocabEntry> }
-  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string; bucketMilestoneBonus: number }
+  | { name: 'training'; session: Session; vocabMap: Map<string, VocabEntry>; isReplay?: boolean }
+  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string; bucketMilestoneBonus: number; isReplay?: boolean }
   | { name: 'vocab' }
   | { name: 'settings' }
 
@@ -91,6 +93,8 @@ function App() {
 
   function renderScreen() {
     if (screen.name === 'training') {
+      const trainingScreen = screen
+
       return (
         <TrainingScreen
           session={screen.session}
@@ -98,7 +102,7 @@ function App() {
           onComplete={(session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus) => {
             refreshCredits()
             refreshStreak()
-            setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus })
+            setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus, isReplay: trainingScreen.isReplay })
           }}
           onAnswerSubmitted={refreshCredits}
           credits={credits}
@@ -107,6 +111,23 @@ function App() {
     }
 
     if (screen.name === 'summary') {
+      const summaryScreen = screen
+
+      async function handleReplay() {
+        try {
+          const [replaySession, entries] = await Promise.all([
+            createReplaySession(summaryScreen.session.id),
+            listVocab(),
+          ])
+
+          const vocabMap = new Map(entries.map((e) => [e.id, e]))
+
+          setScreen({ name: 'training', session: replaySession, vocabMap, isReplay: true })
+        } catch {
+          // If the replay fails (e.g. a session is already open), do nothing.
+        }
+      }
+
       return (
         <SummaryScreen
           session={screen.session}
@@ -117,6 +138,8 @@ function App() {
           streakCredit={screen.streakCredit}
           milestoneLabel={screen.milestoneLabel}
           bucketMilestoneBonus={screen.bucketMilestoneBonus}
+          isReplay={screen.isReplay}
+          onReplay={() => { void handleReplay() }}
           onBack={() => {
             refreshStreak()
             setScreen({ name: 'home' })

@@ -2658,3 +2658,133 @@ describe('veteran session — answer scoring', () => {
     }
   })
 })
+
+// ── createReplaySession ───────────────────────────────────────────────────────
+
+describe('createReplaySession', () => {
+  it('throws ApiError 404 when the original session is not found', () => {
+    expectApiError(() => service.createReplaySession('nonexistent'), 404)
+  })
+
+  it('throws ApiError 400 when the original session is not a focus session', () => {
+    const session = makeSession({ type: 'normal', status: 'completed' })
+
+    sessionRepo.insert(session)
+
+    expectApiError(() => service.createReplaySession(session.id), 400)
+  })
+
+  it('throws ApiError 409 when a session is already open', () => {
+    const original = makeSession({ type: 'focus', status: 'completed' })
+    const open = makeSession({ type: 'normal', status: 'open' })
+
+    sessionRepo.insert(original)
+    sessionRepo.insert(open)
+
+    expectApiError(() => service.createReplaySession(original.id), 409)
+  })
+
+  it('creates a new focus session with status open', () => {
+    const entry = makeEntry()
+    const original = makeSession({
+      type: 'focus',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+    })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+
+    expect(replay.type).toBe('focus')
+    expect(replay.status).toBe('open')
+  })
+
+  it('contains the same vocab IDs as the original (original words only)', () => {
+    const e1 = makeEntry()
+    const e2 = makeEntry()
+    const e3 = makeEntry()
+    const original = makeSession({
+      type: 'focus',
+      status: 'completed',
+      words: [
+        { vocabId: e1.id, status: 'incorrect' },
+        { vocabId: e2.id, status: 'correct' },
+        // second-chance word — must be excluded
+        { vocabId: e3.id, status: 'correct', secondChanceFor: e2.id },
+      ],
+    })
+
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+
+    const replayIds = replay.words.map((w) => w.vocabId)
+
+    expect(replayIds).toHaveLength(2)
+    expect(replayIds).toContain(e1.id)
+    expect(replayIds).toContain(e2.id)
+    expect(replayIds).not.toContain(e3.id)
+  })
+
+  it('all words in the replay session start as pending', () => {
+    const entry = makeEntry()
+    const original = makeSession({
+      type: 'focus',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+    })
+
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+
+    expect(replay.words.every((w) => w.status === 'pending')).toBe(true)
+  })
+
+  it('preserves the direction from the original session', () => {
+    const entry = makeEntry()
+    const original = makeSession({
+      type: 'focus',
+      status: 'completed',
+      direction: 'TARGET_TO_SOURCE',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    })
+
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+
+    expect(replay.direction).toBe('TARGET_TO_SOURCE')
+  })
+
+  it('assigns a new unique id to the replay session', () => {
+    const entry = makeEntry()
+    const original = makeSession({
+      type: 'focus',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    })
+
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+
+    expect(replay.id).not.toBe(original.id)
+  })
+
+  it('persists the replay session so getOpenSession returns it', () => {
+    const entry = makeEntry()
+    const original = makeSession({
+      type: 'focus',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    })
+
+    sessionRepo.insert(original)
+    service.createReplaySession(original.id)
+
+    expect(service.getOpenSession()).toBeDefined()
+  })
+})

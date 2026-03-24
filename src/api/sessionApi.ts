@@ -160,6 +160,24 @@ export async function pushBackWord(sessionId: string, vocabId: string): Promise<
   return res.json() as Promise<Session>
 }
 
+/**
+ * Creates a new focus session with the same words as the given completed focus
+ * session, reshuffled into a random order.
+ *
+ * Called when the user accepts the Focus Replay offer on the summary screen.
+ */
+export async function createReplaySession(sessionId: string): Promise<Session> {
+  const res = await fetch(`${BASE}/${sessionId}/replay`, {
+    method: 'POST',
+  })
+
+  if (!res.ok) {
+    throw new Error(`Failed to create replay session: ${res.status}`)
+  }
+
+  return res.json() as Promise<Session>
+}
+
 /** Submits an answer for a word in the given session. */
 export async function submitAnswer(
   sessionId: string,

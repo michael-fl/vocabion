@@ -5,6 +5,9 @@
  * completed session. Second-chance words are counted separately so the user
  * can see both original and second-chance outcomes.
  *
+ * For focus sessions with an error rate ≥ 25%, a one-time replay offer is
+ * shown (unless `isReplay` is true, which prevents chained replays).
+ *
  * @example
  * ```tsx
  * <SummaryScreen session={completedSession} onBack={() => setScreen('home')} />
@@ -12,6 +15,9 @@
  */
 import type { Session } from '../../shared/types/Session.ts'
 import styles from './SummaryScreen.module.css'
+
+/** Error rate threshold above which the Focus Replay offer is shown. */
+const REPLAY_ERROR_THRESHOLD = 0.25
 
 export interface SummaryScreenProps {
   session: Session
@@ -29,11 +35,21 @@ export interface SummaryScreenProps {
   milestoneLabel?: string
   /** Bonus credits earned by promoting a word to a new maximum bucket ≥ 6. 0 if none. */
   bucketMilestoneBonus?: number
+  /**
+   * When present, renders a "Play again" button below the summary for eligible
+   * focus sessions. Called when the user accepts the replay offer.
+   */
+  onReplay?: () => void
+  /**
+   * Pass `true` when this summary is itself the result of a replay session.
+   * Suppresses the replay offer to prevent chained replays.
+   */
+  isReplay?: boolean
   onBack: () => void
 }
 
 /** Renders a summary of a completed training session. */
-export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onBack }: SummaryScreenProps) {
+export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onReplay, isReplay = false, onBack }: SummaryScreenProps) {
   const isStress = session.type === 'stress'
   const sessionLabel = session.type === 'stress' ? 'Stress Session complete' : 'Session complete'
   const originalWords = session.words.filter((w) => w.secondChanceFor === undefined)
@@ -46,6 +62,13 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
   const secondChanceIncorrect = secondChanceWords.filter((w) => w.status === 'incorrect').length
 
   const total = creditsEarned - creditsSpent - sessionCost + perfectBonus + streakCredit
+
+  const errorRate = originalWords.length > 0 ? originalIncorrect / originalWords.length : 0
+  const showReplayOffer =
+    session.type === 'focus' &&
+    !isReplay &&
+    onReplay !== undefined &&
+    errorRate >= REPLAY_ERROR_THRESHOLD
 
   return (
     <div className={styles.screen}>
@@ -144,6 +167,16 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
               Incorrect: {secondChanceIncorrect} / {secondChanceWords.length}
             </p>
           </div>
+        </div>
+      )}
+
+      {showReplayOffer && (
+        <div className={styles.replaySection}>
+          <p className={styles.replayText}>
+            You got {originalIncorrect} out of {originalWords.length} wrong — want to try again?
+          </p>
+
+          <button className={styles.replayButton} onClick={onReplay}>Play again</button>
         </div>
       )}
 

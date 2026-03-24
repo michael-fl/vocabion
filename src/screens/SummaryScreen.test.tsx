@@ -127,3 +127,91 @@ describe('SummaryScreen', () => {
     expect(screen.queryByText(/Streak milestone/)).not.toBeInTheDocument()
   })
 })
+
+// ── Focus Replay offer ────────────────────────────────────────────────────────
+
+describe('Focus Replay offer', () => {
+  function makeFocusSession(totalWords: number, incorrectCount: number): Session {
+    const words: Session['words'] = Array.from({ length: totalWords }, (_, i) => ({
+      vocabId: `w${i}`,
+      status: i < incorrectCount ? ('incorrect' as const) : ('correct' as const),
+    }))
+
+    return makeSession({ type: 'focus', words })
+  }
+
+  it('shows the replay offer when error rate >= 25% on a focus session', () => {
+    // 3 out of 12 = 25%
+    const session = makeFocusSession(12, 3)
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Play again' })).toBeInTheDocument()
+  })
+
+  it('does not show the replay offer when error rate < 25%', () => {
+    // 2 out of 12 ≈ 16.7%
+    const session = makeFocusSession(12, 2)
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
+  })
+
+  it('does not show the replay offer for non-focus sessions even with high error rate', () => {
+    const words = Array.from({ length: 4 }, (_, i) => ({
+      vocabId: `w${i}`,
+      status: 'incorrect' as const,
+    }))
+    const session = makeSession({ type: 'normal', words })
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
+  })
+
+  it('does not show the replay offer when isReplay is true (no chained replays)', () => {
+    const session = makeFocusSession(12, 3)
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} isReplay />)
+
+    expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
+  })
+
+  it('does not show the replay offer when onReplay is not provided', () => {
+    const session = makeFocusSession(12, 3)
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
+  })
+
+  it('calls onReplay when "Play again" is clicked', () => {
+    const onReplay = vi.fn()
+    const session = makeFocusSession(12, 3)
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={onReplay} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
+
+    expect(onReplay).toHaveBeenCalledOnce()
+  })
+
+  it('excludes second-chance words when computing the error rate', () => {
+    // 2 original words incorrect, 1 correct + 1 second-chance word
+    // error rate = 2/3 ≈ 67% → offer should show
+    const session = makeSession({
+      type: 'focus',
+      words: [
+        { vocabId: 'w1', status: 'incorrect' },
+        { vocabId: 'w2', status: 'incorrect' },
+        { vocabId: 'w3', status: 'correct' },
+        { vocabId: 'w4', status: 'correct', secondChanceFor: 'w2' },
+      ],
+    })
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Play again' })).toBeInTheDocument()
+  })
+})

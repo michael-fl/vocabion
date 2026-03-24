@@ -8,6 +8,7 @@
  * - `POST /`                              → create a new session
  * - `POST /:id/answer`                    → submit an answer for the current word
  * - `POST /:id/words/:vocabId/correct`    → retroactively mark a word as correct
+ * - `POST /:id/replay`                    → create a focus replay from a completed focus session
  *
  * @example
  * ```ts
@@ -97,6 +98,15 @@ export function createSessionRouter(service: SessionService): Router {
   router.post('/:id/words/:vocabId/pushback', (req: Request, res: Response, next: NextFunction) => {
     try {
       res.json(service.pushBackWord(req.params.id, req.params.vocabId))
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  // POST /:id/replay
+  router.post('/:id/replay', (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(201).json(service.createReplaySession(req.params.id))
     } catch (err) {
       next(err)
     }

@@ -180,6 +180,16 @@ If you have at least 5 words with a **priority score of 2 or higher** (see [Word
 - The top-scoring words fill the session first; if fewer than 12 qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
 - If fewer than 5 words qualify, the focus session is skipped in the current rotation cycle.
 
+#### Focus Replay
+
+After completing a Focus Session where **25% or more of answers were wrong or partial**, the session summary screen offers a one-time **"Play again"** button.
+
+- The replay contains the **exact same words** as the original, reshuffled into a random new order.
+- It is treated as a fully independent Focus Session: earns credits, perfect bonus, bucket promotions, and streak credit exactly like any other session.
+- **One replay per session** — the offer never appears on a replay's own summary screen, so replays cannot chain.
+- If you decline (or navigate away), the offer is gone permanently for that session.
+- The normal session-type rotation is unaffected either way.
+
 #### Veteran Session (weekly, once ≥ 50 words reach bucket 6+)
 
 A **Veteran Session** is a periodic review of your most-mastered words — those that have reached bucket 6 or higher. It fires automatically roughly once a week when all of the following conditions are met:

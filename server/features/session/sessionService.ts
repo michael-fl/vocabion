@@ -142,8 +142,8 @@ export interface AnswerResult {
 const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'veteran', 'repetition', 'normal']
 
 /** Fisher-Yates shuffle. Returns a new array. */
-function shuffleTypes(types: SessionType[]): SessionType[] {
-  const out = [...types]
+function shuffleArray<T>(arr: T[]): T[] {
+  const out = [...arr]
 
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -164,7 +164,7 @@ export class SessionService {
     private readonly stressService: StressSessionService,
     private readonly veteranService: VeteranSessionService,
     /** Override the shuffle function — used in tests to get a deterministic sequence. */
-    private readonly shuffleFn: (types: SessionType[]) => SessionType[] = shuffleTypes,
+    private readonly shuffleFn: (types: SessionType[]) => SessionType[] = shuffleArray,
   ) {}
 
   /** Returns the currently open session, or `undefined` if none exists. */
@@ -334,6 +334,58 @@ export class SessionService {
       words: selected.map((e) => ({ vocabId: e.id, status: 'pending' })),
       status: 'open',
       createdAt: now.toISOString(),
+    }
+
+    this.sessionRepo.insert(session)
+
+    return session
+  }
+
+  /**
+   * Creates a new focus session containing the same words as an existing completed
+   * focus session, reshuffled into a random order.
+   *
+   * Called when the user accepts the Focus Replay offer on the summary screen.
+   * The replay is a plain `focus` session. Preventing a second replay offer is
+   * enforced on the frontend via an `isReplay` flag — no DB marker is needed.
+   *
+   * Only original words from the completed session are included (second-chance
+   * duplicate entries are excluded).
+   *
+   * @throws {ApiError} 404 if the original session is not found.
+   * @throws {ApiError} 400 if the original session is not of type `focus`.
+   * @throws {ApiError} 409 if a session is already open.
+   */
+  createReplaySession(originalSessionId: string): Session {
+    const original = this.sessionRepo.findById(originalSessionId)
+
+    if (original === undefined) {
+      throw new ApiError(404, `Session not found: ${originalSessionId}`)
+    }
+
+    if (original.type !== 'focus') {
+      throw new ApiError(400, 'Only focus sessions can be replayed')
+    }
+
+    const existing = this.sessionRepo.findOpen()
+
+    if (existing !== undefined) {
+      throw new ApiError(409, 'A training session is already open')
+    }
+
+    const originalVocabIds = original.words
+      .filter((w) => w.secondChanceFor === undefined)
+      .map((w) => w.vocabId)
+
+    const shuffled = shuffleArray(originalVocabIds)
+
+    const session: Session = {
+      id: crypto.randomUUID(),
+      direction: original.direction,
+      type: 'focus',
+      words: shuffled.map((vocabId) => ({ vocabId, status: 'pending' })),
+      status: 'open',
+      createdAt: new Date().toISOString(),
     }
 
     this.sessionRepo.insert(session)

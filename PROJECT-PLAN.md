@@ -1110,7 +1110,7 @@ The codebase currently has German/English hardcoded throughout. This refactoring
 - [ ] `scripts/IMPORT-VOCAB.md` — update format documentation
 - [ ] `server/db/database.test.ts` — update migration count
 
-## Focus Replay (planned)
+## Focus Replay ✓
 
 After completing a focus session where **25% or more of answers were wrong or partial**, the session summary screen offers the user a one-time chance to replay the same session.
 
@@ -1130,12 +1130,12 @@ After completing a focus session where **25% or more of answers were wrong or pa
 - Treated as a fully independent new session: earns credits, perfect bonus, bucket promotions, and streak credit exactly as any other session would (streak +1 only fires if it is the first session of that calendar day)
 - The replay itself cannot trigger another replay offer — one replay per original session maximum
 
-**Implementation notes:**
-- `SummaryScreen`: after a focus session completes, compute the error rate from the completed session's word list; if ≥ 25% of words were wrong or partial, render the replay prompt and button
-- `sessionApi`: new `POST /api/v1/sessions/:id/replay` endpoint (or reuse `createSession` with a `replayOf` body param) that creates a new open session with the same word list reshuffled
-- `SessionService.createReplaySession(originalSessionId)`: looks up the completed session, reshuffles its words, inserts a new session
-- No new `SessionType` value needed — replay sessions are plain `focus`
-- No DB migration needed
+**Implementation:**
+- `SummaryScreen`: computes the error rate from the completed session's word list (original words only, second-chance words excluded); if ≥ 25%, renders the replay prompt and "Play again" button. The `isReplay` prop (passed through `App.tsx` training → summary state) suppresses the offer for replay summaries.
+- `POST /api/v1/session/:id/replay` endpoint in `sessionRouter.ts` → `SessionService.createReplaySession(originalSessionId)`: looks up the completed focus session, excludes second-chance words, reshuffles the vocab IDs, inserts a new open `focus` session.
+- `createReplaySession(sessionId)` in `sessionApi.ts` calls the endpoint.
+- No new `SessionType` value — replay sessions are plain `focus`.
+- No DB migration needed.
 
 ---
 
