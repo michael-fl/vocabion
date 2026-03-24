@@ -379,7 +379,7 @@ export class SessionService {
         return selectFocusWords(allEntries, options.size)
       case 'veteran':
         return this.veteranService.isAvailable(today, bucket6PlusCount)
-          ? selectVeteranWords(allEntries, options.size, VETERAN_MIN_WORDS)
+          ? selectVeteranWords(allEntries, options.veteranSize, VETERAN_MIN_WORDS)
           : null
       case 'repetition': {
         const words = selectRepetitionWords(allEntries, repSize, now)

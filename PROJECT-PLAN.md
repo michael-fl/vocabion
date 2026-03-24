@@ -1510,7 +1510,7 @@ The trigger is checked inside `createSession()` via the shuffled round-robin rot
 
 ### Session Rules
 
-- **Size:** up to 12 words (`sessionSize`), drawn from all words in buckets 6+.
+- **Size:** up to 24 words (`veteranSize`), drawn from all words in buckets 6+.
 - **Word selection:** sorted by difficulty descending (ties shuffled randomly) via `selectVeteranWords()`.
 - **Minimum words:** if fewer than `VETERAN_MIN_WORDS` (5) qualifying words exist, the session is skipped.
 - **SRS promotion:** same as focus — due words are promoted one bucket; non-due words are unchanged.

@@ -19,6 +19,7 @@ export const createSessionSchema = z.object({
   direction: z.enum(['SOURCE_TO_TARGET', 'TARGET_TO_SOURCE']).default('SOURCE_TO_TARGET'),
   size: z.number().int().min(1).max(50).default(12),
   repetitionSize: z.number().int().min(1).max(50).default(24),
+  veteranSize: z.number().int().min(1).max(50).default(24),
 })
 
 export type CreateSessionRequest = z.infer<typeof createSessionSchema>

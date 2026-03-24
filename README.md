@@ -175,8 +175,9 @@ When your active pool — words in buckets 1–4 — falls below **80 words**, t
 
 If you have at least 5 words with a **priority score of 2 or higher** (see [Word Priority Score](#word-priority-score) below), a **Focus Session** is eligible, targeting your most problematic words.
 
+- Contains up to **12 words**.
 - Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
-- The top-scoring words fill the session first; if fewer than 10 qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
+- The top-scoring words fill the session first; if fewer than 12 qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
 - If fewer than 5 words qualify, the focus session is skipped in the current rotation cycle.
 
 #### Veteran Session (weekly, once ≥ 50 words reach bucket 6+)
@@ -190,7 +191,7 @@ A **Veteran Session** is a periodic review of your most-mastered words — those
 If your bucket-6+ count first reaches 50, the initial session is scheduled to trigger within the next **48 hours**.
 
 **Session rules:**
-- Up to **12 words** drawn from buckets 6+ with **difficulty ≥ 2**, sorted by difficulty descending (ties broken randomly) — your hardest veteran words come first.
+- Up to **24 words** drawn from buckets 6+ with **difficulty ≥ 2**, sorted by difficulty descending (ties broken randomly) — your hardest veteran words come first.
 - SRS promotion rules mirror the Focus Session: words that are not yet due are not promoted.
 - If fewer than 5 qualifying words can be selected, the session is skipped.
 
