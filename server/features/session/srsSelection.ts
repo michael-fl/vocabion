@@ -419,6 +419,52 @@ export function selectBreakthroughWords(
 }
 
 /**
+ * Selects vocabulary words for a recovery session.
+ *
+ * A recovery session targets words that were once genuinely mastered
+ * (`maxBucket ≥ 6`) but have since regressed by at least 2 bucket levels
+ * (`maxBucket − bucket ≥ 2`). Due-date is ignored — the focus is targeted
+ * re-consolidation, not regular SRS scheduling.
+ *
+ * Words are sorted by regression gap descending (biggest regressions first),
+ * with score descending as the tiebreaker.
+ *
+ * Returns `null` when fewer than `minWords` qualifying entries exist.
+ *
+ * @param all - All vocabulary entries in the database.
+ * @param sessionSize - Maximum number of words to include (e.g. 12).
+ * @param minWords - Minimum qualifying words required (e.g. 5).
+ * @returns Up to `sessionSize` qualifying entries sorted by gap, or `null`.
+ */
+export function selectRecoveryWords(
+  all: VocabEntry[],
+  sessionSize: number,
+  minWords: number,
+): VocabEntry[] | null {
+  const candidates = all.filter((e) => e.maxBucket >= 6 && e.maxBucket - e.bucket >= 2)
+
+  if (candidates.length < minWords) {
+    return null
+  }
+
+  // Sort by gap descending, then by score descending within each gap group
+  const byGap = new Map<number, VocabEntry[]>()
+
+  for (const e of candidates) {
+    const gap = e.maxBucket - e.bucket
+    const group = byGap.get(gap) ?? []
+    group.push(e)
+    byGap.set(gap, group)
+  }
+
+  const sorted = [...byGap.keys()]
+    .sort((a, b) => b - a)
+    .flatMap((gap) => sortByScoreThenShuffle(byGap.get(gap) ?? []))
+
+  return sorted.slice(0, sessionSize)
+}
+
+/**
  * Selects vocabulary words for a second chance session.
  *
  * Only picks words that are currently in the second chance bucket

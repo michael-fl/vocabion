@@ -119,10 +119,10 @@ function buildStatusMessage(result: sessionApi.AnswerResult, translations: strin
       return { text: <>Correct! (Spelling: {typoNote}) → bucket {newBucket} · {links}</>, isCorrect: true }
     }
     case 'second_chance_correct':
-      return { text: <>Second chance passed! Original word → bucket {w1NewBucket ?? newBucket - 1} · {links}</>, isCorrect: true }
+      return { text: <>Second chance passed! Original word → second chance session · {links}</>, isCorrect: true }
     case 'second_chance_correct_typo': {
       const typoNote = result.typos?.map((t) => `"${t.typed}" → "${t.correct}"`).join(', ') ?? ''
-      return { text: <>Second chance passed! (Spelling: {typoNote}) Original word → bucket {w1NewBucket ?? newBucket - 1} · {links}</>, isCorrect: true }
+      return { text: <>Second chance passed! (Spelling: {typoNote}) Original word → second chance session · {links}</>, isCorrect: true }
     }
     case 'incorrect':
       return { text: <>Incorrect. Correct answer: {links} — → bucket 1</>, isCorrect: false }
@@ -544,7 +544,9 @@ export function TrainingScreen({
                       ? 'Breakthrough Session'
                       : currentSession.type === 'second_chance_session'
                         ? 'Second Chance Session'
-                        : 'Learning Session'}
+                        : currentSession.type === 'recovery'
+                          ? 'Recovery Session'
+                          : 'Learning Session'}
         </h2>
         <p className={styles.meta}>{answered} of {total} answered</p>
       </div>

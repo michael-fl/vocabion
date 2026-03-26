@@ -19,7 +19,7 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
 import { checkAnswerDetailed } from './answerValidation.ts'
 import type { TypoMatch } from './answerValidation.ts'
-import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords, isDue } from './srsSelection.ts'
+import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords, selectRecoveryWords, isDue } from './srsSelection.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
@@ -65,7 +65,7 @@ export interface CreateSessionOptions {
  * - `second_chance` — all answers wrong on a time bucket (4+) word; a second word was
  *   added to the session for a second-chance attempt.
  * - `second_chance_correct` — the second-chance word was answered correctly;
- *   W1 moves to bucket − 1, W2 stays in its current bucket.
+ *   W1 enters the second chance bucket (secondChanceDueAt set, bucket preserved as restore target), W2 stays in its current bucket.
  * - `second_chance_partial` — second-chance word was partially correct;
  *   W1 is reset to bucket 1, W2 stays in its current bucket.
  * - `second_chance_incorrect` — the second-chance word was also fully wrong;
@@ -143,8 +143,14 @@ export interface AnswerResult {
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
+/** Maximum number of words in a recovery session. */
+export const RECOVERY_SESSION_SIZE = 12
+
+/** Minimum qualifying regressed words required to trigger a recovery session. */
+export const RECOVERY_MIN_WORDS = 5
+
 /** The automatic session types that participate in the shuffle rotation. */
-const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'veteran', 'breakthrough', 'repetition', 'normal']
+const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'veteran', 'breakthrough', 'recovery', 'repetition', 'normal']
 
 /** Fisher-Yates shuffle. Returns a new array. */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -183,7 +189,7 @@ export class SessionService {
    * Creates a new training session using the SRS word selection algorithm.
    *
    * Session types are drawn from a shuffled round-robin sequence containing all
-   * seven automatic types (stress, discovery, focus, veteran, breakthrough, repetition, normal).
+   * eight automatic types (stress, discovery, focus, veteran, breakthrough, recovery, repetition, normal).
    * The sequence is advanced until a type whose eligibility conditions are met is
    * found. When the sequence is exhausted it is reshuffled. Starred sessions are
    * always manual and never part of this rotation.
@@ -478,6 +484,8 @@ export class SessionService {
         return this.breakthroughService.isAvailable(today)
           ? selectBreakthroughWords(allEntries, BREAKTHROUGH_SESSION_SIZE, BREAKTHROUGH_MIN_WORDS, now)
           : null
+      case 'recovery':
+        return selectRecoveryWords(allEntries, RECOVERY_SESSION_SIZE, RECOVERY_MIN_WORDS)
       case 'repetition': {
         const words = selectRepetitionWords(allEntries, repSize, now)
 

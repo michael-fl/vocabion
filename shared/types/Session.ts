@@ -19,7 +19,7 @@ export type { SessionWord }
 export type SessionDirection = 'SOURCE_TO_TARGET' | 'TARGET_TO_SOURCE'
 
 /** The type of a training session. */
-export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery' | 'starred' | 'stress' | 'veteran' | 'breakthrough' | 'second_chance_session'
+export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery' | 'starred' | 'stress' | 'veteran' | 'breakthrough' | 'second_chance_session' | 'recovery'
 
 /**
  * A training session. At most one session can be open at a time.
@@ -49,6 +49,9 @@ export interface Session {
    *   Fires with highest priority when ≥ 1 bucket-1.5 word is due and the daily limit
    *   has not been reached. Words answered correctly are restored to their original bucket;
    *   wrong or partial answers demote to bucket 1. No hints available.
+   * - `recovery` — targets words that once reached veteran territory (maxBucket ≥ 6) but
+   *   have since regressed by at least 2 bucket levels (maxBucket − bucket ≥ 2). Part of
+   *   the automatic shuffle rotation; fires whenever ≥ 5 qualifying words exist.
    */
   type: SessionType
 
@@ -98,7 +101,7 @@ export function isSession(value: unknown): value is Session {
     return false
   }
 
-  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'discovery' && type !== 'starred' && type !== 'stress' && type !== 'veteran' && type !== 'breakthrough' && type !== 'second_chance_session') {
+  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'discovery' && type !== 'starred' && type !== 'stress' && type !== 'veteran' && type !== 'breakthrough' && type !== 'second_chance_session' && type !== 'recovery') {
     return false
   }
 

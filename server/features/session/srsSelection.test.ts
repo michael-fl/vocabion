@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords } from './srsSelection.ts'
+import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords, selectRecoveryWords } from './srsSelection.ts'
 import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1190,5 +1190,107 @@ describe('selectSecondChanceSessionWords', () => {
     const result = selectSecondChanceSessionWords([lowScore, highScore], 1, NOW)
 
     expect(result[0].id).toBe(highScore.id)
+  })
+})
+
+// ── selectRecoveryWords ───────────────────────────────────────────────────────
+
+describe('selectRecoveryWords', () => {
+  it('returns null when fewer than minWords qualifying entries exist', () => {
+    const entries = [
+      ...makeEntries(4, { bucket: 2, maxBucket: 6 }), // gap = 4, qualifies but only 4
+      ...makeEntries(5, { bucket: 5, maxBucket: 6 }), // gap = 1, does not qualify
+    ]
+
+    expect(selectRecoveryWords(entries, 12, 5)).toBeNull()
+  })
+
+  it('returns words when at least minWords qualifying entries exist', () => {
+    const entries = makeEntries(5, { bucket: 2, maxBucket: 6 })
+
+    expect(selectRecoveryWords(entries, 12, 5)).not.toBeNull()
+  })
+
+  it('excludes words where maxBucket < 6', () => {
+    const notVeteran = makeEntries(10, { bucket: 1, maxBucket: 5 }) // gap = 4 but maxBucket too low
+    const qualifying = makeEntries(5, { bucket: 2, maxBucket: 6 })
+    const result = selectRecoveryWords([...notVeteran, ...qualifying], 12, 5)
+
+    const qualifyingIds = new Set(qualifying.map((e) => e.id))
+
+    expect(result?.every((e) => qualifyingIds.has(e.id))).toBe(true)
+  })
+
+  it('excludes words where gap (maxBucket − bucket) is less than 2', () => {
+    const smallGap = makeEntries(5, { bucket: 5, maxBucket: 6 }) // gap = 1
+    const qualifying = makeEntries(5, { bucket: 3, maxBucket: 6 }) // gap = 3
+    const result = selectRecoveryWords([...smallGap, ...qualifying], 12, 5)
+
+    const qualifyingIds = new Set(qualifying.map((e) => e.id))
+
+    expect(result?.every((e) => qualifyingIds.has(e.id))).toBe(true)
+  })
+
+  it('includes words with gap exactly 2', () => {
+    const entries = makeEntries(5, { bucket: 4, maxBucket: 6 }) // gap = 2
+
+    expect(selectRecoveryWords(entries, 12, 5)).toHaveLength(5)
+  })
+
+  it('returns at most sessionSize words', () => {
+    const entries = makeEntries(20, { bucket: 2, maxBucket: 8 })
+
+    expect(selectRecoveryWords(entries, 12, 5)).toHaveLength(12)
+  })
+
+  it('returns all qualifying words when fewer than sessionSize exist', () => {
+    const entries = makeEntries(7, { bucket: 2, maxBucket: 6 })
+
+    expect(selectRecoveryWords(entries, 12, 5)).toHaveLength(7)
+  })
+
+  it('sorts by gap descending — biggest regressions first', () => {
+    const smallGap = makeEntries(3, { bucket: 4, maxBucket: 6 }) // gap = 2
+    const bigGap = makeEntries(3, { bucket: 1, maxBucket: 9 }) // gap = 8
+    const midGap = makeEntries(3, { bucket: 3, maxBucket: 6 }) // gap = 3
+    const result = selectRecoveryWords([...smallGap, ...bigGap, ...midGap], 12, 5)
+
+    const bigGapIds = new Set(bigGap.map((e) => e.id))
+    const midGapIds = new Set(midGap.map((e) => e.id))
+    const smallGapIds = new Set(smallGap.map((e) => e.id))
+
+    expect(result).not.toBeNull()
+
+    const resultIds = result?.map((e) => e.id) ?? []
+
+    // bigGap entries must all appear before midGap entries
+    const lastBigIdx = Math.max(...resultIds.map((id, i) => bigGapIds.has(id) ? i : -1))
+    const firstMidIdx = Math.min(...resultIds.map((id, i) => midGapIds.has(id) ? i : Infinity))
+    const lastMidIdx = Math.max(...resultIds.map((id, i) => midGapIds.has(id) ? i : -1))
+    const firstSmallIdx = Math.min(...resultIds.map((id, i) => smallGapIds.has(id) ? i : Infinity))
+
+    expect(lastBigIdx).toBeLessThan(firstMidIdx)
+    expect(lastMidIdx).toBeLessThan(firstSmallIdx)
+  })
+
+  it('uses score descending as tiebreaker within the same gap', () => {
+    const lowScore = makeEntry({ bucket: 2, maxBucket: 6, score: 1 }) // gap = 4
+    const highScore = makeEntry({ bucket: 2, maxBucket: 6, score: 5 }) // gap = 4
+    const filler = makeEntries(3, { bucket: 2, maxBucket: 6, score: 2 })
+    const result = selectRecoveryWords([lowScore, highScore, ...filler], 1, 5)
+
+    expect(result?.[0].id).toBe(highScore.id)
+  })
+
+  it('ignores due date — includes overdue and non-due time-based words equally', () => {
+    const neverAsked = makeEntry({ bucket: 4, maxBucket: 6, lastAskedAt: null })
+    const recentlyAsked = makeEntry({ bucket: 4, maxBucket: 6, lastAskedAt: NOW.toISOString() })
+    const filler = makeEntries(3, { bucket: 4, maxBucket: 6 })
+    const result = selectRecoveryWords([neverAsked, recentlyAsked, ...filler], 12, 5)
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    expect(ids.has(neverAsked.id)).toBe(true)
+    expect(ids.has(recentlyAsked.id)).toBe(true)
   })
 })

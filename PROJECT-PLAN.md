@@ -624,7 +624,7 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Focus session word selection | `srsSelection.ts` — `selectFocusWords()` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
 | Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal) | `sessionService.ts` — `createSession()` | ✓ complete |
-| Stress session word selection | `srsSelection.ts` — `selectStressWords()` | planned |
+| Stress session word selection | `srsSelection.ts` — `selectStressWords()` | ✓ complete |
 | Push back word (discovery sessions only) | `sessionService.ts` — `pushBackWord()` | ✓ complete |
 | Bucket promotion / demotion | `server/features/session/sessionService.ts` | ✓ complete |
 | Second-chance flow | `sessionService.ts` — `handleWrongAnswer()` / `handleCorrectAnswer()` | ✓ complete |
@@ -1239,7 +1239,7 @@ When W1 enters bucket 1.5:
 
 ---
 
-## Recovery Session (planned)
+## Recovery Session ✓
 
 A session type that targets words which were once well-learned but have since regressed — words the player used to know but has apparently forgotten again. The goal is to recover that lost knowledge through focused re-consolidation.
 
@@ -1271,12 +1271,12 @@ Example: a word that peaked at bucket 6 and now sits at bucket 2 qualifies (gap 
 - `TrainingScreen`: show "Recovery Session" label in the session title area
 
 **To-do:**
-- [ ] `shared/types/Session.ts`: add `'recovery'` to the `SessionType` union
-- [ ] `srsSelection.ts`: implement `selectRecoveryWords()` with gap + score sorting
-- [ ] `SessionService.createSession()`: add recovery check to `trySelectType()`
-- [ ] `SessionService` tests for recovery word selection and trigger threshold
-- [ ] New DB migration for `'recovery'` type CHECK constraint
-- [ ] `TrainingScreen`: display "Recovery Session" label
+- [x] `shared/types/Session.ts`: add `'recovery'` to the `SessionType` union
+- [x] `srsSelection.ts`: implement `selectRecoveryWords()` with gap + score sorting
+- [x] `SessionService.createSession()`: add recovery check to `trySelectType()`
+- [x] `SessionService` tests for recovery word selection and trigger threshold
+- [x] New DB migration for `'recovery'` type CHECK constraint
+- [x] `TrainingScreen`: display "Recovery Session" label
 
 ---
 

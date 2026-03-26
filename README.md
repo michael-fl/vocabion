@@ -120,7 +120,7 @@ The table below shows the earliest possible time to reach each group, assuming e
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are six automatic types drawn from a **shuffled round-robin rotation**: the app cycles through all six types in a random order, skipping any that aren't eligible, and reshuffles when all six have been considered. A seventh type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are seven automatic types drawn from a **shuffled round-robin rotation**: the app cycles through all seven types in a random order, skipping any that aren't eligible, and reshuffles when all seven have been considered. An eighth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
 #### Stress Session (weekly)
 
@@ -231,6 +231,21 @@ If qualifying words first reach 5 and no session is scheduled yet, the initial s
 
 After each breakthrough session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
+#### Recovery Session
+
+A **Recovery Session** targets words that were once genuinely mastered but have since regressed — words you used to know well but have apparently forgotten again.
+
+**Eligibility (per word — both conditions must hold):**
+- `maxBucket ≥ 6` — the word once reached veteran territory (genuinely mastered)
+- `maxBucket − bucket ≥ 2` — it has since fallen back by at least 2 full bucket levels
+
+**Trigger condition:** at least **5 qualifying words** exist. The session is part of the normal shuffled rotation and fires whenever the threshold is met — no weekly timer or scheduling involved.
+
+**Session rules:**
+- Up to **12 words**, selected regardless of due date — the point is targeted re-consolidation, not SRS scheduling.
+- Words are sorted by **regression gap descending** (`maxBucket − bucket`), with score descending as the tiebreaker — the biggest regressions come first.
+- Hints are available; second-chance flow applies for time-based wrong answers; credit rules are identical to a normal session.
+
 #### Repetition Session
 
 A **Repetition Session** is an intensive review of time-based words (buckets 4+) that are currently overdue.
@@ -296,12 +311,12 @@ A **★ Session** lets you practice all your starred (★) words in one focused 
 
 When you answer a time-based word (bucket 4+) **fully wrong**, the app gives you a second chance:
 
-1. A second word is inserted immediately after the current one — chosen from the full vocabulary (excluding words already in the session), preferring words with higher difficulty and higher bucket so the second chance is not too easy.
-2. How you answer that second word affects the original:
-   - **Second word correct** → original word drops one bucket (not back to 1). If the new bucket is still time-based (≥ 4), the word is scheduled to be due again within 24 hours — so it will appear in the next day's repetition session for quick consolidation.
-   - **Second word wrong or partial** → original word is reset to bucket 1.
+1. A second word (W2) is inserted immediately after the current one, chosen from the full vocabulary (excluding words already in the session). Selection is biased toward harder words: each candidate is scored as `difficulty × 2 + bucket`; the top 25% (or top 5, whichever is larger) form a pool, and one is picked at random.
+2. How you answer W2 affects the original word (W1):
+   - **W2 correct** → W1 enters the **second chance bucket** and is excluded from regular sessions until a dedicated Second Chance Session resolves it (see [Second Chance Session](#second-chance-session-highest-priority-at-most-once-per-day) above).
+   - **W2 wrong or partial** → W1 is reset to bucket 1 immediately.
 
-The second word itself is never affected — it only exists to give the original word a lifeline.
+W2 itself is never affected — it only exists to give W1 a lifeline.
 
 ---
 

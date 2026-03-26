@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 
-import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET } from './sessionService.ts'
+import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET, RECOVERY_MIN_WORDS } from './sessionService.ts'
 import { StressSessionService } from './stressSessionService.ts'
 import { VeteranSessionService, VETERAN_MIN_BUCKET6_WORDS } from './veteranSessionService.ts'
 import { BreakthroughSessionService } from './breakthroughSessionService.ts'
@@ -3072,5 +3072,71 @@ describe('submitAnswer — second_chance_session', () => {
     const hasSecondChanceWord = result.session.words.some((w) => w.secondChanceFor !== undefined)
 
     expect(hasSecondChanceWord).toBe(false)
+  })
+})
+
+// ── recovery session ──────────────────────────────────────────────────────────
+
+describe('recovery session — createSession', () => {
+  function makeRecoveryPool(count = RECOVERY_MIN_WORDS): VocabEntry[] {
+    return Array.from({ length: count }, (_, i) =>
+      makeEntry({ bucket: 2, maxBucket: 6, source: `Wort${i}`, target: [`word${i}`] }),
+    )
+  }
+
+  it('creates a recovery session when qualifying words meet the minimum', () => {
+    // Prevent breakthrough from firing (bucket-2 entries qualify as cat3)
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+
+    for (const e of makeRecoveryPool()) {
+      vocabRepo.insert(e)
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).toBe('recovery')
+  })
+
+  it('does not create a recovery session when fewer than minWords qualify', () => {
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+
+    // 4 qualifying words — one below RECOVERY_MIN_WORDS
+    for (const e of makeRecoveryPool(RECOVERY_MIN_WORDS - 1)) {
+      vocabRepo.insert(e)
+    }
+
+    // Add normal words to ensure a session can still be created
+    for (let i = 0; i < 10; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 0 }))
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).not.toBe('recovery')
+  })
+
+  it('does not include words with maxBucket < 6 in a recovery session', () => {
+    // Prevent breakthrough from firing
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+
+    // Only words with maxBucket 5 — should not qualify
+    for (let i = 0; i < 10; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 1, maxBucket: 5 }))
+    }
+
+    // Add enough qualifying words to trigger recovery
+    for (const e of makeRecoveryPool()) {
+      vocabRepo.insert(e)
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).toBe('recovery')
+
+    const allEntries = vocabRepo.findAll()
+    const nonQualifyingIds = new Set(allEntries.filter((e) => e.maxBucket < 6).map((e) => e.id))
+    const sessionVocabIds = session.words.map((w) => w.vocabId)
+
+    expect(sessionVocabIds.every((id) => !nonQualifyingIds.has(id))).toBe(true)
   })
 })
