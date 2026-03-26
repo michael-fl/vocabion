@@ -931,6 +931,10 @@ export class SessionService {
       } else if (entry.bucket === 0) {
         // Bucket 0 words always advance to bucket 1, even on a partial answer
         this.vocabRepo.update({ ...entry, bucket: 1, lastAskedAt: now })
+      } else if (entry.bucket >= 4 && !isDue(entry, new Date(now))) {
+        // Non-due time-based word answered partially: do not touch lastAskedAt —
+        // the SRS schedule was set when the word was last properly due, and an
+        // incidental early appearance should not interfere with it.
       } else {
         // Partially correct: word stays in its current bucket
         this.vocabRepo.update({ ...entry, lastAskedAt: now })

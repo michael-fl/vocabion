@@ -41,8 +41,8 @@ const APP_VERSION: string = __APP_VERSION__
 
 type AppScreen =
   | { name: 'home' }
-  | { name: 'training'; session: Session; vocabMap: Map<string, VocabEntry>; isReplay?: boolean }
-  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string; bucketMilestoneBonus: number; isReplay?: boolean }
+  | { name: 'training'; session: Session; vocabMap: Map<string, VocabEntry>; replayCount?: number }
+  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string; bucketMilestoneBonus: number; replayCount?: number }
   | { name: 'vocab' }
   | { name: 'settings' }
 
@@ -102,7 +102,7 @@ function App() {
           onComplete={(session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus) => {
             refreshCredits()
             refreshStreak()
-            setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus, isReplay: trainingScreen.isReplay })
+            setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus, replayCount: trainingScreen.replayCount })
           }}
           onAnswerSubmitted={refreshCredits}
           credits={credits}
@@ -122,7 +122,7 @@ function App() {
 
           const vocabMap = new Map(entries.map((e) => [e.id, e]))
 
-          setScreen({ name: 'training', session: replaySession, vocabMap, isReplay: true })
+          setScreen({ name: 'training', session: replaySession, vocabMap, replayCount: (summaryScreen.replayCount ?? 0) + 1 })
         } catch {
           // If the replay fails (e.g. a session is already open), do nothing.
         }
@@ -138,7 +138,7 @@ function App() {
           streakCredit={screen.streakCredit}
           milestoneLabel={screen.milestoneLabel}
           bucketMilestoneBonus={screen.bucketMilestoneBonus}
-          isReplay={screen.isReplay}
+          replayCount={screen.replayCount}
           onReplay={() => { void handleReplay() }}
           onBack={() => {
             refreshStreak()

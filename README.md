@@ -182,11 +182,14 @@ If you have at least 5 words with a **priority score of 2 or higher** (see [Word
 
 #### Focus Replay
 
-After completing a Focus Session where **25% or more of answers were wrong or partial**, the session summary screen offers a one-time **"Play again"** button.
+After completing a Focus Session with enough errors, the session summary screen offers a **"Play again"** button for up to two additional attempts.
 
 - The replay contains the **exact same words** as the original, reshuffled into a random new order.
-- It is treated as a fully independent Focus Session: earns credits, perfect bonus, bucket promotions, and streak credit exactly like any other session.
-- **One replay per session** — the offer never appears on a replay's own summary screen, so replays cannot chain.
+- It is treated as a fully independent Focus Session: earns credits, perfect bonus, bucket promotions, and streak credit exactly like any other session. Exception: a word that was already promoted into a time-based bucket (4+) during the original session or a previous replay is no longer due, so it will appear for practice but cannot be promoted further until its normal due date arrives.
+- **Up to two replays per session:**
+  - **Replay 1** is offered after the original Focus Session if **25% or more** of answers were wrong or partial.
+  - **Replay 2** is offered after Replay 1 if **at least 1** answer was wrong or partial.
+  - After Replay 2, no further replay is offered.
 - If you decline (or navigate away), the offer is gone permanently for that session.
 - The normal session-type rotation is unaffected either way.
 

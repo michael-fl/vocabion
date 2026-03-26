@@ -536,7 +536,7 @@ In practice D grows slowly — roughly 1 new occupied bucket per week of daily p
 
 A word with ≥ 2 required translations can be answered partially correct (exactly one of two
 answers is right). Partial correctness is treated as a mild failure:
-- **Partial answer** → word stays in its current bucket; `lastAskedAt` set to now.
+- **Partial answer** → word stays in its current bucket; `lastAskedAt` set to now (except for non-due time-based words — see below).
   No second-chance word is drawn, even for time-based buckets.
 
 **Promotion and demotion — frequency-based buckets (0–3):**
@@ -552,6 +552,10 @@ A **correct** answer on a time-based word only promotes the word if it is curren
 (`elapsed ≥ interval`). If the word is not yet due (e.g. it was included in a focus session
 ahead of schedule), the bucket is left unchanged and `lastAskedAt` is **not updated** — the
 SRS schedule is left entirely intact so the user is not penalised for an incidental early review.
+
+A **partial** answer on a non-due time-based word follows the same rule: the bucket is left
+unchanged and `lastAskedAt` is **not updated**. (For due time-based words and all frequency
+buckets, a partial answer still sets `lastAskedAt` to now as usual.)
 
 A **fully wrong** answer on a time-based word triggers a second-chance flow:
 
@@ -1112,12 +1116,13 @@ The codebase currently has German/English hardcoded throughout. This refactoring
 
 ## Focus Replay ✓
 
-After completing a focus session where **25% or more of answers were wrong or partial**, the session summary screen offers the user a one-time chance to replay the same session.
+After completing a focus session with enough errors, the session summary screen offers the user up to **two** chances to replay the same session.
 
-**Trigger conditions (all must be met):**
+**Trigger conditions:**
 - The completed session is of type `focus`
-- Error rate ≥ 25%: `(wrong + partial answers) / total words >= 0.25` (e.g. 3 or more errors in a 12-word session)
-- The session has not already been replayed (enforced by a flag so the offer never appears twice for the same original session)
+- **Replay 1** (after original session): error rate ≥ 25% — `(wrong + partial answers) / total words >= 0.25` (e.g. 3 or more errors in a 12-word session)
+- **Replay 2** (after Replay 1): at least 1 answer in Replay 1 was wrong or partial
+- No further replay is offered after Replay 2
 
 **The offer:**
 - Displayed on the **session summary screen**, below the regular summary content — a clearly visible prompt and a single "Play again" button
@@ -1128,10 +1133,9 @@ After completing a focus session where **25% or more of answers were wrong or pa
 - Contains the **exact same words** as the original, but **reshuffled** (random new order)
 - Stored as a plain `focus` session — no special marker or flag
 - Treated as a fully independent new session: earns credits, perfect bonus, bucket promotions, and streak credit exactly as any other session would (streak +1 only fires if it is the first session of that calendar day)
-- The replay itself cannot trigger another replay offer — one replay per original session maximum
 
 **Implementation:**
-- `SummaryScreen`: computes the error rate from the completed session's word list (original words only, second-chance words excluded); if ≥ 25%, renders the replay prompt and "Play again" button. The `isReplay` prop (passed through `App.tsx` training → summary state) suppresses the offer for replay summaries.
+- `SummaryScreen`: computes the error rate from the completed session's word list (original words only, second-chance words excluded). The `replayCount` prop (passed through `App.tsx` training → summary state) tracks how many replays have already been played: `0` = original session, `1` = after Replay 1, `2` = after Replay 2. The offer is shown only when appropriate for the current `replayCount`.
 - `POST /api/v1/session/:id/replay` endpoint in `sessionRouter.ts` → `SessionService.createReplaySession(originalSessionId)`: looks up the completed focus session, excludes second-chance words, reshuffles the vocab IDs, inserts a new open `focus` session.
 - `createReplaySession(sessionId)` in `sessionApi.ts` calls the endpoint.
 - No new `SessionType` value — replay sessions are plain `focus`.

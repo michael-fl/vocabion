@@ -477,6 +477,36 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
 
     expect(vocabRepo.findById(entry.id)?.bucket).toBe(5)
   })
+
+  it('does not update lastAskedAt for a non-due time-based word answered partially', () => {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+
+    // Two-target word so a single correct answer counts as partial
+    const entry = makeEntry({ bucket: 4, target: ['word1', 'word2'], lastAskedAt: oneHourAgo })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word1'])
+
+    expect(vocabRepo.findById(entry.id)?.lastAskedAt).toBe(oneHourAgo)
+  })
+
+  it('still updates lastAskedAt for a due time-based word answered partially', () => {
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+
+    // Two-target word so a single correct answer counts as partial
+    const entry = makeEntry({ bucket: 4, target: ['word1', 'word2'], lastAskedAt: twoDaysAgo })
+    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word1'])
+
+    expect(vocabRepo.findById(entry.id)?.lastAskedAt).not.toBe(twoDaysAgo)
+  })
 })
 
 // ── submitAnswer — time-based bucket second-chance flow ───────────────────────

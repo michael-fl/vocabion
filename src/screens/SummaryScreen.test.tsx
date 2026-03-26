@@ -170,10 +170,27 @@ describe('Focus Replay offer', () => {
     expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
   })
 
-  it('does not show the replay offer when isReplay is true (no chained replays)', () => {
+  it('does not show the replay offer when replayCount is 2 (maximum replays reached)', () => {
     const session = makeFocusSession(12, 3)
 
-    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} isReplay />)
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} replayCount={2} />)
+
+    expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
+  })
+
+  it('shows Replay 2 offer when replayCount is 1 and there is at least 1 incorrect answer', () => {
+    // 1 incorrect out of 12 — below 25% threshold, but qualifies for Replay 2
+    const session = makeFocusSession(12, 1)
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} replayCount={1} />)
+
+    expect(screen.getByRole('button', { name: 'Play again' })).toBeInTheDocument()
+  })
+
+  it('does not show Replay 2 offer when replayCount is 1 and all answers were correct', () => {
+    const session = makeFocusSession(12, 0)
+
+    render(<SummaryScreen session={session} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} replayCount={1} />)
 
     expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
   })
