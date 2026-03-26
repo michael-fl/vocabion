@@ -540,7 +540,11 @@ export function TrainingScreen({
                   ? 'Stress Session'
                   : currentSession.type === 'veteran'
                     ? 'Veteran Session'
-                    : 'Learning Session'}
+                    : currentSession.type === 'breakthrough'
+                      ? 'Breakthrough Session'
+                      : currentSession.type === 'second_chance_session'
+                        ? 'Second Chance Session'
+                        : 'Learning Session'}
         </h2>
         <p className={styles.meta}>{answered} of {total} answered</p>
       </div>
@@ -694,7 +698,7 @@ export function TrainingScreen({
             <button
               type="button"
               onClick={() => void handleHint()}
-              disabled={displayedBucket === 0 || credits === null || credits < hintCost || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint}
+              disabled={displayedBucket === 0 || credits === null || credits < hintCost || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint || currentSession.type === 'second_chance_session'}
             >
               {displayedBucket === 0 ? 'Hint (auto)' : `Hint (${hintCost} credits)`}
             </button>

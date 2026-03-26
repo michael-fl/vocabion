@@ -33,6 +33,7 @@ interface VocabEntryRow {
   last_asked_at: string | null
   created_at: string
   updated_at: string
+  second_chance_due_at: string | null
 }
 
 function rowToEntry(row: VocabEntryRow): VocabEntry {
@@ -50,6 +51,7 @@ function rowToEntry(row: VocabEntryRow): VocabEntry {
     lastAskedAt: row.last_asked_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    secondChanceDueAt: row.second_chance_due_at,
   }
 }
 
@@ -83,8 +85,8 @@ export class SqliteVocabRepository implements VocabRepository {
   insert(entry: VocabEntry): void {
     this.db
       .prepare(
-        `INSERT INTO vocab_entries (id, source, target, bucket, max_bucket, max_score, difficulty, manually_added, marked, score, last_asked_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO vocab_entries (id, source, target, bucket, max_bucket, max_score, difficulty, manually_added, marked, score, last_asked_at, created_at, updated_at, second_chance_due_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         entry.id,
@@ -100,6 +102,7 @@ export class SqliteVocabRepository implements VocabRepository {
         entry.lastAskedAt,
         entry.createdAt,
         entry.updatedAt,
+        entry.secondChanceDueAt,
       )
   }
 
@@ -107,7 +110,7 @@ export class SqliteVocabRepository implements VocabRepository {
     this.db
       .prepare(
         `UPDATE vocab_entries
-         SET source = ?, target = ?, bucket = ?, max_bucket = ?, max_score = ?, difficulty = ?, manually_added = ?, marked = ?, score = ?, last_asked_at = ?, updated_at = ?
+         SET source = ?, target = ?, bucket = ?, max_bucket = ?, max_score = ?, difficulty = ?, manually_added = ?, marked = ?, score = ?, last_asked_at = ?, updated_at = ?, second_chance_due_at = ?
          WHERE id = ?`,
       )
       .run(
@@ -122,6 +125,7 @@ export class SqliteVocabRepository implements VocabRepository {
         entry.score,
         entry.lastAskedAt,
         entry.updatedAt,
+        entry.secondChanceDueAt,
         entry.id,
       )
   }

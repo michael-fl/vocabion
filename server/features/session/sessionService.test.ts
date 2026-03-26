@@ -9,11 +9,12 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET } from './sessionService.ts'
 import { StressSessionService } from './stressSessionService.ts'
 import { VeteranSessionService, VETERAN_MIN_BUCKET6_WORDS } from './veteranSessionService.ts'
+import { BreakthroughSessionService } from './breakthroughSessionService.ts'
+import { SecondChanceSessionService } from './secondChanceSessionService.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
 import { FakeVocabRepository } from '../../test-utils/FakeVocabRepository.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
-import { isDue } from './srsSelection.ts'
 import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 import type { Session } from '../../../shared/types/Session.ts'
 
@@ -38,6 +39,7 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
+    secondChanceDueAt: null,
     maxBucket: 0,
     maxScore: 0,
     difficulty: 0,
@@ -76,7 +78,7 @@ beforeEach(() => {
   creditsRepo = new FakeCreditsRepository()
   // Use identity shuffle so the sequence is always [stress, discovery, focus, veteran, repetition, normal].
   // This makes type-selection tests deterministic without relying on alternation state.
-  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), (types) => [...types])
+  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo), (types) => [...types])
 })
 
 // ── getOpenSession ────────────────────────────────────────────────────────────
@@ -449,8 +451,7 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
     expect(vocabRepo.findById(entry.id)?.bucket).toBe(4)
   })
 
-  it('still updates lastAskedAt for a non-due time-based word answered correctly', () => {
-    // Use a timestamp 1 hour ago so the new lastAskedAt will be strictly later
+  it('does not update lastAskedAt for a non-due time-based word answered correctly', () => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     const entry = makeEntry({ bucket: 4, target: ['word'], lastAskedAt: oneHourAgo })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
@@ -460,10 +461,7 @@ describe('submitAnswer — correct on time bucket (bucket ≥ 4)', () => {
 
     service.submitAnswer(session.id, entry.id, ['word'])
 
-    const updated = vocabRepo.findById(entry.id)
-
-    expect(updated?.lastAskedAt).not.toBeNull()
-    expect(updated?.lastAskedAt).not.toBe(oneHourAgo)
+    expect(vocabRepo.findById(entry.id)?.lastAskedAt).toBe(oneHourAgo)
   })
 
   it('still promotes a due time-based word when answered correctly', () => {
@@ -549,7 +547,7 @@ describe('submitAnswer — wrong on time bucket (second-chance)', () => {
 // ── submitAnswer — second-chance word correct ─────────────────────────────────
 
 describe('submitAnswer — second-chance word correct', () => {
-  it('returns outcome "second_chance_correct", newBucket = W2 bucket (unchanged), w1NewBucket = W1 bucket-1', () => {
+  it('returns outcome "second_chance_correct", newBucket = W2 bucket (unchanged), w1NewBucket = W1 bucket (preserved)', () => {
     const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
     const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
@@ -567,7 +565,7 @@ describe('submitAnswer — second-chance word correct', () => {
 
     expect(result.outcome).toBe('second_chance_correct')
     expect(result.newBucket).toBe(4)
-    expect(result.w1NewBucket).toBe(3)
+    expect(result.w1NewBucket).toBe(4)
   })
 
   it('keeps W2 in its current bucket', () => {
@@ -589,7 +587,7 @@ describe('submitAnswer — second-chance word correct', () => {
     expect(vocabRepo.findById(w2.id)?.bucket).toBe(4)
   })
 
-  it('demotes W1 to bucket - 1', () => {
+  it('places W1 in second chance bucket: bucket preserved, secondChanceDueAt set', () => {
     const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
     const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
@@ -603,12 +601,22 @@ describe('submitAnswer — second-chance word correct', () => {
     vocabRepo.insert(w2)
     sessionRepo.insert(session)
 
+    const before = Date.now()
+
     service.submitAnswer(session.id, w2.id, ['other'])
 
-    expect(vocabRepo.findById(w1.id)?.bucket).toBe(3)
+    const w1Updated = vocabRepo.findById(w1.id)
+
+    expect(w1Updated?.bucket).toBe(4)
+    expect(w1Updated?.secondChanceDueAt).not.toBeNull()
+
+    const dueAt = new Date(w1Updated?.secondChanceDueAt ?? '').getTime()
+
+    // dueAt must be at least now + 12 h
+    expect(dueAt).toBeGreaterThanOrEqual(before + 12 * 60 * 60 * 1000)
   })
 
-  it('sets W1 lastAskedAt so it is not due immediately but is due after 24 h (new bucket is time-based)', () => {
+  it('preserves W1 original bucket and sets secondChanceDueAt at least 12 h from now', () => {
     const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['word'] })
     const w2 = makeEntry({ id: 'w2', bucket: 5, target: ['other'] })
     const session = makeSession({
@@ -622,23 +630,20 @@ describe('submitAnswer — second-chance word correct', () => {
     vocabRepo.insert(w2)
     sessionRepo.insert(session)
 
+    const before = Date.now()
+
     service.submitAnswer(session.id, w2.id, ['other'])
 
     const w1Updated = vocabRepo.findById(w1.id)
 
-    expect(w1Updated?.bucket).toBe(4)
+    expect(w1Updated?.bucket).toBe(5)
 
-    const DAY_MS = 24 * 60 * 60 * 1000
+    const dueAt = new Date(w1Updated?.secondChanceDueAt ?? '').getTime()
 
-    if (w1Updated === undefined) { throw new Error('w1 not found') }
-
-    // Not due right now
-    expect(isDue(w1Updated, new Date())).toBe(false)
-    // Due after 24 h
-    expect(isDue(w1Updated, new Date(Date.now() + DAY_MS))).toBe(true)
+    expect(dueAt).toBeGreaterThanOrEqual(before + 12 * 60 * 60 * 1000)
   })
 
-  it('uses lastAskedAt = now for W1 when new bucket is a frequency bucket (< 4)', () => {
+  it('sets W1 lastAskedAt to now when entering second chance bucket', () => {
     const w1 = makeEntry({ id: 'w1', bucket: 4, target: ['word'] })
     const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other'] })
     const session = makeSession({
@@ -659,7 +664,7 @@ describe('submitAnswer — second-chance word correct', () => {
     const after = Date.now()
     const w1Updated = vocabRepo.findById(w1.id)
 
-    expect(w1Updated?.bucket).toBe(3)
+    expect(w1Updated?.bucket).toBe(4)
 
     const lastAskedAt = new Date(w1Updated?.lastAskedAt ?? '').getTime()
 
@@ -891,6 +896,9 @@ describe('createSession — session type alternation', () => {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
+    // Prevent breakthrough from firing (bucket-4 entries qualify as cat3)
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+
     const prevSession = makeSession({ status: 'completed', type: 'normal' })
 
     sessionRepo.insert(prevSession)
@@ -907,6 +915,9 @@ describe('createSession — session type alternation', () => {
 
     // Also add some frequency words that should NOT appear
     vocabRepo.insert(makeEntry({ bucket: 0 }))
+
+    // Prevent breakthrough from firing (bucket-4 entries qualify as cat3)
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
 
     const prevSession = makeSession({ status: 'completed', type: 'normal' })
 
@@ -948,6 +959,9 @@ describe('createSession — session type alternation', () => {
     for (let i = 0; i < 12; i++) {
       vocabRepo.insert(makeDueTimeEntry())
     }
+
+    // Prevent breakthrough from firing (bucket-4 entries qualify as cat3)
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
 
     const fallbackNormal = makeSession({ status: 'completed', type: 'normal' })
 
@@ -2659,6 +2673,115 @@ describe('veteran session — answer scoring', () => {
   })
 })
 
+// ── breakthrough session ──────────────────────────────────────────────────────
+
+describe('breakthrough session — createSession', () => {
+  function makeBreakthroughPool(): VocabEntry[] {
+    return Array.from({ length: 5 }, (_, i) =>
+      makeEntry({ bucket: 3, source: `Wort${i}`, target: [`word${i}`] }),
+    )
+  }
+
+  it('creates a breakthrough session when all conditions are met', () => {
+    creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
+
+    for (const e of makeBreakthroughPool()) {
+      vocabRepo.insert(e)
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).toBe('breakthrough')
+  })
+
+  it('does not create a breakthrough session when due date is in the future', () => {
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+
+    for (const e of makeBreakthroughPool()) {
+      vocabRepo.insert(e)
+    }
+
+    // Add normal words so createSession doesn't throw
+    for (let i = 0; i < 10; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 0 }))
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).not.toBe('breakthrough')
+  })
+
+  it('does not create a breakthrough session when pool is below minimum', () => {
+    creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
+
+    // Only 4 qualifying words — below BREAKTHROUGH_MIN_WORDS of 5
+    for (let i = 0; i < 4; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 3, source: `Wort${i}`, target: [`word${i}`] }))
+    }
+
+    for (let i = 0; i < 10; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 0 }))
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).not.toBe('breakthrough')
+  })
+
+  it('schedules the first breakthrough session when qualifying words first reach minimum', () => {
+    for (const e of makeBreakthroughPool()) {
+      vocabRepo.insert(e)
+    }
+
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(creditsRepo.getBreakthroughSessionDueAt()).not.toBeNull()
+  })
+
+  it('does not overwrite an already-scheduled breakthrough due date on createSession', () => {
+    creditsRepo.setBreakthroughSessionDueAt('2026-05-01')
+
+    for (const e of makeBreakthroughPool()) {
+      vocabRepo.insert(e)
+    }
+
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(creditsRepo.getBreakthroughSessionDueAt()).toBe('2026-05-01')
+  })
+})
+
+describe('breakthrough session — answer scoring', () => {
+  function makeBreakthroughSession(words: VocabEntry[]): Session {
+    return makeSession({
+      type: 'breakthrough',
+      words: words.map((e) => ({ vocabId: e.id, status: 'pending' as const })),
+    })
+  }
+
+  it('schedules next breakthrough session after completion', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
+
+    vocabRepo.insert(entry)
+    creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
+
+    const sess = makeBreakthroughSession([entry])
+
+    sessionRepo.insert(sess)
+
+    service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    const newDueAt = creditsRepo.getBreakthroughSessionDueAt()
+
+    expect(newDueAt).not.toBeNull()
+
+    if (newDueAt !== null) {
+      // Next due at is at least 6 days after today
+      expect(newDueAt > '2026-03-27').toBe(true)
+    }
+  })
+})
+
 // ── createReplaySession ───────────────────────────────────────────────────────
 
 describe('createReplaySession', () => {
@@ -2786,5 +2909,138 @@ describe('createReplaySession', () => {
     service.createReplaySession(original.id)
 
     expect(service.getOpenSession()).toBeDefined()
+  })
+})
+
+// ── createSession — second_chance_session ─────────────────────────────────────
+
+describe('createSession — second_chance_session', () => {
+  const PAST = '2020-01-01T00:00:00.000Z'
+
+  it('creates a second_chance_session when due words exist and no session played today', () => {
+    vocabRepo.insert(makeEntry({ bucket: 5, secondChanceDueAt: PAST }))
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 24 })
+
+    expect(session.type).toBe('second_chance_session')
+  })
+
+  it('does not create a second_chance_session when no words are due', () => {
+    // Only regular words, no secondChanceDueAt
+    for (let i = 0; i < 5; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 0 }))
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
+
+    expect(session.type).not.toBe('second_chance_session')
+  })
+
+  it('does not create a second_chance_session if one was already played today', () => {
+    const today = new Date().toISOString().slice(0, 10)
+
+    creditsRepo.setLastSecondChanceSessionDate(today)
+    vocabRepo.insert(makeEntry({ bucket: 5, secondChanceDueAt: PAST }))
+    // Also add regular vocab so a normal session is possible
+    for (let i = 0; i < 5; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 0 }))
+    }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
+
+    expect(session.type).not.toBe('second_chance_session')
+  })
+
+  it('includes only due second-chance words in the session', () => {
+    const dueWord = makeEntry({ id: 'due', bucket: 4, secondChanceDueAt: PAST })
+    const futureWord = makeEntry({ id: 'future', bucket: 4, secondChanceDueAt: '2099-01-01T00:00:00Z' })
+
+    vocabRepo.insert(dueWord)
+    vocabRepo.insert(futureWord)
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 24 })
+
+    expect(session.type).toBe('second_chance_session')
+    expect(session.words.map((w) => w.vocabId)).toContain('due')
+    expect(session.words.map((w) => w.vocabId)).not.toContain('future')
+  })
+})
+
+// ── submitAnswer — second_chance_session ──────────────────────────────────────
+
+describe('submitAnswer — second_chance_session', () => {
+  const PAST = '2020-01-01T00:00:00.000Z'
+
+  it('correct answer clears secondChanceDueAt and preserves bucket', () => {
+    const entry = makeEntry({ id: 'e1', bucket: 6, secondChanceDueAt: PAST, target: ['word'] })
+    const session = makeSession({
+      type: 'second_chance_session',
+      words: [{ vocabId: entry.id, status: 'pending' }],
+    })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    const updated = vocabRepo.findById(entry.id)
+
+    expect(updated?.secondChanceDueAt).toBeNull()
+    expect(updated?.bucket).toBe(6)
+  })
+
+  it('incorrect answer sets bucket = 1 and clears secondChanceDueAt', () => {
+    const entry = makeEntry({ id: 'e1', bucket: 6, secondChanceDueAt: PAST, target: ['word'] })
+    const session = makeSession({
+      type: 'second_chance_session',
+      words: [{ vocabId: entry.id, status: 'pending' }],
+    })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['wrong'])
+
+    const updated = vocabRepo.findById(entry.id)
+
+    expect(updated?.bucket).toBe(1)
+    expect(updated?.secondChanceDueAt).toBeNull()
+  })
+
+  it('calls scheduleCompletion when session is completed', () => {
+    const entry = makeEntry({ id: 'e1', bucket: 5, secondChanceDueAt: PAST, target: ['word'] })
+    const session = makeSession({
+      type: 'second_chance_session',
+      words: [{ vocabId: entry.id, status: 'pending' }],
+    })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(session)
+
+    service.submitAnswer(session.id, entry.id, ['word'])
+
+    const today = new Date().toISOString().slice(0, 10)
+
+    expect(creditsRepo.getLastSecondChanceSessionDate()).toBe(today)
+  })
+
+  it('does not trigger a second-chance word for wrong answers (no W2 appended)', () => {
+    const entry = makeEntry({ id: 'e1', bucket: 6, secondChanceDueAt: PAST, target: ['word'] })
+    // Add a second word the service could pick as W2
+    const other = makeEntry({ id: 'other', bucket: 6, target: ['other'] })
+    const session = makeSession({
+      type: 'second_chance_session',
+      words: [{ vocabId: entry.id, status: 'pending' }],
+    })
+
+    vocabRepo.insert(entry)
+    vocabRepo.insert(other)
+    sessionRepo.insert(session)
+
+    const result = service.submitAnswer(session.id, entry.id, ['wrong'])
+
+    const hasSecondChanceWord = result.session.words.some((w) => w.secondChanceFor !== undefined)
+
+    expect(hasSecondChanceWord).toBe(false)
   })
 })

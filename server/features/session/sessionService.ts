@@ -19,8 +19,7 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
 import { checkAnswerDetailed } from './answerValidation.ts'
 import type { TypoMatch } from './answerValidation.ts'
-import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, isDue } from './srsSelection.ts'
-import { getIntervalMs } from '../../../shared/utils/srsInterval.ts'
+import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords, isDue } from './srsSelection.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
@@ -28,6 +27,10 @@ import type { StressSessionService } from './stressSessionService.ts'
 import { STRESS_MIN_CREDITS, STRESS_MIN_WORDS, STRESS_SESSION_SIZE, calcStressFee } from './stressSessionService.ts'
 import type { VeteranSessionService } from './veteranSessionService.ts'
 import { VETERAN_MIN_BUCKET6_WORDS, VETERAN_MIN_WORDS } from './veteranSessionService.ts'
+import type { BreakthroughSessionService } from './breakthroughSessionService.ts'
+import { BREAKTHROUGH_MIN_WORDS, BREAKTHROUGH_SESSION_SIZE } from './breakthroughSessionService.ts'
+import type { SecondChanceSessionService } from './secondChanceSessionService.ts'
+import { SECOND_CHANCE_SESSION_SIZE } from './secondChanceSessionService.ts'
 import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -50,6 +53,8 @@ export interface CreateSessionOptions {
   repetitionSize?: number
   /** Number of words in a discovery session. Defaults to 24 if not provided. */
   discoverySize?: number
+  /** Number of words in a veteran session. Defaults to `size` if not provided. */
+  veteranSize?: number
 }
 
 /**
@@ -139,7 +144,7 @@ export interface AnswerResult {
 // ── Service ───────────────────────────────────────────────────────────────────
 
 /** The automatic session types that participate in the shuffle rotation. */
-const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'veteran', 'repetition', 'normal']
+const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'veteran', 'breakthrough', 'repetition', 'normal']
 
 /** Fisher-Yates shuffle. Returns a new array. */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -163,6 +168,8 @@ export class SessionService {
     private readonly creditsRepo: CreditsRepository,
     private readonly stressService: StressSessionService,
     private readonly veteranService: VeteranSessionService,
+    private readonly breakthroughService: BreakthroughSessionService,
+    private readonly secondChanceService: SecondChanceSessionService,
     /** Override the shuffle function — used in tests to get a deterministic sequence. */
     private readonly shuffleFn: (types: SessionType[]) => SessionType[] = shuffleArray,
   ) {}
@@ -176,7 +183,7 @@ export class SessionService {
    * Creates a new training session using the SRS word selection algorithm.
    *
    * Session types are drawn from a shuffled round-robin sequence containing all
-   * six automatic types (stress, discovery, focus, veteran, repetition, normal).
+   * seven automatic types (stress, discovery, focus, veteran, breakthrough, repetition, normal).
    * The sequence is advanced until a type whose eligibility conditions are met is
    * found. When the sequence is exhausted it is reshuffled. Starred sessions are
    * always manual and never part of this rotation.
@@ -203,10 +210,40 @@ export class SessionService {
 
     const now = new Date()
     const today = now.toISOString().slice(0, 10)
+
+    // Pre-rotation: second chance session has highest priority.
+    // Checked before the round-robin so it always fires first when due.
+    if (this.secondChanceService.isAvailable(today)) {
+      const secondChanceWords = selectSecondChanceSessionWords(allEntries, SECOND_CHANCE_SESSION_SIZE, now)
+
+      if (secondChanceWords.length > 0) {
+        const session: Session = {
+          id: crypto.randomUUID(),
+          direction: options.direction,
+          type: 'second_chance_session',
+          words: secondChanceWords.map((e) => ({ vocabId: e.id, status: 'pending' })),
+          status: 'open',
+          createdAt: now.toISOString(),
+          firstAnsweredAt: null,
+        }
+
+        this.sessionRepo.insert(session)
+
+        return session
+      }
+    }
+
+    // Words in the second chance bucket are excluded from the regular rotation.
+    const regularEntries = allEntries.filter((e) => e.secondChanceDueAt === null)
+
+    if (regularEntries.length === 0) {
+      throw new ApiError(400, 'No vocabulary entries are available for a session')
+    }
+
     const discSize = options.discoverySize ?? 24
     const repSize = options.repetitionSize ?? 24
     const balance = this.creditsRepo.getBalance()
-    const bucket6PlusCount = allEntries.filter((e) => e.bucket >= 6).length
+    const bucket6PlusCount = regularEntries.filter((e) => e.bucket >= 6).length
 
     // Trigger first-time scheduling for timed session types.
     if (balance >= STRESS_MIN_CREDITS) {
@@ -215,6 +252,10 @@ export class SessionService {
 
     if (bucket6PlusCount >= VETERAN_MIN_BUCKET6_WORDS) {
       this.veteranService.scheduleFirst(today)
+    }
+
+    if (selectBreakthroughWords(regularEntries, BREAKTHROUGH_SESSION_SIZE, BREAKTHROUGH_MIN_WORDS, now) !== null) {
+      this.breakthroughService.scheduleFirst(today)
     }
 
     // Advance through the shuffled sequence until a qualifying type is found.
@@ -231,7 +272,7 @@ export class SessionService {
       const candidate = this.sequence[this.sequenceIndex]
       this.sequenceIndex++
 
-      const words = this.trySelectType(candidate, allEntries, today, balance, bucket6PlusCount, options, now, discSize, repSize)
+      const words = this.trySelectType(candidate, regularEntries, today, balance, bucket6PlusCount, options, now, discSize, repSize)
 
       if (words !== null) {
         selected = words
@@ -320,7 +361,7 @@ export class SessionService {
       throw new ApiError(409, 'A starred session has already been completed today')
     }
 
-    const selected = selectStarredWords(this.vocabRepo.findAll(), 100)
+    const selected = selectStarredWords(this.vocabRepo.findAll().filter((e) => e.secondChanceDueAt === null), 100)
 
     if (selected === null || selected.length < STARRED_MIN_WORDS) {
       throw new ApiError(400, `At least ${STARRED_MIN_WORDS} starred words are required for a starred session`)
@@ -433,6 +474,10 @@ export class SessionService {
         return this.veteranService.isAvailable(today, bucket6PlusCount)
           ? selectVeteranWords(allEntries, options.veteranSize, VETERAN_MIN_WORDS)
           : null
+      case 'breakthrough':
+        return this.breakthroughService.isAvailable(today)
+          ? selectBreakthroughWords(allEntries, BREAKTHROUGH_SESSION_SIZE, BREAKTHROUGH_MIN_WORDS, now)
+          : null
       case 'repetition': {
         const words = selectRepetitionWords(allEntries, repSize, now)
 
@@ -512,7 +557,11 @@ export class SessionService {
     const isStress = session.type === 'stress'
     const stressFee = isStress ? calcStressFee(session.words.length) : undefined
 
-    if (correct) {
+    if (session.type === 'second_chance_session') {
+      const result = this.handleSecondChanceSessionWord(word, entry, updatedWords, wordIndex, now, correct, isPartial)
+      outcome = result.outcome
+      answerCost = result.answerCost
+    } else if (correct) {
       const result = this.handleCorrectAnswer(word, entry, updatedWords, wordIndex, now, checkResult.typos, !isStress)
       outcome = result.outcome
       creditsEarned = result.creditsEarned
@@ -561,6 +610,14 @@ export class SessionService {
 
       if (updatedSession.type === 'veteran') {
         this.veteranService.scheduleNext(now.slice(0, 10))
+      }
+
+      if (updatedSession.type === 'breakthrough') {
+        this.breakthroughService.scheduleNext(now.slice(0, 10))
+      }
+
+      if (updatedSession.type === 'second_chance_session') {
+        this.secondChanceService.scheduleCompletion(now.slice(0, 10))
       }
 
       const isPerfect =
@@ -753,35 +810,26 @@ export class SessionService {
     updatedWords[wordIndex] = { ...word, status: 'correct' }
 
     if (word.secondChanceFor !== undefined) {
-      // Second-chance word answered correctly: W2 stays, W1 moves to bucket - 1.
-      // W1's lastAskedAt is backdated so it becomes due again in ~24 h, ensuring
-      // it appears in the next day's repetition session regardless of the new bucket's
-      // normal interval.
+      // Second-chance word answered correctly: W2 stays, W1 enters bucket 1.5.
+      // W1's bucket value is preserved (it holds the restore target). A secondChanceDueAt
+      // timestamp is set so W1 will appear in an upcoming second chance session.
       this.vocabRepo.update({ ...entry, lastAskedAt: now })
 
       const w1 = this.vocabRepo.findById(word.secondChanceFor)
 
       if (w1 !== undefined) {
-        const newBucket = Math.max(0, w1.bucket - 1)
+        const secondChanceDueAt = this.secondChanceService.calcDueAt(new Date(now))
 
-        // For time-based buckets (≥ 4), backdate lastAskedAt so w1 becomes due in ~24 h,
-        // ensuring it appears in the next day's repetition session.
-        // For frequency buckets (< 4), use now — the word will appear in every normal session anyway.
-        const newLastAskedAt = newBucket >= 4
-          ? new Date(new Date(now).getTime() - getIntervalMs(newBucket) + 24 * 60 * 60 * 1000).toISOString()
-          : now
-
-        this.vocabRepo.update({ ...w1, bucket: newBucket, lastAskedAt: newLastAskedAt })
+        this.vocabRepo.update({ ...w1, secondChanceDueAt, lastAskedAt: now })
       }
 
       return { outcome: typos.length > 0 ? 'second_chance_correct_typo' : 'second_chance_correct', creditsEarned: 0, bucketMilestoneBonus: 0 }
     }
 
-    // Non-due time-based word answered correctly: reset the timer but do not promote.
-    // Promotion is only earned when the word is actually due — answering early should
-    // not accelerate the SRS schedule.
+    // Non-due time-based word answered correctly: do not promote and do not touch
+    // lastAskedAt — the SRS schedule was set when the word was last properly due,
+    // and an incidental early appearance should not interfere with it.
     if (entry.bucket >= 4 && !isDue(entry, new Date(now))) {
-      this.vocabRepo.update({ ...entry, lastAskedAt: now })
       return { outcome: typos.length > 0 ? 'correct_typo' : 'correct', creditsEarned: 0, bucketMilestoneBonus: 0 }
     }
 
@@ -936,6 +984,47 @@ export class SessionService {
    * — is collected. The final word is picked at random from that tier, so the
    * selection is biased toward hard words without being fully deterministic.
    */
+  /**
+   * Handles a word answer inside a second chance session.
+   *
+   * - Correct → clears `secondChanceDueAt`; word is restored to its original bucket
+   *   (already held in `entry.bucket`).
+   * - Incorrect or partial → sets `bucket = 1`, clears `secondChanceDueAt`.
+   *
+   * No second-chance flow, no bucket promotion, no credits earned from bucket changes.
+   * Standard credit deduction applies on wrong answers (same rules as normal sessions).
+   */
+  private handleSecondChanceSessionWord(
+    word: SessionWord,
+    entry: VocabEntry,
+    updatedWords: SessionWord[],
+    wordIndex: number,
+    now: string,
+    correct: boolean,
+    isPartial: boolean,
+  ): { outcome: AnswerOutcome; answerCost: number } {
+    if (correct) {
+      updatedWords[wordIndex] = { ...word, status: 'correct' }
+      this.vocabRepo.update({ ...entry, secondChanceDueAt: null, lastAskedAt: now })
+
+      return { outcome: 'correct', answerCost: 0 }
+    }
+
+    updatedWords[wordIndex] = { ...word, status: 'incorrect' }
+
+    const balance = this.creditsRepo.getBalance()
+    const isVirginWord = entry.bucket <= 1 && entry.maxBucket <= 1
+    const answerCost = isVirginWord ? 0 : Math.min(1, balance)
+
+    if (answerCost > 0) {
+      this.creditsRepo.addBalance(-answerCost)
+    }
+
+    this.vocabRepo.update({ ...entry, bucket: 1, secondChanceDueAt: null, lastAskedAt: now })
+
+    return { outcome: isPartial ? 'partial' : 'incorrect', answerCost }
+  }
+
   private selectSecondChanceWord(
     sessionWords: SessionWord[],
     originalEntry: VocabEntry,

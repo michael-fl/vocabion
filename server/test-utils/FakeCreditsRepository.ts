@@ -27,7 +27,9 @@ export class FakeCreditsRepository implements CreditsRepository {
   private starsOfferSnoozedUntil: string | null = null
   private stressSessionDueAt: string | null = null
   private veteranSessionDueAt: string | null = null
+  private breakthroughSessionDueAt: string | null = null
   private pauseState: PauseState = { active: false, startDate: null, daysUsed: 0, budgetYear: 0 }
+  private lastSecondChanceSessionDate: string | null = null
 
   getBalance(): number {
     return this.balance
@@ -146,6 +148,22 @@ export class FakeCreditsRepository implements CreditsRepository {
 
   setVeteranSessionDueAt(date: string | null): void {
     this.veteranSessionDueAt = date
+  }
+
+  getBreakthroughSessionDueAt(): string | null {
+    return this.breakthroughSessionDueAt
+  }
+
+  setBreakthroughSessionDueAt(date: string | null): void {
+    this.breakthroughSessionDueAt = date
+  }
+
+  getLastSecondChanceSessionDate(): string | null {
+    return this.lastSecondChanceSessionDate
+  }
+
+  setLastSecondChanceSessionDate(date: string): void {
+    this.lastSecondChanceSessionDate = date
   }
 
   getPauseState(): PauseState {

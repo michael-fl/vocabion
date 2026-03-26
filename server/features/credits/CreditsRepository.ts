@@ -158,6 +158,27 @@ export interface CreditsRepository {
    */
   setVeteranSessionDueAt(date: string | null): void
 
+  /**
+   * Returns the date (YYYY-MM-DD) when the next automatic breakthrough session becomes available,
+   * or `null` if no breakthrough session has been scheduled yet.
+   */
+  getBreakthroughSessionDueAt(): string | null
+
+  /**
+   * Sets the date (YYYY-MM-DD) when the next breakthrough session becomes available.
+   * Pass `null` to clear the scheduled date.
+   */
+  setBreakthroughSessionDueAt(date: string | null): void
+
+  /**
+   * Returns the date (YYYY-MM-DD) on which the last second chance session was completed,
+   * or `null` if no second chance session has ever been completed.
+   */
+  getLastSecondChanceSessionDate(): string | null
+
+  /** Records that a second chance session was completed on the given date (YYYY-MM-DD). */
+  setLastSecondChanceSessionDate(date: string): void
+
   /** Returns the current pause state. */
   getPauseState(): PauseState
 

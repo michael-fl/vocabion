@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords } from './srsSelection.ts'
+import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords } from './srsSelection.ts'
 import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -23,6 +23,7 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
+    secondChanceDueAt: null,
     maxBucket: 0,
     maxScore: 0,
     difficulty: 0,
@@ -1006,5 +1007,188 @@ describe('selectVeteranWords', () => {
     expect(ids.has(b6.id)).toBe(true)
     expect(ids.has(b7.id)).toBe(true)
     expect(ids.has(b10.id)).toBe(true)
+  })
+})
+
+// ── selectBreakthroughWords ───────────────────────────────────────────────────
+
+describe('selectBreakthroughWords', () => {
+  it('returns null when total pool is below minWords', () => {
+    const entries = makeEntries(4, { bucket: 3 })
+    const result = selectBreakthroughWords(entries, 12, 5, NOW)
+
+    expect(result).toBeNull()
+  })
+
+  it('returns entries when pool meets minWords', () => {
+    const entries = makeEntries(5, { bucket: 3 })
+    const result = selectBreakthroughWords(entries, 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+    expect(result?.length).toBe(5)
+  })
+
+  it('includes bucket-3 words (cat1)', () => {
+    const b3 = makeEntries(6, { bucket: 3 })
+    const result = selectBreakthroughWords(b3, 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    for (const e of b3) {
+      expect(ids.has(e.id)).toBe(true)
+    }
+  })
+
+  it('includes due bucket-5 words (cat2)', () => {
+    const b3 = makeEntries(3, { bucket: 3 })
+    const b5Due = makeEntries(3, { bucket: 5, lastAskedAt: null })
+    const result = selectBreakthroughWords([...b3, ...b5Due], 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    for (const e of b5Due) {
+      expect(ids.has(e.id)).toBe(true)
+    }
+  })
+
+  it('excludes non-due bucket-5 words', () => {
+    const b3 = makeEntries(5, { bucket: 3 })
+    // bucket-5 word asked just now — not due for a week
+    const b5NotDue = makeEntry({ bucket: 5, lastAskedAt: NOW.toISOString() })
+    const result = selectBreakthroughWords([...b3, b5NotDue], 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    expect(ids.has(b5NotDue.id)).toBe(false)
+  })
+
+  it('includes words in the highest bucket as cat3 when not already in cat1/cat2', () => {
+    const b3 = makeEntries(3, { bucket: 3 })
+    const b7 = makeEntries(3, { bucket: 7, lastAskedAt: null })
+    const result = selectBreakthroughWords([...b3, ...b7], 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    for (const e of b7) {
+      expect(ids.has(e.id)).toBe(true)
+    }
+  })
+
+  it('excludes non-due time-based cat3 words', () => {
+    const b3 = makeEntries(5, { bucket: 3 })
+    // bucket-7 word asked recently — not due
+    const b7NotDue = makeEntry({ bucket: 7, lastAskedAt: NOW.toISOString() })
+    const result = selectBreakthroughWords([...b3, b7NotDue], 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    expect(ids.has(b7NotDue.id)).toBe(false)
+  })
+
+  it('deduplicates: cat1 word is not also in cat3 when highest bucket is 3', () => {
+    const b3 = makeEntries(6, { bucket: 3 })
+    const result = selectBreakthroughWords(b3, 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = result?.map((e) => e.id) ?? []
+    const uniqueIds = new Set(ids)
+
+    expect(ids.length).toBe(uniqueIds.size)
+  })
+
+  it('caps result at sessionSize', () => {
+    const b3 = makeEntries(20, { bucket: 3 })
+    const result = selectBreakthroughWords(b3, 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+    expect(result?.length).toBeLessThanOrEqual(12)
+  })
+
+  it('returns null when pool exactly equals minWords - 1', () => {
+    const b3 = makeEntries(4, { bucket: 3 })
+    const result = selectBreakthroughWords(b3, 12, 5, NOW)
+
+    expect(result).toBeNull()
+  })
+
+  it('returns no duplicates with mixed categories', () => {
+    const b3 = makeEntries(4, { bucket: 3 })
+    const b5Due = makeEntries(3, { bucket: 5, lastAskedAt: null })
+    const b7Due = makeEntries(3, { bucket: 7, lastAskedAt: null })
+    const result = selectBreakthroughWords([...b3, ...b5Due, ...b7Due], 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = result?.map((e) => e.id) ?? []
+    const uniqueIds = new Set(ids)
+
+    expect(ids.length).toBe(uniqueIds.size)
+  })
+})
+
+// ── selectSecondChanceSessionWords ────────────────────────────────────────────
+
+describe('selectSecondChanceSessionWords', () => {
+  it('returns empty array when no entries have secondChanceDueAt set', () => {
+    const entries = makeEntries(5, { bucket: 4 })
+    const result = selectSecondChanceSessionWords(entries, 24, NOW)
+
+    expect(result).toHaveLength(0)
+  })
+
+  it('excludes words whose secondChanceDueAt is in the future', () => {
+    const future = makeEntry({ bucket: 4, secondChanceDueAt: '2030-01-01T00:00:00Z' })
+    const result = selectSecondChanceSessionWords([future], 24, NOW)
+
+    expect(result).toHaveLength(0)
+  })
+
+  it('includes words whose secondChanceDueAt is now or in the past', () => {
+    const due = makeEntry({ bucket: 4, secondChanceDueAt: '2026-01-01T00:00:00Z' })
+    const result = selectSecondChanceSessionWords([due], 24, NOW)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe(due.id)
+  })
+
+  it('excludes words with secondChanceDueAt = null', () => {
+    const normal = makeEntry({ bucket: 4, secondChanceDueAt: null })
+    const result = selectSecondChanceSessionWords([normal], 24, NOW)
+
+    expect(result).toHaveLength(0)
+  })
+
+  it('caps result at sessionSize', () => {
+    const due = makeEntries(30, { bucket: 4, secondChanceDueAt: '2026-01-01T00:00:00Z' })
+    const result = selectSecondChanceSessionWords(due, 24, NOW)
+
+    expect(result.length).toBeLessThanOrEqual(24)
+  })
+
+  it('returns no duplicates', () => {
+    const due = makeEntries(10, { bucket: 5, secondChanceDueAt: '2026-01-01T00:00:00Z' })
+    const result = selectSecondChanceSessionWords(due, 24, NOW)
+    const ids = result.map((e) => e.id)
+
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('prioritises words with higher score', () => {
+    const lowScore = makeEntry({ bucket: 4, score: 1, secondChanceDueAt: '2026-01-01T00:00:00Z' })
+    const highScore = makeEntry({ bucket: 4, score: 5, secondChanceDueAt: '2026-01-01T00:00:00Z' })
+    const result = selectSecondChanceSessionWords([lowScore, highScore], 1, NOW)
+
+    expect(result[0].id).toBe(highScore.id)
   })
 })

@@ -1,0 +1,100 @@
+// @vitest-environment node
+
+/**
+ * Unit tests for BreakthroughSessionService.
+ */
+
+import { describe, it, expect, beforeEach } from 'vitest'
+
+import { BreakthroughSessionService, BREAKTHROUGH_INTERVAL_DAYS } from './breakthroughSessionService.ts'
+import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
+
+let creditsRepo: FakeCreditsRepository
+let service: BreakthroughSessionService
+
+beforeEach(() => {
+  creditsRepo = new FakeCreditsRepository()
+  service = new BreakthroughSessionService(creditsRepo)
+})
+
+describe('BreakthroughSessionService — isAvailable', () => {
+  it('returns false when no due date has been set', () => {
+    expect(service.isAvailable('2026-03-24')).toBe(false)
+  })
+
+  it('returns false when due date is in the future', () => {
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+
+    expect(service.isAvailable('2026-03-24')).toBe(false)
+  })
+
+  it('returns true when due date is today', () => {
+    creditsRepo.setBreakthroughSessionDueAt('2026-03-24')
+
+    expect(service.isAvailable('2026-03-24')).toBe(true)
+  })
+
+  it('returns true when due date is in the past', () => {
+    creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
+
+    expect(service.isAvailable('2026-03-24')).toBe(true)
+  })
+})
+
+describe('BreakthroughSessionService — scheduleFirst', () => {
+  it('sets a due date when none exists', () => {
+    service.scheduleFirst('2026-03-24')
+
+    expect(creditsRepo.getBreakthroughSessionDueAt()).not.toBeNull()
+  })
+
+  it('does not overwrite an existing due date', () => {
+    creditsRepo.setBreakthroughSessionDueAt('2026-05-01')
+    service.scheduleFirst('2026-03-24')
+
+    expect(creditsRepo.getBreakthroughSessionDueAt()).toBe('2026-05-01')
+  })
+
+  it('schedules within 48 hours (same day or next two days)', () => {
+    service.scheduleFirst('2026-03-24')
+
+    const dueAt = creditsRepo.getBreakthroughSessionDueAt()
+
+    expect(dueAt).not.toBeNull()
+    expect(dueAt >= '2026-03-24').toBe(true)
+    expect(dueAt <= '2026-03-26').toBe(true)
+  })
+})
+
+describe('BreakthroughSessionService — scheduleNext', () => {
+  it('sets a due date at least BREAKTHROUGH_INTERVAL_DAYS from today', () => {
+    service.scheduleNext('2026-03-24')
+
+    const dueAt = creditsRepo.getBreakthroughSessionDueAt()
+    const earliest = new Date('2026-03-24T00:00:00Z')
+
+    earliest.setUTCDate(earliest.getUTCDate() + BREAKTHROUGH_INTERVAL_DAYS)
+
+    expect(dueAt).not.toBeNull()
+    expect(dueAt >= earliest.toISOString().slice(0, 10)).toBe(true)
+  })
+
+  it('sets a due date no more than BREAKTHROUGH_INTERVAL_DAYS + 2 days from today', () => {
+    service.scheduleNext('2026-03-24')
+
+    const dueAt = creditsRepo.getBreakthroughSessionDueAt()
+    const latest = new Date('2026-03-24T00:00:00Z')
+
+    latest.setUTCDate(latest.getUTCDate() + BREAKTHROUGH_INTERVAL_DAYS + 2)
+
+    expect(dueAt).not.toBeNull()
+    expect(dueAt <= latest.toISOString().slice(0, 10)).toBe(true)
+  })
+
+  it('overwrites any existing due date', () => {
+    creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
+    service.scheduleNext('2026-03-24')
+
+    expect(creditsRepo.getBreakthroughSessionDueAt()).not.toBe('2026-01-01')
+  })
+})

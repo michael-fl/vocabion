@@ -24,6 +24,7 @@ function makeEntry(bucket: number, lastAskedAt: string | null): VocabEntry {
     lastAskedAt,
     createdAt: BASE,
     updatedAt: BASE,
+    secondChanceDueAt: null,
   }
 }
 

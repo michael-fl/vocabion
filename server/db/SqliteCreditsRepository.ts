@@ -219,6 +219,34 @@ export class SqliteCreditsRepository implements CreditsRepository {
       .run(date)
   }
 
+  getBreakthroughSessionDueAt(): string | null {
+    const row = this.db
+      .prepare('SELECT breakthrough_session_due_at FROM credits WHERE id = 1')
+      .get() as { breakthrough_session_due_at: string | null } | undefined
+
+    return row?.breakthrough_session_due_at ?? null
+  }
+
+  setBreakthroughSessionDueAt(date: string | null): void {
+    this.db
+      .prepare('UPDATE credits SET breakthrough_session_due_at = ? WHERE id = 1')
+      .run(date)
+  }
+
+  getLastSecondChanceSessionDate(): string | null {
+    const row = this.db
+      .prepare('SELECT last_second_chance_session_date FROM credits WHERE id = 1')
+      .get() as { last_second_chance_session_date: string | null } | undefined
+
+    return row?.last_second_chance_session_date ?? null
+  }
+
+  setLastSecondChanceSessionDate(date: string): void {
+    this.db
+      .prepare('UPDATE credits SET last_second_chance_session_date = ? WHERE id = 1')
+      .run(date)
+  }
+
   getPauseState(): PauseState {
     const row = this.db
       .prepare('SELECT pause_active, pause_start_date, pause_days_used, pause_budget_year FROM credits WHERE id = 1')

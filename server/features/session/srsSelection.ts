@@ -326,6 +326,124 @@ export function selectVeteranWords(
   return sortByDifficultyThenShuffle(candidates).slice(0, sessionSize)
 }
 
+/**
+ * Selects vocabulary words for a breakthrough session.
+ *
+ * Targets words that are one correct answer away from a bucket milestone by
+ * drawing from three deduplicated categories (first match wins):
+ *
+ * 1. **Bucket 3** — one step from entering the time-based SRS system.
+ *    Always eligible, no due-date check.
+ * 2. **Due bucket-5** — one step from veteran territory (bucket 6).
+ *    Only due words are included.
+ * 3. **Highest occupied bucket** (if time-based: due only; if frequency:
+ *    unconditionally) — one step from setting a new personal `maxBucket` record.
+ *
+ * Slot allocation is proportional to each category's share of the flat pool.
+ * Within each category words are sorted by score descending (ties shuffled).
+ *
+ * Returns `null` when fewer than `minWords` qualifying entries exist.
+ *
+ * @param all - All vocabulary entries in the database.
+ * @param sessionSize - Maximum number of words to include (e.g. 12).
+ * @param minWords - Minimum flat-pool size required (e.g. 5).
+ * @param now - Current timestamp used for time-based due-date checks.
+ * @returns Up to `sessionSize` entries across the three categories, or `null`.
+ */
+export function selectBreakthroughWords(
+  all: VocabEntry[],
+  sessionSize: number,
+  minWords: number,
+  now: Date,
+): VocabEntry[] | null {
+  const maxBucket = all.reduce((m, e) => Math.max(m, e.bucket), 0)
+
+  // Category 1: bucket 3 words — always eligible
+  const cat1 = sortByScoreThenShuffle(all.filter((e) => e.bucket === 3))
+  const cat1Ids = new Set(cat1.map((e) => e.id))
+
+  // Category 2: due bucket-5 words (not already in cat1)
+  const cat2 = sortByScoreThenShuffle(
+    all.filter((e) => e.bucket === 5 && !cat1Ids.has(e.id) && isDue(e, now)),
+  )
+  const cat2Ids = new Set(cat2.map((e) => e.id))
+
+  // Category 3: words in the highest occupied bucket, not already categorised.
+  // Time-based words (bucket ≥ 4) require a due check; frequency words don't.
+  const cat3 = sortByScoreThenShuffle(
+    all.filter((e) => {
+      if (cat1Ids.has(e.id) || cat2Ids.has(e.id)) {
+        return false
+      }
+
+      if (e.bucket !== maxBucket) {
+        return false
+      }
+
+      return e.bucket >= 4 ? isDue(e, now) : true
+    }),
+  )
+
+  const totalPool = cat1.length + cat2.length + cat3.length
+
+  if (totalPool < minWords) {
+    return null
+  }
+
+  const effectiveSize = Math.min(sessionSize, totalPool)
+
+  // Proportional slot allocation — same rounding strategy as normal sessions
+  const s1 = Math.min(Math.round(effectiveSize * cat1.length / totalPool), effectiveSize, cat1.length)
+  const s2 = Math.min(Math.round(effectiveSize * cat2.length / totalPool), effectiveSize - s1, cat2.length)
+  const s3 = Math.min(effectiveSize - s1 - s2, cat3.length)
+
+  const selected = [
+    ...cat1.slice(0, s1),
+    ...cat2.slice(0, s2),
+    ...cat3.slice(0, s3),
+  ]
+
+  // Fill any rounding shortfall from the remaining pool, highest score first
+  const shortfall = effectiveSize - selected.length
+
+  if (shortfall > 0) {
+    const usedIds = new Set(selected.map((e) => e.id))
+    const remaining = sortByScoreThenShuffle(
+      [...cat1, ...cat2, ...cat3].filter((e) => !usedIds.has(e.id)),
+    )
+
+    selected.push(...remaining.slice(0, shortfall))
+  }
+
+  return selected
+}
+
+/**
+ * Selects vocabulary words for a second chance session.
+ *
+ * Only picks words that are currently in the second chance bucket
+ * (`secondChanceDueAt !== null`) and whose due timestamp has been reached.
+ * Words are sorted by score descending, with ties broken randomly.
+ *
+ * Returns an empty array when no words are due — the caller should fall through
+ * to the normal session rotation.
+ *
+ * @param all - All vocabulary entries in the database.
+ * @param sessionSize - Maximum number of words to include (e.g. 24).
+ * @param now - Current timestamp used for due-date checks.
+ * @returns Up to `sessionSize` due second-chance entries.
+ */
+export function selectSecondChanceSessionWords(
+  all: VocabEntry[],
+  sessionSize: number,
+  now: Date,
+): VocabEntry[] {
+  const nowIso = now.toISOString()
+  const due = all.filter((e) => e.secondChanceDueAt !== null && e.secondChanceDueAt <= nowIso)
+
+  return sortByScoreThenShuffle(due).slice(0, sessionSize)
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 function shuffle<T>(arr: readonly T[]): T[] {

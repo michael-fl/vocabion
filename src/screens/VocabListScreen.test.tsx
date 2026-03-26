@@ -26,6 +26,7 @@ function makeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
     lastAskedAt: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
+    secondChanceDueAt: null,
     maxBucket: 0,
     maxScore: 0,
     difficulty: 0,
@@ -303,7 +304,8 @@ describe('Marked section', () => {
     const summary = await screen.findByText(/^Marked —/)
     fireEvent.click(summary)
 
-    const details = summary.closest('details')!
+    const details = summary.closest('details')
+    if (details === null) { throw new Error('details element not found') }
     expect(within(details).getByRole('columnheader', { name: 'Bucket' })).toBeInTheDocument()
   })
 

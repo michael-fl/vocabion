@@ -207,6 +207,27 @@ If your bucket-6+ count first reaches 50, the initial session is scheduled to tr
 
 After each veteran session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
+#### Breakthrough Session (weekly, once ≥ 5 qualifying words exist)
+
+A **Breakthrough Session** focuses on words that are **one correct answer away from a bucket milestone** — promoting them in a single targeted run. It fires automatically roughly once a week when all of the following conditions are met:
+
+- At least **5 qualifying words** exist across the three categories below
+- The breakthrough session is **due** (at least 6 days have passed since the last one)
+
+If qualifying words first reach 5 and no session is scheduled yet, the initial session is scheduled to trigger within the next **48 hours**.
+
+**Word pool — three categories, deduplicated (first match wins):**
+1. **Bucket 3** — one step from entering the time-based SRS system. Always eligible (frequency bucket, no due-date check).
+2. **Due bucket-5 words** — one step from veteran territory (bucket 6). Only due words are included.
+3. **Words in the highest occupied bucket** — one step from setting a new personal `maxBucket` record. Time-based words must be due; frequency words are always eligible.
+
+**Session rules:**
+- Up to **24 words**, slots distributed proportionally across the three categories.
+- Within each category, words are sorted by score descending (ties broken randomly).
+- SRS promotion rules are identical to normal sessions.
+
+After each breakthrough session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
+
 #### Repetition Session
 
 A **Repetition Session** is an intensive review of time-based words (buckets 4+) that are currently overdue.
@@ -226,16 +247,36 @@ The default session type, containing up to **12 words**. It draws from both freq
 
 Within every candidate pool, words are picked highest-score first (ties broken randomly).
 
-**Session type eligibility at a glance (each type is checked every rotation cycle):**
+#### Second Chance Session (highest priority, at most once per day)
 
-| Session type | Eligible when… |
-|---|---|
-| Stress | Due date reached, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) |
-| Discovery | Active pool (buckets 1–4) < 80 words, ≥ 24 bucket-0 words, not already done today |
-| Focus | 5+ words with score ≥ 2 exist in buckets 1–5 |
-| Veteran | Due date reached, ≥ 50 words in buckets 6+, ≥ 5 of those with difficulty ≥ 2 |
-| Repetition | ≥ 24 due time-based words (buckets 4+) exist |
-| Normal | Always eligible (fallback — at least one word in vocabulary) |
+When a time-based word (bucket 4+) goes through the in-session second-chance flow and the second-chance word is answered **fully correctly**, the word enters the **second chance bucket** — a holding state where it waits for a dedicated session before being restored or demoted.
+
+- Words in the second chance bucket are excluded from all regular session types while they wait.
+- They appear in a **"Second Chance (pending)"** section on the vocabulary list page.
+- A word becomes eligible for a Second Chance Session at the earliest the next calendar day (or 12 hours after entering the bucket, whichever is later).
+- If the second-chance word is answered **incorrectly or partially**, the word goes to bucket 1 immediately — the second chance bucket is only awarded on a fully correct second-chance pass.
+
+**Session rules:**
+- **Highest priority** — fires before all other automatic session types.
+- **Trigger:** at least 1 word in the second chance bucket is due, and no Second Chance Session has been played today.
+- **Daily limit:** at most one per calendar day.
+- **Word pool:** all due second-chance-bucket words, up to **24**, sorted by score descending.
+- **No hints** available.
+- **Correct answer** → word is restored to its original bucket and removed from the second chance bucket.
+- **Incorrect or partial answer** → word is moved to bucket 1 and removed from the second chance bucket.
+
+**Session type eligibility at a glance:**
+
+| Session type | Priority | Eligible when… |
+|---|---|---|
+| Second Chance | Highest (pre-rotation) | ≥ 1 due second-chance-bucket word AND not already played today |
+| Stress | Rotation | Due date reached, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) |
+| Discovery | Rotation | Active pool (buckets 1–4) < 80 words, ≥ 24 bucket-0 words, not already done today |
+| Focus | Rotation | 5+ words with score ≥ 2 exist in buckets 1–5 |
+| Veteran | Rotation | Due date reached, ≥ 50 words in buckets 6+, ≥ 5 of those with difficulty ≥ 2 |
+| Breakthrough | Rotation | Due date reached, ≥ 5 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
+| Repetition | Rotation | ≥ 24 due time-based words (buckets 4+) exist |
+| Normal | Rotation (fallback) | Always eligible — at least one word in vocabulary |
 
 #### ★ Session (manual, once per day)
 

@@ -550,8 +550,8 @@ Bucket 0 is reserved for words that have never been seen. A wrong answer never s
 
 A **correct** answer on a time-based word only promotes the word if it is currently **due**
 (`elapsed ≥ interval`). If the word is not yet due (e.g. it was included in a focus session
-ahead of schedule), the bucket is left unchanged and only `lastAskedAt` is reset to now. This
-prevents the SRS schedule from being accidentally accelerated by early reviews.
+ahead of schedule), the bucket is left unchanged and `lastAskedAt` is **not updated** — the
+SRS schedule is left entirely intact so the user is not penalised for an incidental early review.
 
 A **fully wrong** answer on a time-based word triggers a second-chance flow:
 
@@ -1139,13 +1139,14 @@ After completing a focus session where **25% or more of answers were wrong or pa
 
 ---
 
-## Breakthrough Session (planned)
+## Breakthrough Session ✓
 
 A session type that concentrates on words that are **one correct answer away from a bucket milestone** — promoting them efficiently in a single focused run.
 
 **Trigger conditions (all must be met):**
 - At least **5 qualifying words** exist (across all three pool categories below)
 - Part of the **shuffle rotation** alongside the other automatic session types
+- Fires at most **once per week** (6 days base + 0–48 h random jitter ≈ ±1 day), same scheduling pattern as veteran sessions
 
 **Word pool — three categories, deduplicated into a flat pool first:**
 1. **Bucket 3 words** — one step from entering the time-based SRS system (bucket 4). Always eligible regardless of due date (frequency bucket).
@@ -1155,7 +1156,7 @@ A session type that concentrates on words that are **one correct answer away fro
 Deduplication: a word that falls into more than one category (e.g. highest bucket is 5 and it is due) is counted once, assigned to the first matching category for distribution purposes.
 
 **Word selection:**
-- Session size: up to **12 words**.
+- Session size: up to **24 words**.
 - Slots are distributed **proportionally** by the relative size of each category within the flat pool — matching the bucket 1–3 distribution logic in normal sessions.
 - Within each category, words are sorted by score descending (ties broken randomly).
 
@@ -1164,11 +1165,73 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 **Session title in UI:** "Breakthrough Session"
 
 **Implementation notes:**
-- New `SessionType` value: `'breakthrough'`
-- New `selectBreakthroughWords(allEntries, sessionSize, minWords)` in `srsSelection.ts`
-- Add to `SHUFFLED_TYPES` constant and `trySelectType()` in `sessionService.ts`
-- New DB migration to add `'breakthrough'` to the sessions type CHECK constraint
-- `TrainingScreen`: show "Breakthrough Session" label in the session title area
+- Added `SessionType` value `'breakthrough'` to `shared/types/Session.ts`; updated `isSession()` guard
+- Added `selectBreakthroughWords(allEntries, sessionSize, minWords, now)` to `srsSelection.ts` with three-category deduplication and proportional slot allocation
+- `BreakthroughSessionService` in `breakthroughSessionService.ts` handles `isAvailable`, `scheduleFirst` (within 48 h), and `scheduleNext` (6 days + 0–48 h random)
+- Added `breakthrough_session_due_at` column to the `credits` table (migration `030_breakthrough_session.sql`)
+- Added `getBreakthroughSessionDueAt`/`setBreakthroughSessionDueAt` to `CreditsRepository`, `SqliteCreditsRepository`, and `FakeCreditsRepository`
+- Added `'breakthrough'` to `SHUFFLED_TYPES` and implemented the case in `trySelectType()` in `sessionService.ts`; `scheduleFirst` triggered from `createSession`; `scheduleNext` called on session completion
+- `TrainingScreen`: added "Breakthrough Session" label to the session title area
+
+---
+
+## Second Chance Session ✓
+
+A new session type that gives words a structured second opportunity after passing the in-session second-chance flow. The existing "second chance" mechanics inside a session are also modified.
+
+### Change to the existing second-chance flow
+
+When a time-based word (bucket 4+) is answered wrong, a second-chance word (W2) is inserted. The outcome now changes as follows:
+
+| W2 outcome | Old W1 result | New W1 result |
+|---|---|---|
+| Fully correct | bucket N−1 | bucket 1.5 (see below) |
+| Incorrect | bucket 1 | bucket 1 (unchanged) |
+| Partial | bucket 1 | bucket 1 (unchanged) |
+
+### Bucket 1.5 — second chance bucket
+
+When W1 enters bucket 1.5:
+- Its integer `bucket` field is preserved at N (the bucket it was in before the wrong answer).
+- A new `secondChanceDueAt` timestamp is written: `max(next calendar day 00:00 UTC, now + 12 h)`.
+- W1 is excluded from all regular session types until resolved.
+- The vocabulary list page shows these words in a dedicated **"Second Chance (pending)"** section.
+- No separate `restoreBucket` field is needed — the preserved `bucket = N` serves as the restore target.
+
+### Second Chance Session
+
+**Trigger (checked before the regular rotation):**
+- At least 1 bucket-1.5 word is due (`now >= secondChanceDueAt`)
+- No second chance session has been played today (tracked via `lastSecondChanceSessionDate` in the credits table)
+
+**Priority:** Highest — fires before Stress, Discovery, Focus, Veteran, Breakthrough, Repetition, and Normal.
+
+**Word pool:** All due bucket-1.5 words (up to 24), sorted by score descending, ties broken randomly.
+
+**No hints** — auto-hint and paid-hint are both disabled.
+
+**Answer outcomes:**
+- Fully correct → `bucket` stays at N, `secondChanceDueAt` cleared. Word is fully restored.
+- Incorrect or partially correct → `bucket` set to 1, `secondChanceDueAt` cleared.
+
+**Daily limit:** At most one per calendar day. After completion, `lastSecondChanceSessionDate` is set to today; the next session is earliest the following day.
+
+**Session title in UI:** "Second Chance Session"
+
+**Implementation notes:**
+- New `VocabEntry` field: `secondChanceDueAt: string | null`
+- New DB migration: `ALTER TABLE vocab_entries ADD COLUMN second_chance_due_at TEXT;`
+- New DB migration: `ALTER TABLE credits ADD COLUMN last_second_chance_session_date TEXT;`
+- New `SessionType` value: `'second_chance_session'`; update `isSession()` guard
+- New `selectSecondChanceSessionWords(all, sessionSize, now)` in `srsSelection.ts`
+- All existing selection functions receive a pre-filtered list (words with `secondChanceDueAt !== null` excluded)
+- `SecondChanceSessionService` in `secondChanceSessionService.ts`: `isAvailable(today, allEntries, now)`, `scheduleCompletion(today)`, `calcDueAt(now): string`
+- Modify `submitAnswer` in `sessionService.ts`: on `second_chance_correct` outcome, set `secondChanceDueAt` instead of demoting W1 to bucket N−1
+- Add `second_chance_session` case to `trySelectType`, checked before the round-robin loop
+- `VocabListScreen`: add "Second Chance (pending)" section above the bucket list for words with `secondChanceDueAt !== null`
+- `TrainingScreen`: show "Second Chance Session" label; disable hint button for this session type
+- `CreditsRepository` / `SqliteCreditsRepository` / `FakeCreditsRepository`: add `getLastSecondChanceSessionDate` / `setLastSecondChanceSessionDate`
+- `VocabRepository` / `SqliteVocabRepository`: add `setSecondChanceDueAt(id, dueAt, bucket)` or handle via existing `update()`
 
 ---
 

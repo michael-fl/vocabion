@@ -31,6 +31,23 @@ export interface VocabEntry {
   bucket: number
 
   /**
+   * When set, this word is in the **second chance bucket** (bucket 1.5).
+   *
+   * The value is an ISO 8601 timestamp indicating when the word first becomes
+   * eligible for a second chance session: `max(next calendar day 00:00 UTC, now + 12 h)`.
+   *
+   * While this is non-null:
+   * - The word is excluded from all regular session types.
+   * - The `bucket` field holds the original bucket value (used to restore
+   *   the word if answered correctly in a second chance session).
+   * - The word appears in the "Second Chance (pending)" section of the vocab list.
+   *
+   * Cleared when the word is resolved in a second chance session:
+   * correctly answered → `bucket` keeps its value; incorrectly answered → `bucket` is set to 1.
+   */
+  secondChanceDueAt: string | null
+
+  /**
    * Whether this word has been starred by the user as a favourite / reminder.
    * Marked words are highlighted in the vocabulary list and will later support
    * dedicated review modes.
@@ -139,7 +156,7 @@ export function isVocabEntry(value: unknown): value is VocabEntry {
   }
 
   const v = value as Record<string, unknown>
-  const { id, source, target, bucket, maxBucket, maxScore, difficulty, manuallyAdded, marked, score, lastAskedAt, createdAt, updatedAt } = v
+  const { id, source, target, bucket, maxBucket, maxScore, difficulty, manuallyAdded, marked, score, lastAskedAt, createdAt, updatedAt, secondChanceDueAt } = v
 
   if (typeof id !== 'string') {
     return false
@@ -190,6 +207,10 @@ export function isVocabEntry(value: unknown): value is VocabEntry {
   }
 
   if (typeof updatedAt !== 'string') {
+    return false
+  }
+
+  if (secondChanceDueAt !== null && secondChanceDueAt !== undefined && typeof secondChanceDueAt !== 'string') {
     return false
   }
 

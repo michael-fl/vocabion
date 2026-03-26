@@ -23,7 +23,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import {
   SparkleIcon, PlantIcon, BookOpenIcon, GraduationCapIcon,
-  ShieldIcon, CrownIcon, TrophyIcon, StarIcon, TrendUpIcon,
+  ShieldIcon, CrownIcon, TrophyIcon, StarIcon, TrendUpIcon, HourglassIcon,
 } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 
@@ -252,16 +252,27 @@ export function VocabListScreen() {
       })
   }, [])
 
-  const groups = entries !== null ? groupByBucketGroup(entries) : []
+  // Words in the second chance bucket are shown in their own section and
+  // excluded from the regular bucket groups, marked, and scored sections.
+  const secondChanceWords =
+    entries !== null
+      ? [...entries]
+          .filter((e) => e.secondChanceDueAt !== null)
+          .sort((a, b) => a.source.localeCompare(b.source))
+      : []
+
+  const regularEntries = entries !== null ? entries.filter((e) => e.secondChanceDueAt === null) : null
+
+  const groups = regularEntries !== null ? groupByBucketGroup(regularEntries) : []
 
   const markedWords =
-    entries !== null
-      ? [...entries].filter((e) => e.marked).sort((a, b) => a.source.localeCompare(b.source))
+    regularEntries !== null
+      ? [...regularEntries].filter((e) => e.marked).sort((a, b) => a.source.localeCompare(b.source))
       : []
 
   const scoredWords =
-    entries !== null
-      ? [...entries]
+    regularEntries !== null
+      ? [...regularEntries]
           .filter((e) => e.score > 0)
           .sort((a, b) => b.score - a.score || a.source.localeCompare(b.source))
       : []
@@ -310,8 +321,8 @@ export function VocabListScreen() {
           const groupClass = GROUP_CSS_CLASS[name] ?? ''
           const GroupIcon = GROUP_ICON[name]
 
-          if (group === undefined) {
-            return (
+          const groupSection = group === undefined
+            ? (
               <div key={name} className={`${styles.section} ${styles.sectionEmpty} ${groupClass}`}>
                 <div className={`${styles.sectionSummary} ${styles.sectionSummaryLocked}`}>
                   <GroupIcon size={15} />
@@ -320,17 +331,34 @@ export function VocabListScreen() {
                 </div>
               </div>
             )
-          }
+            : (
+              <details key={name} className={`${styles.section} ${groupClass}`}>
+                <summary className={styles.sectionSummary}>
+                  <GroupIcon size={15} />
+                  {name} — {group.entries.length} {group.entries.length === 1 ? 'word' : 'words'}
+                  <span className={styles.bucketRange}>{group.bucketRange}</span>
+                </summary>
+                <VocabTable words={group.entries} now={now} showBucket={multiGroup} showBucketSeparators={group.hasMultipleBuckets} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
+              </details>
+            )
+
+          const secondChanceSection = name === 'Beginner' && secondChanceWords.length > 0
+            ? (
+              <details key="second-chance" className={`${styles.section} ${styles.sectionSynthetic}`}>
+                <summary className={styles.sectionSummary}>
+                  <HourglassIcon size={15} />
+                  Second Chance (pending) — {secondChanceWords.length} {secondChanceWords.length === 1 ? 'word' : 'words'}
+                </summary>
+                <VocabTable words={secondChanceWords} now={now} showBucket={true} showBucketSeparators={false} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
+              </details>
+            )
+            : null
 
           return (
-            <details key={name} className={`${styles.section} ${groupClass}`}>
-              <summary className={styles.sectionSummary}>
-                <GroupIcon size={15} />
-                {name} — {group.entries.length} {group.entries.length === 1 ? 'word' : 'words'}
-                <span className={styles.bucketRange}>{group.bucketRange}</span>
-              </summary>
-              <VocabTable words={group.entries} now={now} showBucket={multiGroup} showBucketSeparators={group.hasMultipleBuckets} togglingIds={togglingIds} onToggleMark={handleToggleMark} />
-            </details>
+            <Fragment key={name}>
+              {groupSection}
+              {secondChanceSection}
+            </Fragment>
           )
         })}
       </div>
