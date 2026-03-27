@@ -264,7 +264,10 @@ export function selectStressWords(
   sessionSize: number,
   minWords: number,
 ): VocabEntry[] | null {
-  if (all.length < minWords) {
+  // Only bucket-2+ words are eligible — bucket 0/1 words may not be known yet.
+  const eligible = all.filter((e) => e.bucket >= 2)
+
+  if (eligible.length < minWords) {
     return null
   }
 
@@ -272,7 +275,7 @@ export function selectStressWords(
   const usedIds = new Set<string>()
 
   // Tier A: up to 8 words with difficulty >= 4
-  const tierA = shuffle(all.filter((e) => e.difficulty >= 4)).slice(0, Math.min(8, sessionSize))
+  const tierA = shuffle(eligible.filter((e) => e.difficulty >= 4)).slice(0, Math.min(8, sessionSize))
 
   for (const entry of tierA) {
     selected.push(entry)
@@ -280,7 +283,7 @@ export function selectStressWords(
   }
 
   // Tier B: up to 8 words with difficulty >= 2, not yet selected
-  const tierB = shuffle(all.filter((e) => e.difficulty >= 2 && !usedIds.has(e.id)))
+  const tierB = shuffle(eligible.filter((e) => e.difficulty >= 2 && !usedIds.has(e.id)))
     .slice(0, Math.min(8, sessionSize - selected.length))
 
   for (const entry of tierB) {
@@ -288,8 +291,8 @@ export function selectStressWords(
     usedIds.add(entry.id)
   }
 
-  // Tier C: remaining slots up to sessionSize, from any word not yet selected
-  const tierC = shuffle(all.filter((e) => !usedIds.has(e.id)))
+  // Tier C: remaining slots up to sessionSize, from any bucket-2+ word not yet selected
+  const tierC = shuffle(eligible.filter((e) => !usedIds.has(e.id)))
     .slice(0, sessionSize - selected.length)
 
   for (const entry of tierC) {

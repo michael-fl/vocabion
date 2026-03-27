@@ -2,10 +2,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   StressSessionService,
-  STRESS_MIN_CREDITS,
   STRESS_MIN_WORDS,
   STRESS_SESSION_SIZE,
   STRESS_INTERVAL_DAYS,
+  STRESS_HIGH_STAKES_THRESHOLD,
   calcStressFee,
 } from './stressSessionService.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
@@ -31,10 +31,10 @@ describe('calcStressFee', () => {
 
 describe('StressSessionService — constants', () => {
   it('has expected constant values', () => {
-    expect(STRESS_MIN_CREDITS).toBe(500)
-    expect(STRESS_MIN_WORDS).toBe(5)
+    expect(STRESS_MIN_WORDS).toBe(10)
     expect(STRESS_SESSION_SIZE).toBe(24)
-    expect(STRESS_INTERVAL_DAYS).toBe(7)
+    expect(STRESS_INTERVAL_DAYS).toBe(6)
+    expect(STRESS_HIGH_STAKES_THRESHOLD).toBe(500)
   })
 })
 
@@ -47,46 +47,45 @@ describe('StressSessionService.isAvailable', () => {
     service = new StressSessionService(creditsRepo)
   })
 
-  it('returns false when balance < 500', () => {
-    creditsRepo.addBalance(499)
+  it('returns false when qualifying word count < STRESS_MIN_WORDS', () => {
     creditsRepo.setStressSessionDueAt(TODAY)
 
-    expect(service.isAvailable(TODAY, 499, 10)).toBe(false)
-  })
-
-  it('returns false when qualifying word count < 5', () => {
-    creditsRepo.addBalance(500)
-    creditsRepo.setStressSessionDueAt(TODAY)
-
-    expect(service.isAvailable(TODAY, 500, 4)).toBe(false)
+    expect(service.isAvailable(TODAY, 9)).toBe(false)
   })
 
   it('returns false when due date is null (never scheduled)', () => {
-    expect(service.isAvailable(TODAY, 500, 10)).toBe(false)
+    expect(service.isAvailable(TODAY, 10)).toBe(false)
   })
 
   it('returns false when due date is in the future', () => {
     creditsRepo.setStressSessionDueAt('2026-03-23')
 
-    expect(service.isAvailable(TODAY, 500, 10)).toBe(false)
+    expect(service.isAvailable(TODAY, 10)).toBe(false)
   })
 
   it('returns true when today equals the due date', () => {
     creditsRepo.setStressSessionDueAt(TODAY)
 
-    expect(service.isAvailable(TODAY, 500, 10)).toBe(true)
+    expect(service.isAvailable(TODAY, 10)).toBe(true)
   })
 
   it('returns true when due date is in the past', () => {
     creditsRepo.setStressSessionDueAt('2026-03-20')
 
-    expect(service.isAvailable(TODAY, 600, 5)).toBe(true)
+    expect(service.isAvailable(TODAY, 10)).toBe(true)
   })
 
-  it('returns true with exactly minimum values', () => {
+  it('returns true with exactly minimum qualifying words', () => {
     creditsRepo.setStressSessionDueAt(TODAY)
 
-    expect(service.isAvailable(TODAY, STRESS_MIN_CREDITS, STRESS_MIN_WORDS)).toBe(true)
+    expect(service.isAvailable(TODAY, STRESS_MIN_WORDS)).toBe(true)
+  })
+
+  it('returns true even with 0 credits (no balance requirement)', () => {
+    creditsRepo.setStressSessionDueAt(TODAY)
+
+    // creditsRepo starts with 0 balance — stress must still fire
+    expect(service.isAvailable(TODAY, 10)).toBe(true)
   })
 })
 
@@ -148,7 +147,7 @@ describe('StressSessionService.scheduleNext', () => {
     service = new StressSessionService(creditsRepo)
   })
 
-  it('sets a due date at least 7 days from today', () => {
+  it('sets a due date at least 6 days from today', () => {
     service.scheduleNext(TODAY)
 
     const dueAt = creditsRepo.getStressSessionDueAt()
@@ -156,11 +155,11 @@ describe('StressSessionService.scheduleNext', () => {
     expect(dueAt).not.toBeNull()
 
     if (dueAt !== null) {
-      expect(dueAt >= '2026-03-29').toBe(true)
+      expect(dueAt >= '2026-03-28').toBe(true)
     }
   })
 
-  it('sets a due date at most 9 days from today', () => {
+  it('sets a due date at most 8 days from today', () => {
     service.scheduleNext(TODAY)
 
     const dueAt = creditsRepo.getStressSessionDueAt()
@@ -168,7 +167,7 @@ describe('StressSessionService.scheduleNext', () => {
     expect(dueAt).not.toBeNull()
 
     if (dueAt !== null) {
-      expect(dueAt <= '2026-03-31').toBe(true)
+      expect(dueAt <= '2026-03-30').toBe(true)
     }
   })
 

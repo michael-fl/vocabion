@@ -24,7 +24,7 @@ import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
 import type { StressSessionService } from './stressSessionService.ts'
-import { STRESS_MIN_CREDITS, STRESS_MIN_WORDS, STRESS_SESSION_SIZE, calcStressFee } from './stressSessionService.ts'
+import { STRESS_MIN_WORDS, STRESS_SESSION_SIZE, STRESS_HIGH_STAKES_THRESHOLD, calcStressFee } from './stressSessionService.ts'
 import type { VeteranSessionService } from './veteranSessionService.ts'
 import { VETERAN_MIN_BUCKET6_WORDS, VETERAN_MIN_WORDS } from './veteranSessionService.ts'
 import type { BreakthroughSessionService } from './breakthroughSessionService.ts'
@@ -261,7 +261,9 @@ export class SessionService {
     const bucket6PlusCount = regularEntries.filter((e) => e.bucket >= 6).length
 
     // Trigger first-time scheduling for timed session types.
-    if (balance >= STRESS_MIN_CREDITS) {
+    const stressQualifyingCount = regularEntries.filter((e) => e.bucket >= 2).length
+
+    if (stressQualifyingCount >= STRESS_MIN_WORDS) {
       this.stressService.scheduleFirst(today)
     }
 
@@ -287,7 +289,7 @@ export class SessionService {
       const candidate = this.sequence[this.sequenceIndex]
       this.sequenceIndex++
 
-      const words = this.trySelectType(candidate, regularEntries, today, balance, bucket6PlusCount, options, now, discSize, repSize)
+      const words = this.trySelectType(candidate, regularEntries, today, stressQualifyingCount, balance, bucket6PlusCount, options, now, discSize, repSize)
 
       if (words !== null) {
         selected = words
@@ -314,6 +316,7 @@ export class SessionService {
       words: selected.map((e) => ({ vocabId: e.id, status: 'pending' })),
       status: 'open',
       createdAt: now.toISOString(),
+      stressHighStakes: sessionType === 'stress' ? balance >= STRESS_HIGH_STAKES_THRESHOLD : undefined,
     }
 
     this.sessionRepo.insert(session)
@@ -458,6 +461,7 @@ export class SessionService {
     type: SessionType,
     allEntries: VocabEntry[],
     today: string,
+    stressQualifyingCount: number,
     balance: number,
     bucket6PlusCount: number,
     options: CreateSessionOptions,
@@ -466,13 +470,10 @@ export class SessionService {
     repSize: number,
   ): VocabEntry[] | null {
     switch (type) {
-      case 'stress': {
-        const qualifyingCount = allEntries.filter((e) => e.bucket >= 2).length
-
-        return this.stressService.isAvailable(today, balance, qualifyingCount)
+      case 'stress':
+        return this.stressService.isAvailable(today, stressQualifyingCount)
           ? selectStressWords(allEntries, STRESS_SESSION_SIZE, STRESS_MIN_WORDS)
           : null
-      }
       case 'discovery': {
         const lastDiscoveryDate = this.creditsRepo.getLastDiscoverySessionDate()
         const activePoolCount = allEntries.filter((e) => e.bucket >= 1 && e.bucket <= 4).length
@@ -569,17 +570,17 @@ export class SessionService {
     let answerCost = 0
     let bucketMilestoneBonus = 0
 
-    // Stress sessions use fee-based credit deductions and no second-chance.
-    // Correct answers still promote the word (if due), but earn no credits.
-    const isStress = session.type === 'stress'
-    const stressFee = isStress ? calcStressFee(session.words.length) : undefined
+    // High-stakes stress sessions use fee-based credit deductions.
+    // Standard-mode stress sessions use the normal −1 credit per wrong answer.
+    const isStressHighStakes = session.type === 'stress' && session.stressHighStakes === true
+    const stressFee = isStressHighStakes ? calcStressFee(session.words.length) : undefined
 
     if (session.type === 'second_chance_session') {
       const result = this.handleSecondChanceSessionWord(word, entry, updatedWords, wordIndex, now, correct, isPartial)
       outcome = result.outcome
       answerCost = result.answerCost
     } else if (correct) {
-      const result = this.handleCorrectAnswer(word, entry, updatedWords, wordIndex, now, checkResult.typos, !isStress)
+      const result = this.handleCorrectAnswer(word, entry, updatedWords, wordIndex, now, checkResult.typos)
       outcome = result.outcome
       creditsEarned = result.creditsEarned
       bucketMilestoneBonus = result.bucketMilestoneBonus
@@ -822,7 +823,6 @@ export class SessionService {
     wordIndex: number,
     now: string,
     typos: TypoMatch[],
-    earnCredits = true,
   ): { outcome: AnswerOutcome; creditsEarned: number; bucketMilestoneBonus: number } {
     updatedWords[wordIndex] = { ...word, status: 'correct' }
 
@@ -853,7 +853,7 @@ export class SessionService {
     // Correct answer: promote the word.
     const newBucket = entry.bucket + 1
     const newMaxBucket = Math.max(entry.maxBucket, newBucket)
-    const creditDelta = earnCredits && newMaxBucket > entry.maxBucket ? 5 : 0
+    const creditDelta = newMaxBucket > entry.maxBucket ? 5 : 0
 
     this.vocabRepo.update({ ...entry, bucket: newBucket, maxBucket: newMaxBucket, lastAskedAt: now })
 
@@ -868,7 +868,7 @@ export class SessionService {
     const GROUP_STAR_BUCKETS = new Set([4, 6, 10, 14])
     let bucketMilestoneBonus = 0
 
-    if (earnCredits && newBucket >= 4 && newBucket > this.creditsRepo.getMaxBucketEver()) {
+    if (newBucket >= 4 && newBucket > this.creditsRepo.getMaxBucketEver()) {
       this.creditsRepo.setMaxBucketEver(newBucket)
 
       if (GROUP_STAR_BUCKETS.has(newBucket)) {
@@ -898,7 +898,7 @@ export class SessionService {
   ): { outcome: AnswerOutcome; answerCost: number } {
     updatedWords[wordIndex] = { ...word, status: 'incorrect' }
 
-    // Compute the answer cost: stress uses fee-based deductions; discovery is free;
+    // Compute the answer cost: high-stakes stress uses fee-based deductions; discovery is free;
     // virgin words (bucket ≤ 1 and maxBucket ≤ 1 — never seen a higher bucket) are free;
     // all others deduct 1 credit.
     const balance = this.creditsRepo.getBalance()
@@ -908,7 +908,7 @@ export class SessionService {
       answerCost = Math.min(isPartial ? stressFee / 2 : stressFee, balance)
     } else {
       const isVirginWord = entry.bucket <= 1 && entry.maxBucket <= 1
-      answerCost = (free || isVirginWord) ? 0 : Math.min(1, balance)
+      answerCost = (free || isVirginWord || isPartial) ? 0 : Math.min(1, balance)
     }
 
     if (answerCost > 0) {
@@ -958,13 +958,6 @@ export class SessionService {
       }
 
       return { outcome: typos.length > 0 ? 'partial_typo' : 'partial', answerCost }
-    }
-
-    if (stressFee !== undefined) {
-      // Stress wrong: reset to bucket 1 (same as normal session), no second-chance flow
-      this.vocabRepo.update({ ...entry, bucket: 1, lastAskedAt: now })
-
-      return { outcome: 'incorrect', answerCost }
     }
 
     if (entry.bucket >= 4) {

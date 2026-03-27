@@ -420,7 +420,7 @@ There are seven session types: `stress`, `normal`, `repetition`, `focus`, `disco
 
 | Type | Eligible when |
 |---|---|
-| `stress` | balance ≥ 500, ≥ 5 words in buckets 2+, `stress_session_due_at ≤ today` |
+| `stress` | ≥ 10 words in buckets 2+, `stress_session_due_at ≤ today` |
 | `discovery` | active pool (buckets 1–4) < `DISCOVERY_POOL_THRESHOLD` (80), ≥ `DISCOVERY_MIN_WORDS` (10) bucket-0 words exist, not already done today (`last_discovery_session_date`) |
 | `focus` | ≥ `FOCUS_MIN_WORDS` (10) words with `score ≥ 2` and `bucket` in 1–5 |
 | `veteran` | `veteran_session_due_at ≤ today`, ≥ `VETERAN_MIN_BUCKET6_WORDS` (50) in buckets 6+, `selectVeteranWords` returns ≥ `VETERAN_MIN_WORDS` (10) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2) |
@@ -451,23 +451,22 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 3. If fewer than `FOCUS_MIN_WORDS` (10) primary candidates exist, the focus session is **skipped** in the current rotation cycle.
 4. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
 
-*Stress sessions* — high-stakes timed challenge that fires automatically (silently replacing the normal "Start new session" flow) when all trigger conditions are met.
-1. **Trigger conditions:** credit balance ≥ 500, at least 5 words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When the balance first reaches ≥ 500 and no stress session has ever been scheduled, the first due date is set to `now + random(0–48 h)`.
-2. **Word selection:** `selectStressWords(allEntries, stressSize=24, minWords=5)` — selects across three difficulty tiers (each shuffled randomly within the tier):
+*Stress sessions* — high-stakes timed challenge that fires automatically once a week when trigger conditions are met. No credit balance requirement.
+1. **Trigger conditions:** at least `STRESS_MIN_WORDS` (10) words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When qualifying words first reach 10 and no stress session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
+2. **Word selection:** `selectStressWords(allEntries, stressSize=24, minWords=10)` — only words in **buckets 2+** are eligible (bucket 0/1 excluded as the user may not know them yet). Selects across three difficulty tiers (each shuffled randomly within the tier):
    - Tier A (up to 8): difficulty ≥ 4
    - Tier B (up to 8): difficulty ≥ 2, excluding tier A picks
-   - Tier C (remaining slots up to 24): any word, excluding prior picks
-   Words are drawn from the full vocabulary (all buckets), regardless of whether they are due. Unfilled tier slots carry forward to tier C.
+   - Tier C (remaining slots up to 24): any bucket-2+ word, excluding prior picks
+   Words are drawn regardless of due status. Unfilled tier slots carry forward to tier C.
 3. **No hints:** the hint button is hidden for the entire session.
-4. **No second-chance words:** a wrong answer on a time-based word does NOT insert a second-chance word.
+4. **Second-chance words:** a wrong answer on a time-based word inserts a second-chance word, identical to normal sessions. The countdown timer resets for each new question including second-chance questions.
 5. **Time limit per question:** 15 seconds when only one answer field is shown; 25 seconds when two fields are shown. The timer resets on each new word. When it expires, whatever is typed is auto-submitted (empty fields count as wrong).
-6. **Scoring (per wrong/partial answer):**
-   - `fee = floor(500 / sessionSize)` rounded down to the nearest even number (max session size 24 → fee = 20).
-   - Wrong or timed out: deduct `fee` credits; word reset to bucket 1.
-   - Partially correct: deduct `fee / 2` credits; word stays in current bucket.
-   - Fully correct: no credit cost; word is promoted one bucket **only if it is due** (same rule as repetition sessions).
-7. **Perfect session bonus:** +100 credits if every answer in the session is fully correct. This is the only way to earn credits during a stress session. No other credit earning applies (no bucket-milestone credits, no new-bucket credits).
-8. **Scheduling:** after the session completes (regardless of outcome), the next due date is set to `now + 7 days + random(0–48 h)`.
+6. **Scoring — two modes, determined once at session start by the current balance:**
+   - *High-stakes mode (balance ≥ 500):* `fee = floor(500 / sessionSize)` rounded down to the nearest even number (max session size 24 → fee = 20). Wrong/timed out: deduct `fee` credits, reset to bucket 1. Partially correct: deduct `fee / 2`, stay in current bucket.
+   - *Standard mode (balance < 500):* Wrong/timed out: deduct 1 credit, reset to bucket 1. Partially correct: free, stay in current bucket.
+   - Fully correct (both modes): no credit cost; word promoted one bucket if due.
+7. **Credit earning:** +5 credits when a word is promoted into a new personal highest bucket (`bucket > maxBucket`), same as any other session. **+100 credit bonus** for a perfect session (every answer fully correct, no partials, no timeouts, no second-chance words triggered).
+8. **Scheduling:** after the session completes (regardless of outcome), the next due date is set to `today + 6 days + random(0–48 h)`.
 9. **Counts toward daily streak** like any other session type.
 10. **Summary screen:** a dedicated `StressSummaryScreen` shows correct/wrong counts, credits gained or lost, and the perfect bonus if applicable.
 
@@ -671,11 +670,11 @@ The bonus fires at most once per bucket level: if bucket 6 becomes empty again a
 **Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints. The bonus amount depends on session type:
 - **Normal / repetition / focus / veteran / starred:** **+20 credits.**
 - **Discovery:** **+100 credits** — all words must be answered correctly with no push-backs (a `pushed_back` word counts as non-correct and disqualifies the bonus).
-- **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts). This is the only way to earn credits during a stress session; no bucket-milestone or new-bucket credits apply.
+- **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts, no second-chance words triggered). New-bucket-record bonuses (+5) also apply in stress sessions.
 
-All conditions that must hold (except discovery, which has no second-chance words or paid hints; and stress, which has no hints and no second-chance words):
+All conditions that must hold (except discovery, which has no second-chance words or paid hints; and stress, which has no hints):
 1. Every word in the session was answered correctly (no `'incorrect'` or `'pushed_back'` status).
-2. No second-chance words were triggered (no word has `secondChanceFor` set). *(Not applicable to stress sessions.)*
+2. No second-chance words were triggered (no word has `secondChanceFor` set). *(Not applicable to discovery sessions.)*
 3. The hint button was not clicked even once during the session. *(Hints are unavailable in stress sessions.)*
 
 The `hintsUsed` flag is passed as part of the final answer submission payload so the server can enforce this condition without requiring a separate endpoint. The bonus is shown as a distinct line item in the session summary and included in the Total.
@@ -1431,40 +1430,53 @@ Reaching certain streak lengths triggers a special reward **instead of** the nor
 
 ### Overview
 
-A high-stakes timed session type that fires automatically at most once per week when the user has accumulated ≥ 500 credits and has a sufficient active vocabulary. The session challenges the user under time pressure, deducting credits for wrong or partial answers and awarding a +100 bonus for a perfect run.
+A high-stakes timed session type that fires automatically at most once per week when qualifying words exist. No credit balance requirement. The session challenges the user under time pressure, deducting credits for wrong or partial answers and awarding a +100 bonus for a perfect run. Second-chance words apply as in normal sessions.
 
 ### Trigger Conditions
 
-- Credit balance ≥ 500.
-- At least 5 words exist in buckets 2+.
-- `stress_session_due_at` (YYYY-MM-DD UTC) is ≤ today **or** has never been set (see first-trigger logic below).
+- At least `STRESS_MIN_WORDS` (10) words exist in buckets 2+.
+- `stress_session_due_at` (YYYY-MM-DD UTC) is ≤ today.
 
-**First trigger:** when the credit balance reaches ≥ 500 for the first time and `stress_session_due_at` is still null, it is set immediately to `today + random(0–48 h)`. This ensures the first stress session fires within two days of the user becoming eligible, without being an immediate surprise.
+**First trigger:** when qualifying words first reach 10 and `stress_session_due_at` is still null, it is set to `today + random(0–48 h)`.
 
-The trigger is checked inside `createSession()` — if all conditions are met, a stress session is created silently (the user just clicks "Start new session" and gets a stress session).
+The trigger is checked inside `createSession()` as part of the normal round-robin rotation.
 
 ### Session Rules
 
-- **Size:** up to 24 words (`stressSize = 24`), drawn randomly from all words in buckets 2+ regardless of due status.
+- **Size:** up to 24 words (`stressSize = 24`), drawn from buckets 2+ using three difficulty tiers (bucket 0/1 excluded); words are selected regardless of due status.
 - **No hints:** the hint button is hidden for the entire session.
-- **No second-chance words:** a wrong answer does not insert a follow-up word.
+- **Second-chance words:** a wrong answer on a time-based word inserts a second-chance word, identical to normal sessions. The countdown timer resets for each new question including second-chance questions.
 - **Time limit per question:** 15 s (one answer field) / 25 s (two answer fields). The timer resets on each new word. Expiry auto-submits whatever is typed; empty fields count as fully wrong.
 
 ### Scoring
 
+Fee mode is determined **once at session start** based on the balance at that moment.
+
+*High-stakes mode (balance ≥ 500 at session start):*
+
 | Outcome | Credit effect | Bucket effect |
 |---|---|---|
-| Fully correct | none | promoted one bucket if due; unchanged if not yet due |
+| Fully correct | none (or +5 if new bucket record) | promoted one bucket if due; unchanged if not yet due |
 | Partially correct | −½ × fee | stays in current bucket |
 | Wrong or timed out | −1 × fee | reset to bucket 1 |
 
 **Per-answer fee:** `floor(500 ÷ sessionSize)` rounded down to the nearest even number. For the maximum session size of 24: fee = 20 credits (10 for partial).
 
-**Perfect session bonus:** +100 credits if every answer is fully correct (no partials, no timeouts). This is the only way to earn credits during a stress session. Bucket-milestone and new-bucket-milestone bonuses do not apply.
+*Standard mode (balance < 500 at session start):*
+
+| Outcome | Credit effect | Bucket effect |
+|---|---|---|
+| Fully correct | none (or +5 if new bucket record) | promoted one bucket if due; unchanged if not yet due |
+| Partially correct | free | stays in current bucket |
+| Wrong or timed out | −1 credit | reset to bucket 1 |
+
+**New-bucket-record bonus:** +5 credits when a word is promoted into a new personal highest bucket (`bucket > maxBucket`), same as any other session.
+
+**Perfect session bonus:** +100 credits if every answer is fully correct (no partials, no timeouts, no second-chance words triggered).
 
 ### Scheduling
 
-After each stress session completes (any outcome), the next due date is set to `today + 7 days + random(0–48 h)`.
+After each stress session completes (any outcome), the next due date is set to `today + 6 days + random(0–48 h)`.
 
 ### Data Model
 
@@ -1479,12 +1491,12 @@ Migration `024_stress_session.sql` adds one column to the `credits` table:
 - **`CreditsRepository`** — two new methods: `getStressSessionDueAt(): string | null`, `setStressSessionDueAt(date: string | null): void`.
 - **`SqliteCreditsRepository`** + **`FakeCreditsRepository`** — implement the new methods.
 - **`StressSessionService`** (new file `server/features/session/stressSessionService.ts`):
-  - `isAvailable(today, balance, qualifyingWordCount)`: returns true when all trigger conditions are met.
-  - `scheduleNext(today)`: sets `stress_session_due_at` to `today + 7 days + random 0–48 h`.
-  - `schedulefirst(today)`: sets `stress_session_due_at` to `today + random 0–48 h` (used when balance first reaches ≥ 500).
+  - `isAvailable(today, qualifyingWordCount)`: returns true when all trigger conditions are met (no balance check).
+  - `scheduleNext(today)`: sets `stress_session_due_at` to `today + 6 days + random 0–48 h`.
+  - `scheduleFirst(today)`: sets `stress_session_due_at` to `today + random 0–48 h` (used when qualifying words first reach 10).
 - **`SessionService`** modifications:
-  - `createSession()`: check stress trigger before discovery; if eligible, create session with `type = 'stress'`.
-  - `submitAnswer()` for stress sessions: apply fee-based credit deduction for wrong/partial; no second-chance; no bucket-milestone/new-bucket credit; call `scheduleNext` on session completion; award +100 perfect bonus if applicable.
+  - `createSession()`: stress is part of the normal round-robin rotation; fee mode (high-stakes vs standard) stored on the session based on balance at creation time.
+  - `submitAnswer()` for stress sessions: apply fee based on stored mode for wrong/partial; second-chance flow identical to normal sessions; award +5 new-bucket-record bonus; call `scheduleNext` on session completion; award +100 perfect bonus if applicable.
   - `shared/types/Session.ts`: add `'stress'` to the `SessionType` union.
 - **`sessionRouter`** — no new routes needed; stress session uses the same `POST /api/v1/session` and `POST /api/v1/session/:id/answer` as all other session types.
 
@@ -1500,19 +1512,18 @@ Migration `024_stress_session.sql` adds one column to the `credits` table:
 
 ### Implementation Checklist
 
-- [ ] Migration `024_stress_session.sql`: add `stress_session_due_at TEXT` to `credits`
-- [ ] `CreditsRepository`: add `getStressSessionDueAt()`, `setStressSessionDueAt()`
-- [ ] `SqliteCreditsRepository` + `FakeCreditsRepository`: implement new methods
-- [ ] `server/db/database.test.ts`: bump migration count 23 → 24
-- [ ] `shared/types/Session.ts`: add `'stress'` to `SessionType`
-- [ ] `StressSessionService`: `isAvailable()`, `scheduleNext()`, `scheduleFirst()`; unit tests
-- [ ] `SessionService.createSession()`: stress check as highest priority
-- [ ] `SessionService.submitAnswer()`: stress-specific scoring (fee, perfect bonus, no second-chance, no milestone credits)
-- [ ] `SessionService` tests for stress scoring
-- [ ] `srsSelection.ts`: `selectStressWords()` — random draw from buckets 2+
-- [ ] `TrainingScreen`: countdown timer, live balance, hidden hints
-- [ ] `StressSummaryScreen` + routing in `App.tsx`
-- [ ] Tests for all new/changed code
+- [x] Migration `024_stress_session.sql`: add `stress_session_due_at TEXT` to `credits`
+- [x] Migration `033_stress_session_update.sql`: add `stress_high_stakes INTEGER` to `sessions`
+- [x] `CreditsRepository`: add `getStressSessionDueAt()`, `setStressSessionDueAt()`
+- [x] `SqliteCreditsRepository` + `FakeCreditsRepository`: implement new methods
+- [x] `shared/types/Session.ts`: add `'stress'` to `SessionType`; add `stressHighStakes?: boolean`
+- [x] `StressSessionService`: `isAvailable()`, `scheduleNext()`, `scheduleFirst()`; unit tests
+- [x] `SessionService.createSession()`: stress in round-robin rotation; `stressHighStakes` set at session start
+- [x] `SessionService.submitAnswer()`: fee mode from `stressHighStakes`; second-chance flow; +5 bucket-record credit; +100 perfect bonus
+- [x] `SessionService` tests for stress scoring
+- [x] `srsSelection.ts`: `selectStressWords()` — three difficulty tiers from full vocabulary
+- [x] `TrainingScreen`: countdown timer, live balance, hidden hints, second-chance display
+- [x] Tests for all new/changed code
 
 ---
 

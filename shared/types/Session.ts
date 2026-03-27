@@ -70,6 +70,16 @@ export interface Session {
    * completed today still counts toward yesterday's streak.
    */
   firstAnsweredAt: string | null
+
+  /**
+   * Only present for `stress` sessions. Indicates whether the high-stakes fee
+   * mode was active at session creation (balance >= 500). Determines the
+   * per-wrong-answer fee for the entire session:
+   * - `true`  → fee = floor(500 / sessionSize), rounded down to nearest even
+   * - `false` → fee = 1 credit per wrong answer (standard mode)
+   * - `undefined` → not a stress session
+   */
+  stressHighStakes?: boolean
 }
 
 /**

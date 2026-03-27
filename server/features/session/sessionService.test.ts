@@ -926,7 +926,8 @@ describe('createSession — session type alternation', () => {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
-    // Prevent breakthrough from firing (bucket-4 entries qualify as cat3)
+    // Prevent stress and breakthrough from firing (bucket-4 entries qualify for both)
+    creditsRepo.setStressSessionDueAt('9999-12-31')
     creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
 
     const prevSession = makeSession({ status: 'completed', type: 'normal' })
@@ -946,7 +947,8 @@ describe('createSession — session type alternation', () => {
     // Also add some frequency words that should NOT appear
     vocabRepo.insert(makeEntry({ bucket: 0 }))
 
-    // Prevent breakthrough from firing (bucket-4 entries qualify as cat3)
+    // Prevent stress and breakthrough from firing
+    creditsRepo.setStressSessionDueAt('9999-12-31')
     creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
 
     const prevSession = makeSession({ status: 'completed', type: 'normal' })
@@ -991,7 +993,8 @@ describe('createSession — session type alternation', () => {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
-    // Prevent breakthrough from firing (bucket-4 entries qualify as cat3)
+    // Prevent stress and breakthrough from firing
+    creditsRepo.setStressSessionDueAt('9999-12-31')
     creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
 
     const fallbackNormal = makeSession({ status: 'completed', type: 'normal' })
@@ -1433,7 +1436,7 @@ describe('submitAnswer — earned stars', () => {
     expect(creditsRepo.getEarnedStars()).toBe(0)
   })
 
-  it('does not award a star in a stress session', () => {
+  it('awards a star in a stress session when a new group bucket is reached', () => {
     const entry = makeEntry({ target: ['word'], bucket: 3, maxBucket: 3 })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }], type: 'stress' })
 
@@ -1442,7 +1445,7 @@ describe('submitAnswer — earned stars', () => {
 
     service.submitAnswer(session.id, entry.id, ['word'])
 
-    expect(creditsRepo.getEarnedStars()).toBe(0)
+    expect(creditsRepo.getEarnedStars()).toBe(1)
   })
 })
 
@@ -2347,7 +2350,6 @@ describe('stress session — createSession', () => {
   }
 
   it('creates a stress session when all conditions are met', () => {
-    creditsRepo.addBalance(500)
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
     const entries = makeQualifyingEntries(10)
@@ -2359,9 +2361,34 @@ describe('stress session — createSession', () => {
     expect(session.type).toBe('stress')
   })
 
-  it('schedules the first stress session when balance first hits 500', () => {
-    creditsRepo.addBalance(500)
+  it('creates stress session even with 0 credits (no balance requirement)', () => {
+    creditsRepo.setStressSessionDueAt('2026-01-01')
 
+    const entries = makeQualifyingEntries(10)
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('stress')
+    expect(session.stressHighStakes).toBe(false)
+  })
+
+  it('sets stressHighStakes=true when balance >= 500 at session start', () => {
+    creditsRepo.addBalance(500)
+    creditsRepo.setStressSessionDueAt('2026-01-01')
+
+    const entries = makeQualifyingEntries(10)
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('stress')
+    expect(session.stressHighStakes).toBe(true)
+  })
+
+  it('schedules the first stress session when qualifying words first reach minimum', () => {
     const entries = makeQualifyingEntries(10)
 
     for (const e of entries) { vocabRepo.insert(e) }
@@ -2371,21 +2398,7 @@ describe('stress session — createSession', () => {
     expect(creditsRepo.getStressSessionDueAt()).not.toBeNull()
   })
 
-  it('does not create stress session when balance < 500', () => {
-    creditsRepo.addBalance(499)
-    creditsRepo.setStressSessionDueAt('2026-01-01')
-
-    const entries = makeQualifyingEntries(10)
-
-    for (const e of entries) { vocabRepo.insert(e) }
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
-
-    expect(session.type).not.toBe('stress')
-  })
-
   it('does not create stress session when due date is in the future', () => {
-    creditsRepo.addBalance(500)
     creditsRepo.setStressSessionDueAt('9999-12-31')
 
     const entries = makeQualifyingEntries(10)
@@ -2397,14 +2410,13 @@ describe('stress session — createSession', () => {
     expect(session.type).not.toBe('stress')
   })
 
-  it('stress session draws words from all buckets (not limited to bucket >= 2)', () => {
-    creditsRepo.addBalance(500)
+  it('stress session only draws words from bucket 2+ (never bucket 0 or 1)', () => {
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
     for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 0 })) }
     for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 1 })) }
 
-    const qualifying = makeQualifyingEntries(5, 2)
+    const qualifying = makeQualifyingEntries(10, 2)
 
     for (const e of qualifying) { vocabRepo.insert(e) }
 
@@ -2413,19 +2425,18 @@ describe('stress session — createSession', () => {
     expect(session.type).toBe('stress')
     expect(session.words.length).toBeGreaterThan(0)
 
-    // Words from any bucket can appear — tier C pulls from the full vocabulary
+    // Only bucket 2+ words should appear — bucket 0/1 words must be excluded
     const buckets = session.words.map((w) => vocabRepo.findById(w.vocabId)?.bucket ?? -1)
 
-    expect(buckets.every((b) => b >= 0)).toBe(true)
+    expect(buckets.every((b) => b >= 2)).toBe(true)
   })
 
   it('stress session takes priority over discovery', () => {
-    creditsRepo.addBalance(500)
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
     // Active pool < threshold to trigger discovery
     for (let i = 0; i < 30; i++) { vocabRepo.insert(makeEntry({ bucket: 0 })) }
-    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 3 })) }
+    for (let i = 0; i < 10; i++) { vocabRepo.insert(makeEntry({ bucket: 3 })) }
 
     const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
@@ -2434,21 +2445,22 @@ describe('stress session — createSession', () => {
 })
 
 describe('stress session — answer scoring', () => {
-  function makeStressSession(words: VocabEntry[]): Session {
+  function makeStressSession(words: VocabEntry[], highStakes = true): Session {
     return makeSession({
       type: 'stress',
       words: words.map((e) => ({ vocabId: e.id, status: 'pending' })),
       status: 'open',
+      stressHighStakes: highStakes,
     })
   }
 
-  it('deducts fee credits for a wrong answer', () => {
+  it('deducts fee credits for a wrong answer in high-stakes mode', () => {
     const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
 
     vocabRepo.insert(entry)
     creditsRepo.addBalance(500)
 
-    const sess = makeStressSession([entry])
+    const sess = makeStressSession([entry], true)
 
     sessionRepo.insert(sess)
 
@@ -2459,13 +2471,13 @@ describe('stress session — answer scoring', () => {
     expect(creditsRepo.getBalance()).toBe(0)
   })
 
-  it('deducts half fee for a partial answer', () => {
+  it('deducts half fee for a partial answer in high-stakes mode', () => {
     const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog', 'hound'] })
 
     vocabRepo.insert(entry)
     creditsRepo.addBalance(500)
 
-    const sess = makeStressSession([entry])
+    const sess = makeStressSession([entry], true)
 
     sessionRepo.insert(sess)
 
@@ -2476,8 +2488,24 @@ describe('stress session — answer scoring', () => {
     expect(result.outcome).toBe('partial')
   })
 
-  it('resets word to bucket 1 on wrong answer', () => {
-    const entry = makeEntry({ bucket: 5, source: 'Hund', target: ['dog'], lastAskedAt: null })
+  it('deducts 1 credit for a wrong answer in standard mode (balance < 500)', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'], maxBucket: 3 })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(10)
+
+    const sess = makeStressSession([entry], false)
+
+    sessionRepo.insert(sess)
+
+    const result = service.submitAnswer(sess.id, entry.id, ['wrong'])
+
+    expect(result.answerCost).toBe(1)
+    expect(creditsRepo.getBalance()).toBe(9)
+  })
+
+  it('resets frequency-bucket word to bucket 1 on wrong answer', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
 
     vocabRepo.insert(entry)
     creditsRepo.addBalance(500)
@@ -2493,7 +2521,7 @@ describe('stress session — answer scoring', () => {
     expect(updated?.bucket).toBe(1)
   })
 
-  it('does not add a second-chance word for time-based buckets', () => {
+  it('triggers second-chance flow for wrong answer on time-based words', () => {
     const entry = makeEntry({ bucket: 4, source: 'Hund', target: ['dog'], lastAskedAt: null })
     const other = makeEntry({ bucket: 4, source: 'Katze', target: ['cat'], lastAskedAt: null })
 
@@ -2507,12 +2535,27 @@ describe('stress session — answer scoring', () => {
 
     const result = service.submitAnswer(sess.id, entry.id, ['wrong'])
 
-    expect(result.outcome).toBe('incorrect')
-    expect(result.session.words).toHaveLength(1)
+    expect(result.outcome).toBe('second_chance')
+    expect(result.session.words).toHaveLength(2)
   })
 
-  it('correct answer earns no per-word credits (creditsEarned = 0)', () => {
+  it('correct answer earns +5 credits when word reaches new personal bucket record', () => {
     const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'], maxBucket: 2 })
+
+    vocabRepo.insert(entry)
+    creditsRepo.addBalance(500)
+
+    const sess = makeStressSession([entry])
+
+    sessionRepo.insert(sess)
+
+    const result = service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    expect(result.creditsEarned).toBe(5)
+  })
+
+  it('correct answer earns no credits when not a new bucket record', () => {
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'], maxBucket: 5 })
 
     vocabRepo.insert(entry)
     creditsRepo.addBalance(500)
@@ -2528,7 +2571,7 @@ describe('stress session — answer scoring', () => {
   })
 
   it('awards +100 perfect bonus for perfect stress session', () => {
-    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
+    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'], maxBucket: 5 })
 
     vocabRepo.insert(entry)
     creditsRepo.addBalance(500)
@@ -2543,11 +2586,10 @@ describe('stress session — answer scoring', () => {
     expect(creditsRepo.getBalance()).toBe(600)
   })
 
-  it('schedules next stress session after completion', () => {
+  it('schedules next stress session at least 6 days after completion', () => {
     const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'] })
 
     vocabRepo.insert(entry)
-    creditsRepo.addBalance(500)
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
     const sess = makeStressSession([entry])
@@ -2561,8 +2603,8 @@ describe('stress session — answer scoring', () => {
     expect(newDueAt).not.toBeNull()
 
     if (newDueAt !== null) {
-      // Next due at is at least 7 days after today
-      expect(newDueAt > '2026-03-28').toBe(true)
+      // Next due at is at least 6 days from today (2026-03-27)
+      expect(newDueAt >= '2026-04-02').toBe(true)
     }
   })
 })
@@ -2582,6 +2624,7 @@ describe('veteran session — createSession', () => {
 
   it('creates a veteran session when all conditions are met', () => {
     creditsRepo.setVeteranSessionDueAt('2026-01-01')
+    creditsRepo.setStressSessionDueAt('9999-12-31')
 
     const entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
 
@@ -2641,6 +2684,7 @@ describe('veteran session — createSession', () => {
 
   it('veteran session takes priority over normal/repetition', () => {
     creditsRepo.setVeteranSessionDueAt('2026-01-01')
+    creditsRepo.setStressSessionDueAt('9999-12-31')
     sessionRepo.insert(makeSession({ status: 'completed', type: 'normal' }))
 
     const entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
@@ -2656,6 +2700,7 @@ describe('veteran session — createSession', () => {
 
   it('focus session takes priority over veteran session', () => {
     creditsRepo.setVeteranSessionDueAt('2026-01-01')
+    creditsRepo.setStressSessionDueAt('9999-12-31')
 
     const bucket6Entries = makeBucket6Entries(VETERAN_MIN_BUCKET6_WORDS)
 
@@ -2716,6 +2761,7 @@ describe('breakthrough session — createSession', () => {
 
   it('creates a breakthrough session when all conditions are met', () => {
     creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
+    creditsRepo.setStressSessionDueAt('9999-12-31')
 
     for (const e of makeBreakthroughPool()) {
       vocabRepo.insert(e)

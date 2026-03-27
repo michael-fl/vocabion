@@ -122,41 +122,50 @@ The table below shows the earliest possible time to reach each group, assuming e
 
 The app picks the session type automatically each time you start a new session. There are seven automatic types drawn from a **shuffled round-robin rotation**: the app cycles through all seven types in a random order, skipping any that aren't eligible, and reshuffles when all seven have been considered. An eighth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
-#### Stress Session (weekly)
+#### Stress Session (~weekly)
 
 A **Stress Session** is a high-stakes timed challenge that fires automatically at most once per week when all of the following conditions are met:
 
-- Your credit balance is **500 or higher**
-- At least **5 words** exist in buckets 2 and above
-- The stress session is **due** (at least a week has passed since the last one)
+- At least **10 words** exist in buckets 2 and above
+- The stress session is **due** (at least 6 days have passed since the last one)
 
-If you have never had a stress session and your balance reaches 500 for the first time, the first session will be scheduled to trigger within the next **48 hours**.
+No credit balance requirement — a stress session can fire even with 0 credits. When qualifying words first reach 10 and no session has ever been scheduled, the first one is scheduled to trigger within the next **48 hours**.
 
 **Session rules:**
-- Up to **24 words** are selected across three difficulty tiers (each tier is randomly shuffled internally):
+- Up to **24 words** are selected across three difficulty tiers (each tier is randomly shuffled internally). Only words in **buckets 2+** are eligible — bucket 0 and 1 words are excluded as the user may not know them yet:
   - **Tier A (up to 8 words):** difficulty ≥ 4
   - **Tier B (up to 8 words):** difficulty ≥ 2 (excluding tier A picks)
-  - **Tier C (remaining slots):** any word (excluding prior picks)
+  - **Tier C (remaining slots):** any bucket-2+ word (excluding prior picks)
   Words are selected regardless of whether they are due. Any unfilled tier slots carry forward to tier C, so the session always reaches up to 24 words.
 - **No hints** — the hint button is not available.
-- **No second chance** — a wrong answer on a time-based word does not generate a second-chance word.
+- **Second chance** — a wrong answer on a time-based word generates a second-chance word, exactly as in a normal session. The countdown timer resets for each new question including second-chance questions.
 - **Time limit per question** — 15 seconds for one answer field, 25 seconds for two. The timer resets on every new question. When it runs out, whatever is typed is submitted automatically (empty fields count as wrong).
 
 The timer and your current credit balance are displayed prominently during the session so you are always aware of the pressure.
 
-**Scoring:**
+**Scoring — two modes depending on your balance when the session starts:**
+
+*High-stakes mode (balance ≥ 500 at session start):*
 
 | Outcome | Credit effect | Bucket effect |
 |---|---|---|
-| Fully correct | none | promoted one bucket if due; unchanged if not yet due |
+| Fully correct | none (or +5 if new bucket record) | promoted one bucket if due; unchanged if not yet due |
 | Partially correct | −½ × fee | stays in current bucket |
 | Wrong or timed out | −1 × fee | reset to bucket 1 |
 
 The **per-answer fee** is `floor(500 ÷ session size)`, rounded down to the nearest even number. For the maximum session size of 24 words this is **20 credits per wrong answer** (10 for partial).
 
-**Perfect session:** if every answer in the session is fully correct, a **+100 credit bonus** is awarded. This is the only way to earn credits during a stress session.
+*Standard mode (balance < 500 at session start):*
 
-After each stress session completes, the next one is scheduled for **7 days + up to 48 random hours** later.
+| Outcome | Credit effect | Bucket effect |
+|---|---|---|
+| Fully correct | none (or +5 if new bucket record) | promoted one bucket if due; unchanged if not yet due |
+| Partially correct | free | stays in current bucket |
+| Wrong or timed out | −1 credit | reset to bucket 1 |
+
+**Earning credits:** +5 credits when a word is promoted into a new personal highest bucket (same as any other session). **+100 credit bonus** for a perfect session (every answer fully correct).
+
+After each stress session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
 ---
 
@@ -288,7 +297,7 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Session type | Priority | Eligible when… |
 |---|---|---|
 | Second Chance | Highest (pre-rotation) | ≥ 1 due second-chance-bucket word AND not already played today |
-| Stress | Rotation | Due date reached, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) |
+| Stress | Rotation | Due date reached, ≥ 10 qualifying words (buckets 2+) |
 | Discovery | Rotation | Active pool (buckets 1–4) < 80 words, ≥ 10 bucket-0 words, not already done today |
 | Focus | Rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
 | Veteran | Rotation | Due date reached, ≥ 50 words in buckets 6+, ≥ 10 of those with difficulty ≥ 2 |
@@ -393,8 +402,11 @@ Each word only earns the credit for a given bucket level once — falling back a
 |---|---|
 | Hint during a session | 10–(n−2)×10 credits depending on bucket |
 | Wrong answer (free in discovery sessions and for virgin words — see below) | 1 credit |
-| Wrong answer in a stress session | floor(500 ÷ session size) credits, rounded to nearest even number |
-| Partially correct answer in a stress session | Half of the per-answer fee |
+| Partially correct answer (non-stress session) | free |
+| Wrong answer in a stress session (balance ≥ 500 at start) | floor(500 ÷ session size) credits, rounded to nearest even number |
+| Partially correct answer in a stress session (balance ≥ 500 at start) | Half of the per-answer fee |
+| Wrong answer in a stress session (balance < 500 at start) | 1 credit |
+| Partially correct answer in a stress session (balance < 500 at start) | free |
 | Save a streak (see Streaks) | 50 credits |
 
 **Virgin words are free:** a word is considered a *virgin word* when its current bucket is ≤ 1 **and** it has never reached a higher bucket (`maxBucket ≤ 1`). Wrong answers on virgin words never deduct a credit — this protects newly introduced words that haven't yet proven themselves. Once a word has ever climbed to bucket 2 or above, it is no longer virgin and wrong answers cost the usual 1 credit, even if it has since fallen back.

@@ -860,29 +860,50 @@ describe('selectStarredWords', () => {
 
 describe('selectStressWords', () => {
   it('returns null when total entries are fewer than minWords', () => {
-    const entries = makeEntries(4, { difficulty: 0 })
+    const entries = makeEntries(4, { bucket: 2, difficulty: 0 })
 
     expect(selectStressWords(entries, 24, 5)).toBeNull()
   })
 
-  it('returns all entries when fewer than sessionSize exist', () => {
-    const entries = makeEntries(10, { difficulty: 0 })
-    const result = selectStressWords(entries, 24, 5)
+  it('returns null when fewer than minWords are in bucket 2+', () => {
+    // 10 entries total, but only 4 are in bucket 2+ — below minWords=5
+    const eligible = makeEntries(4, { bucket: 2, difficulty: 0 })
+    const ineligible = makeEntries(6, { bucket: 1, difficulty: 0 })
+
+    expect(selectStressWords([...eligible, ...ineligible], 24, 5)).toBeNull()
+  })
+
+  it('returns all eligible (bucket 2+) entries when fewer than sessionSize exist', () => {
+    const eligible = makeEntries(10, { bucket: 2, difficulty: 0 })
+    const ineligible = makeEntries(5, { bucket: 1, difficulty: 0 })
+    const result = selectStressWords([...eligible, ...ineligible], 24, 5)
 
     expect(result).toHaveLength(10)
   })
 
   it('returns at most sessionSize entries', () => {
-    const entries = makeEntries(50, { difficulty: 0 })
+    const entries = makeEntries(50, { bucket: 2, difficulty: 0 })
     const result = selectStressWords(entries, 24, 5)
 
     expect(result).toHaveLength(24)
   })
 
+  it('only includes words from bucket 2+', () => {
+    const eligible = makeEntries(15, { bucket: 2, difficulty: 0 })
+    const ineligible = makeEntries(10, { bucket: 0, difficulty: 0 })
+    const result = selectStressWords([...eligible, ...ineligible], 24, 5)
+
+    const eligibleIds = new Set(eligible.map((e) => e.id))
+    const ineligibleIds = new Set(ineligible.map((e) => e.id))
+
+    expect(result?.every((e) => eligibleIds.has(e.id))).toBe(true)
+    expect(result?.some((e) => ineligibleIds.has(e.id))).toBe(false)
+  })
+
   it('fills tier A (difficulty >= 4) first, up to 8 words', () => {
-    const tierA = makeEntries(8, { difficulty: 4 })
-    const tierB = makeEntries(8, { difficulty: 2 })
-    const tierC = makeEntries(8, { difficulty: 0 })
+    const tierA = makeEntries(8, { bucket: 2, difficulty: 4 })
+    const tierB = makeEntries(8, { bucket: 2, difficulty: 2 })
+    const tierC = makeEntries(8, { bucket: 2, difficulty: 0 })
     const result = selectStressWords([...tierA, ...tierB, ...tierC], 24, 5)
 
     const tierAIds = new Set(tierA.map((e) => e.id))
@@ -897,9 +918,9 @@ describe('selectStressWords', () => {
 
   it('fills tier B from difficulty >= 2 words not already in tier A', () => {
     // 4 words at difficulty 5 (qualifies for tier A and B), 10 at difficulty 2, 10 at difficulty 0
-    const highDiff = makeEntries(4, { difficulty: 5 })
-    const midDiff = makeEntries(10, { difficulty: 2 })
-    const lowDiff = makeEntries(10, { difficulty: 0 })
+    const highDiff = makeEntries(4, { bucket: 2, difficulty: 5 })
+    const midDiff = makeEntries(10, { bucket: 2, difficulty: 2 })
+    const lowDiff = makeEntries(10, { bucket: 2, difficulty: 0 })
     const result = selectStressWords([...highDiff, ...midDiff, ...lowDiff], 24, 5)
 
     const resultIds = new Set(result?.map((e) => e.id) ?? [])
@@ -912,7 +933,7 @@ describe('selectStressWords', () => {
 
   it('does not duplicate words across tiers', () => {
     // difficulty 4 words qualify for both tier A and tier B — must not appear twice
-    const entries = makeEntries(20, { difficulty: 4 })
+    const entries = makeEntries(20, { bucket: 2, difficulty: 4 })
     const result = selectStressWords(entries, 24, 5)
 
     const ids = result?.map((e) => e.id) ?? []
@@ -922,9 +943,9 @@ describe('selectStressWords', () => {
 
   it('tier C fills remaining slots when tiers A and B are short', () => {
     // Only 3 words in tier A, 3 in tier B range, rest are tier C
-    const tierA = makeEntries(3, { difficulty: 5 })
-    const tierB = makeEntries(3, { difficulty: 2 })
-    const tierC = makeEntries(20, { difficulty: 0 })
+    const tierA = makeEntries(3, { bucket: 2, difficulty: 5 })
+    const tierB = makeEntries(3, { bucket: 2, difficulty: 2 })
+    const tierC = makeEntries(20, { bucket: 2, difficulty: 0 })
     const result = selectStressWords([...tierA, ...tierB, ...tierC], 24, 5)
 
     // 3 + 3 + 18 = 24 (tier C fills the remaining 18 slots)
@@ -938,9 +959,9 @@ describe('selectStressWords', () => {
   })
 
   it('stops early when sessionSize is reached before all tiers are filled', () => {
-    const tierA = makeEntries(8, { difficulty: 4 })
-    const tierB = makeEntries(8, { difficulty: 2 })
-    const tierC = makeEntries(8, { difficulty: 0 })
+    const tierA = makeEntries(8, { bucket: 2, difficulty: 4 })
+    const tierB = makeEntries(8, { bucket: 2, difficulty: 2 })
+    const tierC = makeEntries(8, { bucket: 2, difficulty: 0 })
     const result = selectStressWords([...tierA, ...tierB, ...tierC], 10, 5)
 
     expect(result).toHaveLength(10)

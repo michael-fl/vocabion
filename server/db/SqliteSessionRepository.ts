@@ -28,9 +28,15 @@ interface SessionRow {
   status: string
   created_at: string
   first_answered_at: string | null
+  stress_high_stakes: number | null
 }
 
 function rowToSession(row: SessionRow): Session {
+  const stressHighStakes =
+    row.stress_high_stakes === 1 ? true :
+    row.stress_high_stakes === 0 ? false :
+    undefined
+
   return {
     id: row.id,
     direction: row.direction as SessionDirection,
@@ -39,6 +45,7 @@ function rowToSession(row: SessionRow): Session {
     status: row.status as 'open' | 'completed',
     createdAt: row.created_at,
     firstAnsweredAt: row.first_answered_at,
+    stressHighStakes,
   }
 }
 
@@ -74,10 +81,15 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   insert(session: Session): void {
+    const stressHighStakes =
+      session.stressHighStakes === true ? 1 :
+      session.stressHighStakes === false ? 0 :
+      null
+
     this.db
       .prepare(
-        `INSERT INTO sessions (id, direction, type, words, status, created_at, first_answered_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sessions (id, direction, type, words, status, created_at, first_answered_at, stress_high_stakes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         session.id,
@@ -87,6 +99,7 @@ export class SqliteSessionRepository implements SessionRepository {
         session.status,
         session.createdAt,
         session.firstAnsweredAt,
+        stressHighStakes,
       )
   }
 

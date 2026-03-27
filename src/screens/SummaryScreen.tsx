@@ -54,7 +54,6 @@ export interface SummaryScreenProps {
 
 /** Renders a summary of a completed training session. */
 export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onReplay, replayCount = 0, onBack }: SummaryScreenProps) {
-  const isStress = session.type === 'stress'
   const sessionLabel = session.type === 'stress' ? 'Stress Session complete' : 'Session complete'
   const originalWords = session.words.filter((w) => w.secondChanceFor === undefined)
   const secondChanceWords = session.words.filter((w) => w.secondChanceFor !== undefined)
@@ -121,17 +120,13 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
         <h2 className={styles.cardHeading}>Credits</h2>
 
         <div className={styles.statRowGroup}>
-          {!isStress && (
-            <p className={styles.statRow}>
-              Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
-            </p>
-          )}
+          <p className={styles.statRow}>
+            Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
+          </p>
 
-          {!isStress && (
-            <p className={styles.statRow}>
-              Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
-            </p>
-          )}
+          <p className={styles.statRow}>
+            Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
+          </p>
 
           <p className={styles.statRow}>
             Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
