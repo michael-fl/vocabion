@@ -962,14 +962,15 @@ describe('createSession — session type alternation', () => {
     })).toBe(true)
   })
 
-  it('falls back to "normal" and skips repetition when fewer than sessionSize due time-based words exist', () => {
-    // Only 3 due time-based words — not enough for sessionSize=12
+  it('falls back to "normal" and skips repetition when fewer than REPETITION_MIN_WORDS due time-based words exist', () => {
+    // Only 3 due time-based words — not enough for REPETITION_MIN_WORDS=10
     for (let i = 0; i < 3; i++) {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
+    // Use bucket-1 words (active pool) so discovery does not fire
     for (let i = 0; i < 12; i++) {
-      vocabRepo.insert(makeEntry({ bucket: 0 }))
+      vocabRepo.insert(makeEntry({ bucket: 1 }))
     }
 
     const prevSession = makeSession({ status: 'completed', type: 'normal' })
@@ -1849,8 +1850,8 @@ describe('createSession — focus session', () => {
     return makeEntry({ bucket: 1, score: 2, ...overrides })
   }
 
-  it('creates a "focus" session when 5+ words with score >= 2 and bucket > 0 exist', () => {
-    for (let i = 0; i < 5; i++) {
+  it('creates a "focus" session when 10+ words with score >= 2 and bucket > 0 exist', () => {
+    for (let i = 0; i < 10; i++) {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
@@ -1859,18 +1860,19 @@ describe('createSession — focus session', () => {
     expect(session.type).toBe('focus')
   })
 
-  it('does not create a "focus" session when fewer than 5 qualifying words exist', () => {
-    for (let i = 0; i < 4; i++) {
+  it('does not create a "focus" session when fewer than 10 qualifying words exist', () => {
+    for (let i = 0; i < 9; i++) {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
+    // Use bucket-1 words so discovery does not fire
     for (let i = 0; i < 10; i++) {
-      vocabRepo.insert(makeEntry({ bucket: 0 }))
+      vocabRepo.insert(makeEntry({ bucket: 1 }))
     }
 
     const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
-    expect(session.type).toBe('normal')
+    expect(session.type).not.toBe('focus')
   })
 
   it('focus session takes priority over normal/repetition alternation', () => {
@@ -1880,7 +1882,7 @@ describe('createSession — focus session', () => {
 
     sessionRepo.insert(prevSession)
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
@@ -1927,11 +1929,11 @@ describe('createSession — discovery session', () => {
     expect(session.type).not.toBe('discovery')
   })
 
-  it('does not create a discovery session when fewer than discoverySize bucket-0 words exist', () => {
+  it('does not create a discovery session when fewer than DISCOVERY_MIN_WORDS bucket-0 words exist', () => {
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
-    insertBucket0Words(DISC_SIZE - 1)
+    insertBucket0Words(9)
 
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: DISC_SIZE - 1 })
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
 
     expect(session.type).not.toBe('discovery')
   })
@@ -1978,7 +1980,7 @@ describe('createSession — discovery session', () => {
     // Active pool below threshold but not enough bucket-0 words
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       vocabRepo.insert(makeEntry({ bucket: 1, score: 2 }))
     }
 
@@ -2661,8 +2663,8 @@ describe('veteran session — createSession', () => {
       vocabRepo.insert(e)
     }
 
-    // Add 5 high-score entries in buckets 1–5 to trigger focus
-    for (let i = 0; i < 5; i++) {
+    // Add 10 high-score entries in buckets 1–5 to trigger focus
+    for (let i = 0; i < 10; i++) {
       vocabRepo.insert(makeEntry({ bucket: 2, score: 2 }))
     }
 
@@ -2707,7 +2709,7 @@ describe('veteran session — answer scoring', () => {
 
 describe('breakthrough session — createSession', () => {
   function makeBreakthroughPool(): VocabEntry[] {
-    return Array.from({ length: 5 }, (_, i) =>
+    return Array.from({ length: 10 }, (_, i) =>
       makeEntry({ bucket: 3, source: `Wort${i}`, target: [`word${i}`] }),
     )
   }
@@ -2744,7 +2746,7 @@ describe('breakthrough session — createSession', () => {
   it('does not create a breakthrough session when pool is below minimum', () => {
     creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
 
-    // Only 4 qualifying words — below BREAKTHROUGH_MIN_WORDS of 5
+    // Only 4 qualifying words — below BREAKTHROUGH_MIN_WORDS of 10
     for (let i = 0; i < 4; i++) {
       vocabRepo.insert(makeEntry({ bucket: 3, source: `Wort${i}`, target: [`word${i}`] }))
     }

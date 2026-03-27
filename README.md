@@ -162,7 +162,7 @@ After each stress session completes, the next one is scheduled for **7 days + up
 
 #### Discovery Session
 
-When your active pool — words in buckets 1–4 — falls below **80 words**, the app injects a **Discovery Session** to replenish it. This session contains exactly **24 words**, all drawn from bucket 0 (new words you haven't practiced yet). Manually added words are drawn first, then sorted by priority score.
+When your active pool — words in buckets 1–4 — falls below **80 words**, the app injects a **Discovery Session** to replenish it. Up to **24 words** are drawn from bucket 0 (new words you haven't practiced yet). Manually added words are drawn first, then sorted by priority score. At least **10 bucket-0 words** must exist for the session to fire; if fewer than 24 exist, a shorter session is created with however many are available.
 
 **Special rules for Discovery Sessions:**
 - **Once per day** — at most one discovery session per calendar day. If a discovery session was already completed today, the type is skipped in the rotation until the following day.
@@ -173,12 +173,12 @@ When your active pool — words in buckets 1–4 — falls below **80 words**, t
 
 #### Focus Session
 
-If you have at least 5 words with a **priority score of 2 or higher** (see [Word Priority Score](#word-priority-score) below), a **Focus Session** is eligible, targeting your most problematic words.
+If you have at least **10 words** with a **priority score of 2 or higher** (see [Word Priority Score](#word-priority-score) below), a **Focus Session** is eligible, targeting your most problematic words.
 
 - Contains up to **12 words**.
 - Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
 - The top-scoring words fill the session first; if fewer than 12 qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
-- If fewer than 5 words qualify, the focus session is skipped in the current rotation cycle.
+- If fewer than 10 words qualify, the focus session is skipped in the current rotation cycle.
 
 #### Focus Replay
 
@@ -198,7 +198,7 @@ After completing a Focus Session with enough errors, the session summary screen 
 A **Veteran Session** is a periodic review of your most-mastered words — those that have reached bucket 6 or higher. It fires automatically roughly once a week when all of the following conditions are met:
 
 - At least **50 words** exist in buckets 6 and above
-- At least **5 of those words** have a **difficulty ≥ 2**
+- At least **10 of those words** have a **difficulty ≥ 2**
 - The veteran session is **due** (at least 6 days have passed since the last one)
 
 If your bucket-6+ count first reaches 50, the initial session is scheduled to trigger within the next **48 hours**.
@@ -206,18 +206,18 @@ If your bucket-6+ count first reaches 50, the initial session is scheduled to tr
 **Session rules:**
 - Up to **24 words** drawn from buckets 6+ with **difficulty ≥ 2**, sorted by difficulty descending (ties broken randomly) — your hardest veteran words come first.
 - SRS promotion rules mirror the Focus Session: words that are not yet due are not promoted.
-- If fewer than 5 qualifying words can be selected, the session is skipped.
+- If fewer than 10 qualifying words can be selected, the session is skipped.
 
 After each veteran session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
-#### Breakthrough Session (weekly, once ≥ 5 qualifying words exist)
+#### Breakthrough Session (weekly, once ≥ 10 qualifying words exist)
 
 A **Breakthrough Session** focuses on words that are **one correct answer away from a bucket milestone** — promoting them in a single targeted run. It fires automatically roughly once a week when all of the following conditions are met:
 
-- At least **5 qualifying words** exist across the three categories below
+- At least **10 qualifying words** exist across the three categories below
 - The breakthrough session is **due** (at least 6 days have passed since the last one)
 
-If qualifying words first reach 5 and no session is scheduled yet, the initial session is scheduled to trigger within the next **48 hours**.
+If qualifying words first reach 10 and no session is scheduled yet, the initial session is scheduled to trigger within the next **48 hours**.
 
 **Word pool — three categories, deduplicated (first match wins):**
 1. **Bucket 3** — one step from entering the time-based SRS system. Always eligible (frequency bucket, no due-date check).
@@ -239,7 +239,7 @@ A **Recovery Session** targets words that were once genuinely mastered but have 
 - `maxBucket ≥ 6` — the word once reached veteran territory (genuinely mastered)
 - `maxBucket − bucket ≥ 2` — it has since fallen back by at least 2 full bucket levels
 
-**Trigger condition:** at least **5 qualifying words** exist. The session is part of the normal shuffled rotation and fires whenever the threshold is met — no weekly timer or scheduling involved.
+**Trigger condition:** at least **10 qualifying words** exist. The session is part of the normal shuffled rotation and fires whenever the threshold is met — no weekly timer or scheduling involved.
 
 **Session rules:**
 - Up to **12 words**, selected regardless of due date — the point is targeted re-consolidation, not SRS scheduling.
@@ -252,7 +252,7 @@ A **Repetition Session** is an intensive review of time-based words (buckets 4+)
 
 - Contains up to 24 words, all from due time-based buckets (4 and above).
 - No frequency bucket words (0–3) are included.
-- If fewer than 24 due words exist across all time-based buckets, the repetition session is skipped in the current rotation cycle.
+- At least **10 due words** must exist across all time-based buckets for the session to fire; if fewer than 24 due words exist, a shorter session is created with however many are available.
 
 #### Normal (Learning) Session
 
@@ -289,11 +289,11 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 |---|---|---|
 | Second Chance | Highest (pre-rotation) | ≥ 1 due second-chance-bucket word AND not already played today |
 | Stress | Rotation | Due date reached, ≥ 500 credits, ≥ 5 qualifying words (buckets 2+) |
-| Discovery | Rotation | Active pool (buckets 1–4) < 80 words, ≥ 24 bucket-0 words, not already done today |
-| Focus | Rotation | 5+ words with score ≥ 2 exist in buckets 1–5 |
-| Veteran | Rotation | Due date reached, ≥ 50 words in buckets 6+, ≥ 5 of those with difficulty ≥ 2 |
-| Breakthrough | Rotation | Due date reached, ≥ 5 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
-| Repetition | Rotation | ≥ 24 due time-based words (buckets 4+) exist |
+| Discovery | Rotation | Active pool (buckets 1–4) < 80 words, ≥ 10 bucket-0 words, not already done today |
+| Focus | Rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
+| Veteran | Rotation | Due date reached, ≥ 50 words in buckets 6+, ≥ 10 of those with difficulty ≥ 2 |
+| Breakthrough | Rotation | Due date reached, ≥ 10 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
+| Repetition | Rotation | ≥ 10 due time-based words (buckets 4+) exist |
 | Normal | Rotation (fallback) | Always eligible — at least one word in vocabulary |
 
 #### ★ Session (manual, once per day)

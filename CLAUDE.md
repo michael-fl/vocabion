@@ -104,3 +104,8 @@ Add a blank line before or after below's statements to improve readability of th
 - Run `npm run lint` on every file you create or modify as part of a task.
 - Fix all lint errors introduced by your changes before considering the task done.
 - Never complete a task if `npm run lint` reports errors in files you touched (pre-existing errors in unrelated files are acceptable, but do not add new ones).
+
+**R10: Keep README and project plan up to date**
+- If this repository contains a `README.md` or a project plan file (e.g. `PROJECT-PLAN.md`), they must always reflect the current state of the codebase.
+- At the end of every task, check whether any changes you made affect content in those files (feature descriptions, session types, thresholds, eligibility rules, architecture notes, feature matrices, etc.) and apply the necessary updates before closing the task.
+- Never consider a task complete without having checked both files.

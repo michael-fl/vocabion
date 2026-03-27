@@ -159,19 +159,20 @@ export function selectSessionWords(
  * excluded from primary candidates. Only words with `score >= 2` are eligible
  * as primary candidates; ties within a score group are broken randomly.
  *
- * - Returns `null` when fewer than 5 primary candidates exist (session is skipped).
+ * - Returns `null` when fewer than `minWords` primary candidates exist (session is skipped).
  * - When fewer than `sessionSize` primary candidates exist, remaining slots are
  *   filled with the highest-scoring words from buckets 1+ (score < 2 allowed),
  *   excluding already selected entries.
  *
  * @param all - All vocabulary entries in the database.
  * @param sessionSize - Target number of words (typically 10).
+ * @param minWords - Minimum primary candidates required to run the session.
  * @returns Selected entries, or `null` if the focus session should be skipped.
  */
-export function selectFocusWords(all: VocabEntry[], sessionSize: number): VocabEntry[] | null {
+export function selectFocusWords(all: VocabEntry[], sessionSize: number, minWords: number): VocabEntry[] | null {
   const primary = sortByScoreThenShuffle(all.filter((e) => e.bucket > 0 && e.bucket <= 5 && e.score >= 2))
 
-  if (primary.length < 5) {
+  if (primary.length < minWords) {
     return null
   }
 
@@ -217,17 +218,19 @@ export function selectStarredWords(all: VocabEntry[], limit: number): VocabEntry
  * first); within each group, words are sorted by score descending with ties
  * broken randomly.
  *
- * Returns `null` when fewer than `sessionSize` bucket-0 words exist, so the
- * caller can fall back to a different session type.
+ * Returns `null` when fewer than `minWords` bucket-0 words exist, so the
+ * caller can fall back to a different session type. When between `minWords`
+ * and `sessionSize` words exist, a shorter-than-target session is returned.
  *
  * @param all - All vocabulary entries.
- * @param sessionSize - Target number of words (must be satisfied exactly).
- * @returns Exactly `sessionSize` bucket-0 entries, or `null` if not enough exist.
+ * @param sessionSize - Maximum number of words to include.
+ * @param minWords - Minimum bucket-0 words required to run the session.
+ * @returns Up to `sessionSize` bucket-0 entries, or `null` if fewer than `minWords` exist.
  */
-export function selectDiscoveryWords(all: VocabEntry[], sessionSize: number): VocabEntry[] | null {
+export function selectDiscoveryWords(all: VocabEntry[], sessionSize: number, minWords: number): VocabEntry[] | null {
   const bucket0 = all.filter((e) => e.bucket === 0)
 
-  if (bucket0.length < sessionSize) {
+  if (bucket0.length < minWords) {
     return null
   }
 

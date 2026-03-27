@@ -26,8 +26,8 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 /** Minimum words in buckets 6+ required to trigger a veteran session. */
 export const VETERAN_MIN_BUCKET6_WORDS = 50
 
-/** Minimum qualifying words required to run the session (must be ≥ 5). */
-export const VETERAN_MIN_WORDS = 5
+/** Minimum qualifying words required to run the session (must be ≥ 10). */
+export const VETERAN_MIN_WORDS = 10
 
 /** Base interval in days between veteran sessions. */
 export const VETERAN_INTERVAL_DAYS = 6

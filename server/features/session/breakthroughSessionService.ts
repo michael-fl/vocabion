@@ -24,7 +24,7 @@
 import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 
 /** Minimum qualifying words required to schedule and run a breakthrough session. */
-export const BREAKTHROUGH_MIN_WORDS = 5
+export const BREAKTHROUGH_MIN_WORDS = 10
 
 /** Maximum number of words in a breakthrough session. */
 export const BREAKTHROUGH_SESSION_SIZE = 24

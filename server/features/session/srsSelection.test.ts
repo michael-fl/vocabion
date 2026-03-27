@@ -647,7 +647,7 @@ describe('manually-added preference', () => {
 // ── selectFocusWords ──────────────────────────────────────────────────────────
 
 describe('selectFocusWords', () => {
-  it('returns null when fewer than 5 words have score >= 2 and bucket 1–5', () => {
+  it('returns null when fewer than minWords have score >= 2 and bucket 1–5', () => {
     const entries = [
       makeEntry({ bucket: 1, score: 2 }),
       makeEntry({ bucket: 2, score: 3 }),
@@ -655,13 +655,13 @@ describe('selectFocusWords', () => {
       makeEntry({ bucket: 3, score: 2 }),
     ]
 
-    expect(selectFocusWords(entries, 10)).toBeNull()
+    expect(selectFocusWords(entries, 10, 10)).toBeNull()
   })
 
-  it('returns null when exactly 5 words qualify (not null)', () => {
-    const entries = makeEntries(5, { bucket: 1, score: 2 })
+  it('returns selection when exactly minWords qualify', () => {
+    const entries = makeEntries(10, { bucket: 1, score: 2 })
 
-    expect(selectFocusWords(entries, 10)).not.toBeNull()
+    expect(selectFocusWords(entries, 10, 10)).not.toBeNull()
   })
 
   it('excludes bucket 0 words from primary candidates', () => {
@@ -669,7 +669,7 @@ describe('selectFocusWords', () => {
     const qualifying = makeEntries(4, { bucket: 1, score: 5 })
     const bucket0 = makeEntries(10, { bucket: 0, score: 10 })
 
-    expect(selectFocusWords([...qualifying, ...bucket0], 10)).toBeNull()
+    expect(selectFocusWords([...qualifying, ...bucket0], 10, 10)).toBeNull()
   })
 
   it('excludes bucket 6+ words from primary candidates', () => {
@@ -677,15 +677,15 @@ describe('selectFocusWords', () => {
     const qualifying = makeEntries(4, { bucket: 3, score: 5 })
     const highBucket = makeEntries(10, { bucket: 6, score: 10 })
 
-    expect(selectFocusWords([...qualifying, ...highBucket], 10)).toBeNull()
+    expect(selectFocusWords([...qualifying, ...highBucket], 10, 10)).toBeNull()
   })
 
   it('bucket 6+ words can appear in the top-up round', () => {
-    const primary = makeEntries(6, { bucket: 3, score: 2 })
+    const primary = makeEntries(10, { bucket: 3, score: 2 })
     const highBucket = makeEntries(10, { bucket: 6, score: 5 })
-    const result = selectFocusWords([...primary, ...highBucket], 10)
+    const result = selectFocusWords([...primary, ...highBucket], 15, 10)
 
-    expect(result).toHaveLength(10)
+    expect(result).toHaveLength(15)
 
     const highBucketIds = new Set(highBucket.map((e) => e.id))
 
@@ -696,44 +696,44 @@ describe('selectFocusWords', () => {
     const lowScore = makeEntries(10, { bucket: 1, score: 1 })
     const qualifying = makeEntries(4, { bucket: 1, score: 2 })
 
-    expect(selectFocusWords([...lowScore, ...qualifying], 10)).toBeNull()
+    expect(selectFocusWords([...lowScore, ...qualifying], 10, 10)).toBeNull()
   })
 
   it('returns exactly sessionSize words when enough primary candidates exist', () => {
     const entries = makeEntries(15, { bucket: 1, score: 3 })
-    const result = selectFocusWords(entries, 10)
+    const result = selectFocusWords(entries, 10, 10)
 
     expect(result).toHaveLength(10)
   })
 
   it('returns all primary candidates when fewer than sessionSize exist', () => {
-    const primary = makeEntries(7, { bucket: 1, score: 2 })
-    const result = selectFocusWords(primary, 10)
+    const primary = makeEntries(12, { bucket: 1, score: 2 })
+    const result = selectFocusWords(primary, 15, 10)
 
-    expect(result).toHaveLength(7)
+    expect(result).toHaveLength(12)
   })
 
   it('tops up with bucket 1+ words (score < 2 allowed) when primary < sessionSize', () => {
-    const primary = makeEntries(6, { bucket: 1, score: 2 })
+    const primary = makeEntries(10, { bucket: 1, score: 2 })
     const topUp = makeEntries(10, { bucket: 2, score: 0 })
-    const result = selectFocusWords([...primary, ...topUp], 10)
+    const result = selectFocusWords([...primary, ...topUp], 15, 10)
 
-    expect(result).toHaveLength(10)
+    expect(result).toHaveLength(15)
   })
 
   it('does not include bucket 0 in top-up', () => {
-    const primary = makeEntries(6, { bucket: 1, score: 2 })
+    const primary = makeEntries(10, { bucket: 1, score: 2 })
     const bucket0 = makeEntries(10, { bucket: 0, score: 0 })
-    const result = selectFocusWords([...primary, ...bucket0], 10)
+    const result = selectFocusWords([...primary, ...bucket0], 15, 10)
 
-    // Only 6 primary; no valid top-up (only bucket 0 available)
-    expect(result).toHaveLength(6)
+    // Only 10 primary; no valid top-up (only bucket 0 available)
+    expect(result).toHaveLength(10)
   })
 
   it('does not duplicate words between primary and top-up', () => {
-    const primary = makeEntries(7, { bucket: 1, score: 2 })
+    const primary = makeEntries(10, { bucket: 1, score: 2 })
     const topUp = makeEntries(10, { bucket: 2, score: 1 })
-    const result = selectFocusWords([...primary, ...topUp], 10)
+    const result = selectFocusWords([...primary, ...topUp], 15, 10)
 
     const ids = result?.map((e) => e.id) ?? []
 
@@ -741,9 +741,9 @@ describe('selectFocusWords', () => {
   })
 
   it('selects highest-score words first', () => {
-    const lowScore = makeEntries(5, { bucket: 1, score: 2 })
-    const highScore = makeEntries(5, { bucket: 1, score: 5 })
-    const result = selectFocusWords([...lowScore, ...highScore], 5)
+    const lowScore = makeEntries(10, { bucket: 1, score: 2 })
+    const highScore = makeEntries(10, { bucket: 1, score: 5 })
+    const result = selectFocusWords([...lowScore, ...highScore], 10, 10)
 
     const highIds = new Set(highScore.map((e) => e.id))
 
@@ -754,22 +754,28 @@ describe('selectFocusWords', () => {
 // ── selectDiscoveryWords ───────────────────────────────────────────────────────
 
 describe('selectDiscoveryWords', () => {
-  it('returns null when fewer than sessionSize bucket-0 words exist', () => {
-    const entries = makeEntries(23, { bucket: 0 })
+  it('returns null when fewer than minWords bucket-0 words exist', () => {
+    const entries = makeEntries(9, { bucket: 0 })
 
-    expect(selectDiscoveryWords(entries, 24)).toBeNull()
+    expect(selectDiscoveryWords(entries, 24, 10)).toBeNull()
+  })
+
+  it('returns available words when between minWords and sessionSize words exist', () => {
+    const entries = makeEntries(15, { bucket: 0 })
+
+    expect(selectDiscoveryWords(entries, 24, 10)).toHaveLength(15)
   })
 
   it('returns exactly sessionSize words when enough bucket-0 words exist', () => {
     const entries = makeEntries(30, { bucket: 0 })
 
-    expect(selectDiscoveryWords(entries, 24)).toHaveLength(24)
+    expect(selectDiscoveryWords(entries, 24, 10)).toHaveLength(24)
   })
 
   it('only selects bucket-0 words', () => {
     const bucket0 = makeEntries(24, { bucket: 0 })
     const other = makeEntries(10, { bucket: 1 })
-    const result = selectDiscoveryWords([...bucket0, ...other], 24)
+    const result = selectDiscoveryWords([...bucket0, ...other], 24, 10)
 
     expect(result).not.toBeNull()
     expect(result?.every((e) => e.bucket === 0)).toBe(true)
@@ -778,7 +784,7 @@ describe('selectDiscoveryWords', () => {
   it('prefers manually added words', () => {
     const manual = makeEntries(24, { bucket: 0, manuallyAdded: true })
     const regular = makeEntries(24, { bucket: 0, manuallyAdded: false })
-    const result = selectDiscoveryWords([...regular, ...manual], 24)
+    const result = selectDiscoveryWords([...regular, ...manual], 24, 10)
 
     const manualIds = new Set(manual.map((e) => e.id))
 
@@ -788,7 +794,7 @@ describe('selectDiscoveryWords', () => {
   it('falls back to regular words when not enough manually added', () => {
     const manual = makeEntries(10, { bucket: 0, manuallyAdded: true })
     const regular = makeEntries(20, { bucket: 0, manuallyAdded: false })
-    const result = selectDiscoveryWords([...regular, ...manual], 24)
+    const result = selectDiscoveryWords([...regular, ...manual], 24, 10)
 
     expect(result).toHaveLength(24)
     expect(result?.filter((e) => e.manuallyAdded)).toHaveLength(10)
@@ -797,7 +803,7 @@ describe('selectDiscoveryWords', () => {
   it('selects highest-score words first within each group', () => {
     const lowScore = makeEntries(12, { bucket: 0, score: 1, manuallyAdded: false })
     const highScore = makeEntries(12, { bucket: 0, score: 5, manuallyAdded: false })
-    const result = selectDiscoveryWords([...lowScore, ...highScore], 12)
+    const result = selectDiscoveryWords([...lowScore, ...highScore], 12, 10)
 
     const highIds = new Set(highScore.map((e) => e.id))
 

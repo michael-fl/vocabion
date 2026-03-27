@@ -38,6 +38,15 @@ import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
 /** Number of active-pool words (buckets 1–4) below which a discovery session is triggered. */
 export const DISCOVERY_POOL_THRESHOLD = 80
 
+/** Minimum bucket-0 words required to run a discovery session. */
+export const DISCOVERY_MIN_WORDS = 10
+
+/** Minimum primary candidates (score ≥ 2 in buckets 1–5) required to run a focus session. */
+export const FOCUS_MIN_WORDS = 10
+
+/** Minimum due time-based words required to run a repetition session. */
+export const REPETITION_MIN_WORDS = 10
+
 /** Minimum number of marked words required to start a starred session. */
 export const STARRED_MIN_WORDS = 5
 
@@ -472,10 +481,10 @@ export class SessionService {
           return null
         }
 
-        return selectDiscoveryWords(allEntries, discSize)
+        return selectDiscoveryWords(allEntries, discSize, DISCOVERY_MIN_WORDS)
       }
       case 'focus':
-        return selectFocusWords(allEntries, options.size)
+        return selectFocusWords(allEntries, options.size, FOCUS_MIN_WORDS)
       case 'veteran':
         return this.veteranService.isAvailable(today, bucket6PlusCount)
           ? selectVeteranWords(allEntries, options.veteranSize, VETERAN_MIN_WORDS)
@@ -489,7 +498,7 @@ export class SessionService {
       case 'repetition': {
         const words = selectRepetitionWords(allEntries, repSize, now)
 
-        return words.length >= repSize ? words : null
+        return words.length >= REPETITION_MIN_WORDS ? words : null
       }
       case 'normal': {
         const words = selectSessionWords(allEntries, options.size, now)
