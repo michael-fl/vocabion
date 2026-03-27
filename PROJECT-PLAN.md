@@ -435,7 +435,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 3. A **push back** action is available: the user can remove a word from the session and keep it in bucket 0 for a future discovery session. Budget: **10 push-backs per session** (`DISCOVERY_PUSHBACK_BUDGET`). After a push-back the session continues with the next pending word; if no pending words remain the session completes.
 4. Wrong answers never deduct credits (`free = true` path in `handleWrongAnswer`).
 5. Hints are always free and automatic (bucket 0 auto-hint; no paid button shown).
-6. Perfect session bonus: **+100 credits** (instead of the standard +20) when all words are answered correctly with no push-backs.
+6. Perfect session bonus: **+100 credits** (instead of the standard +20) when all words are answered correctly with no push-backs and the session has at least 5 words.
 
 *Normal sessions* — focus on frequency learning (buckets 0–3 + up to 1 due word per time-based bucket). Described in detail below under "Session size". Default size: **12 words** (`size` parameter, default 12). If the total is still below `sessionSize` after frequency + 1-per-due-bucket selection, two fill-up phases run: first with additional due time-based words (lowest bucket first), then with non-due time-based words (lowest bucket first). Already-selected words are excluded from both phases.
 
@@ -447,9 +447,10 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 
 *Focus sessions* — target the words with the highest priority scores to address problem words.
 1. Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
-2. Primary candidates: words with `score ≥ 2`, sorted by score descending (ties shuffled randomly). Up to `sessionSize` (default 10) words are taken.
-3. If fewer than `FOCUS_MIN_WORDS` (10) primary candidates exist, the focus session is **skipped** in the current rotation cycle.
-4. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
+2. Primary candidates: words with `score ≥ 2`, sorted by **score descending, then difficulty descending**.
+3. Pool size: `min(n, max(2 × sessionSize, ceil(n × 0.25)))` where `n` = number of primary candidates. `sessionSize` words are randomly sampled from the pool.
+4. If fewer than `FOCUS_MIN_WORDS` (10) primary candidates exist, the focus session is **skipped** in the current rotation cycle.
+5. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
 
 *Stress sessions* — high-stakes timed challenge that fires automatically once a week when trigger conditions are met. No credit balance requirement.
 1. **Trigger conditions:** at least `STRESS_MIN_WORDS` (10) words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When qualifying words first reach 10 and no stress session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
@@ -512,6 +513,9 @@ Second-chance words (appended during the session) are not counted against the ca
 *Second-chance additions during the session:*
 - A **fully wrong** answer on a time-based word may append 1 second-chance word to the
   session. At most one second-chance word is added per initially selected time-based word.
+- The second-chance word (W2) always shows **one input field**, even if the word normally
+  requires two translations. Any single correct translation counts as a correct answer.
+  Partial answers are therefore impossible for W2 — only correct or wrong.
 
 *Resulting bounds (with default `sessionSize` = 10, `maxSessionSize` = M):*
 
@@ -667,15 +671,16 @@ The bonus scales linearly and is capped at 500: **bucket N → min((N−5)×100,
 
 The bonus fires at most once per bucket level: if bucket 6 becomes empty again after a wrong answer and a different word later climbs into bucket 6, no second bonus is paid. The `bucketMilestoneBonus` field on `AnswerResult` carries the amount (0 or the scaled value) so the UI can display a celebration message.
 
-**Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints. The bonus amount depends on session type:
+**Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints, and the session contains at least 5 words. The bonus amount depends on session type:
 - **Normal / repetition / focus / veteran / starred:** **+20 credits.**
 - **Discovery:** **+100 credits** — all words must be answered correctly with no push-backs (a `pushed_back` word counts as non-correct and disqualifies the bonus).
 - **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts, no second-chance words triggered). New-bucket-record bonuses (+5) also apply in stress sessions.
 
 All conditions that must hold (except discovery, which has no second-chance words or paid hints; and stress, which has no hints):
-1. Every word in the session was answered correctly (no `'incorrect'` or `'pushed_back'` status).
-2. No second-chance words were triggered (no word has `secondChanceFor` set). *(Not applicable to discovery sessions.)*
-3. The hint button was not clicked even once during the session. *(Hints are unavailable in stress sessions.)*
+1. The session contains at least 5 words.
+2. Every word in the session was answered correctly (no `'incorrect'` or `'pushed_back'` status).
+3. No second-chance words were triggered (no word has `secondChanceFor` set). *(Not applicable to discovery sessions.)*
+4. The hint button was not clicked even once during the session. *(Hints are unavailable in stress sessions.)*
 
 The `hintsUsed` flag is passed as part of the final answer submission payload so the server can enforce this condition without requiring a separate endpoint. The bonus is shown as a distinct line item in the session summary and included in the Total.
 
@@ -1472,7 +1477,7 @@ Fee mode is determined **once at session start** based on the balance at that mo
 
 **New-bucket-record bonus:** +5 credits when a word is promoted into a new personal highest bucket (`bucket > maxBucket`), same as any other session.
 
-**Perfect session bonus:** +100 credits if every answer is fully correct (no partials, no timeouts, no second-chance words triggered).
+**Perfect session bonus:** +100 credits if every answer is fully correct (no partials, no timeouts, no second-chance words triggered) and the session has at least 5 words.
 
 ### Scheduling
 

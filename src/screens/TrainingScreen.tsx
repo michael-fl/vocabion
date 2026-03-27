@@ -134,12 +134,6 @@ function buildStatusMessage(result: sessionApi.AnswerResult, translations: strin
     }
     case 'second_chance':
       return { text: <>Incorrect. Correct answer: {links} — succeed: → bucket {newBucket - 1}, fail: → bucket 1</>, isCorrect: false }
-    case 'second_chance_partial':
-      return { text: <>Second chance failed (partial). Correct answers: {links} — original word → bucket {w1NewBucket ?? 1}</>, isCorrect: false }
-    case 'second_chance_partial_typo': {
-      const typoNote = result.typos?.map((t) => `"${t.typed}" → "${t.correct}"`).join(', ') ?? ''
-      return { text: <>Second chance failed (partial). (Spelling: {typoNote}) Correct answers: {links} — original word → bucket {w1NewBucket ?? 1}</>, isCorrect: false }
-    }
     case 'second_chance_incorrect':
       return { text: <>Second chance failed. Correct answer: {links} — original word → bucket {w1NewBucket ?? 1}</>, isCorrect: false }
   }
@@ -261,7 +255,7 @@ export function TrainingScreen({
     const wordTranslations = deduplicateTranslations(
       currentSession.direction === 'SOURCE_TO_TARGET' ? currentWord.entry.target : [currentWord.entry.source],
     )
-    const fieldCount = Math.min(wordTranslations.length, 2)
+    const fieldCount = currentWord.isSecondChance ? 1 : Math.min(wordTranslations.length, 2)
     const limit = fieldCount > 1 ? 15 : 10
 
     stressGraceRef.current = true
@@ -310,7 +304,7 @@ export function TrainingScreen({
   const displayedBucket = (w1Entry ?? entry).bucket
   const hintCost = getHintCost(displayedBucket)
   const translations = deduplicateTranslations(currentSession.direction === 'SOURCE_TO_TARGET' ? entry.target : [entry.source])
-  const requiredCount = Math.min(translations.length, 2)
+  const requiredCount = isSecondChance ? 1 : Math.min(translations.length, 2)
 
   const answered = currentSession.words.filter((w) => w.status !== 'pending').length
   const total = currentSession.words.length
@@ -416,14 +410,12 @@ export function TrainingScreen({
         result.outcome === 'incorrect' ||
         result.outcome === 'second_chance_incorrect' ||
         result.outcome === 'partial' ||
-        result.outcome === 'partial_typo' ||
-        result.outcome === 'second_chance_partial' ||
-        result.outcome === 'second_chance_partial_typo'
+        result.outcome === 'partial_typo'
       ) {
         const originalBucket = vocabMap.get(currentWord.vocabId)?.bucket ?? 0
         const existingNorm = new Set(translations.map((t) => t.toLowerCase().replace(/-/g, ' ').trim()))
         const newAnswers = toSubmit.filter((a) => !existingNorm.has(a.toLowerCase().replace(/-/g, ' ').trim()))
-        const altMarked = vocabMap.get(currentWord.vocabId)?.marked ?? false
+        const altMarked = isMarked
 
         const pendingAnswers: PendingAlternativeAnswer[] = newAnswers.map((text) => ({ text, adding: false, added: false }))
 

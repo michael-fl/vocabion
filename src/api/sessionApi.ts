@@ -27,8 +27,6 @@ export type AnswerOutcome =
   | 'second_chance'
   | 'second_chance_correct'
   | 'second_chance_correct_typo'
-  | 'second_chance_partial'
-  | 'second_chance_partial_typo'
   | 'second_chance_incorrect'
 
 /** A single typo correction returned when a close-but-not-exact answer was accepted. */

@@ -18,10 +18,9 @@
  */
 import express from 'express'
 import type { Express } from 'express'
-import pinoHttp from 'pino-http'
 
-import { logger } from './lib/logger.ts'
 import { errorHandler } from './middleware/errorHandler.ts'
+import { requestLogger } from './middleware/requestLogger.ts'
 import { createVocabRouter } from './features/vocab/vocabRouter.ts'
 import { createSessionRouter } from './features/session/sessionRouter.ts'
 import { createStreakRouter } from './features/streak/streakRouter.ts'
@@ -47,8 +46,8 @@ export interface AppServices {
 export function createApp(services: AppServices): Express {
   const app = express()
 
-  app.use(pinoHttp({ logger }))
   app.use(express.json())
+  app.use(requestLogger)
 
   app.use('/api/v1/vocab', createVocabRouter(services.vocab))
   app.use('/api/v1/session', createSessionRouter(services.session))

@@ -157,7 +157,14 @@ export function selectSessionWords(
  * A focus session targets the words with the highest priority scores across
  * buckets 1–5. Bucket 0 (new words) and buckets 6+ (well-learned words) are
  * excluded from primary candidates. Only words with `score >= 2` are eligible
- * as primary candidates; ties within a score group are broken randomly.
+ * as primary candidates.
+ *
+ * Selection introduces variety by randomly sampling from a top pool rather than
+ * always picking the same highest-ranked words:
+ * 1. Primary candidates are sorted by **score descending, then difficulty descending**.
+ * 2. A pool of the top `min(n, max(2 × sessionSize, ceil(n × 0.25)))` candidates
+ *    is formed (where `n` = number of primary candidates).
+ * 3. `sessionSize` words are randomly sampled from that pool.
  *
  * - Returns `null` when fewer than `minWords` primary candidates exist (session is skipped).
  * - When fewer than `sessionSize` primary candidates exist, remaining slots are
@@ -170,13 +177,18 @@ export function selectSessionWords(
  * @returns Selected entries, or `null` if the focus session should be skipped.
  */
 export function selectFocusWords(all: VocabEntry[], sessionSize: number, minWords: number): VocabEntry[] | null {
-  const primary = sortByScoreThenShuffle(all.filter((e) => e.bucket > 0 && e.bucket <= 5 && e.score >= 2))
+  const primary = sortByScoreThenDifficultyThenShuffle(
+    all.filter((e) => e.bucket > 0 && e.bucket <= 5 && e.score >= 2),
+  )
 
   if (primary.length < minWords) {
     return null
   }
 
-  const selected = primary.slice(0, sessionSize)
+  const n = primary.length
+  const poolSize = Math.min(n, Math.max(2 * sessionSize, Math.ceil(n * 0.25)))
+  const pool = primary.slice(0, poolSize)
+  const selected = shuffle(pool).slice(0, sessionSize)
 
   if (selected.length < sessionSize) {
     const selectedIds = new Set(selected.map((e) => e.id))
@@ -507,6 +519,26 @@ function shuffle<T>(arr: readonly T[]): T[] {
   }
 
   return out
+}
+
+/**
+ * Sorts vocab entries by score descending, then difficulty descending within
+ * each score group. Words that share both score and difficulty are shuffled randomly.
+ * This is used for focus session candidate ordering to prefer harder words
+ * when scores are equal.
+ */
+function sortByScoreThenDifficultyThenShuffle(arr: readonly VocabEntry[]): VocabEntry[] {
+  const byScore = new Map<number, VocabEntry[]>()
+
+  for (const e of arr) {
+    const group = byScore.get(e.score) ?? []
+    group.push(e)
+    byScore.set(e.score, group)
+  }
+
+  return [...byScore.keys()]
+    .sort((a, b) => b - a)
+    .flatMap((s) => sortByDifficultyThenShuffle(byScore.get(s) ?? []))
 }
 
 /**

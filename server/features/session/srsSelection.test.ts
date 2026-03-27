@@ -740,14 +740,43 @@ describe('selectFocusWords', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('selects highest-score words first', () => {
-    const lowScore = makeEntries(10, { bucket: 1, score: 2 })
-    const highScore = makeEntries(10, { bucket: 1, score: 5 })
+  it('prioritises high-score words — pool never includes low-score candidates when enough high-score ones exist', () => {
+    // 20 high-score + 20 low-score = n=40, poolSize = min(40, max(20, ceil(40*0.25)=10)) = 20
+    // Top 20 sorted by score = the 20 high-score words, so none of the low-score words enter the pool
+    const lowScore = makeEntries(20, { bucket: 1, score: 2 })
+    const highScore = makeEntries(20, { bucket: 1, score: 5 })
     const result = selectFocusWords([...lowScore, ...highScore], 10, 10)
 
     const highIds = new Set(highScore.map((e) => e.id))
 
     expect(result?.every((e) => highIds.has(e.id))).toBe(true)
+  })
+
+  it('within equal scores, prefers higher-difficulty candidates for the pool', () => {
+    // 20 low-difficulty + 20 high-difficulty, all same score = n=40, poolSize=20
+    // Sorted by score DESC then difficulty DESC → top 20 = the 20 high-difficulty words
+    const lowDiff = makeEntries(20, { bucket: 1, score: 3, difficulty: 1 })
+    const highDiff = makeEntries(20, { bucket: 1, score: 3, difficulty: 5 })
+    const result = selectFocusWords([...lowDiff, ...highDiff], 10, 10)
+
+    const highDiffIds = new Set(highDiff.map((e) => e.id))
+
+    expect(result?.every((e) => highDiffIds.has(e.id))).toBe(true)
+  })
+
+  it('samples randomly from the pool so the same words do not always appear', () => {
+    // 40 equal-score/difficulty candidates, sessionSize=10 → pool=10, so first run always gives same 10
+    // But with 80 candidates, pool = max(20, ceil(80*0.25)=20) = 20 → random 10 from 20 → varies
+    const entries = makeEntries(80, { bucket: 1, score: 3 })
+
+    const run1 = new Set((selectFocusWords(entries, 10, 10) ?? []).map((e) => e.id))
+    const run2 = new Set((selectFocusWords(entries, 10, 10) ?? []).map((e) => e.id))
+    const run3 = new Set((selectFocusWords(entries, 10, 10) ?? []).map((e) => e.id))
+
+    // At least one pair of runs should differ (probability of all three identical ≈ 0)
+    const allSame = [...run1].every((id) => run2.has(id)) && [...run1].every((id) => run3.has(id))
+
+    expect(allSame).toBe(false)
   })
 })
 

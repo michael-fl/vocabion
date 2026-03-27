@@ -163,7 +163,7 @@ The **per-answer fee** is `floor(500 ÷ session size)`, rounded down to the near
 | Partially correct | free | stays in current bucket |
 | Wrong or timed out | −1 credit | reset to bucket 1 |
 
-**Earning credits:** +5 credits when a word is promoted into a new personal highest bucket (same as any other session). **+100 credit bonus** for a perfect session (every answer fully correct).
+**Earning credits:** +5 credits when a word is promoted into a new personal highest bucket (same as any other session). **+100 credit bonus** for a perfect session (every answer fully correct, session has ≥ 5 words).
 
 After each stress session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
@@ -178,7 +178,7 @@ When your active pool — words in buckets 1–4 — falls below **80 words**, t
 - **No credit costs** — wrong answers never deduct credits.
 - **Hints are free and automatic** — the first 1–2 characters of each answer are always revealed; no paid hint button is shown.
 - **Push back** — a "Push back (N left)" button lets you skip a word and keep it in bucket 0 for a future session. You have **10 free push-backs per session**; the button is disabled once the budget is exhausted.
-- **Perfect session bonus: +100 credits** — awarded if you answer all words correctly with no push-backs (replaces the standard +20 bonus).
+- **Perfect session bonus: +100 credits** — awarded if you answer all words correctly with no push-backs and the session has at least 5 words (replaces the standard +20 bonus).
 
 #### Focus Session
 
@@ -186,7 +186,10 @@ If you have at least **10 words** with a **priority score of 2 or higher** (see 
 
 - Contains up to **12 words**.
 - Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
-- The top-scoring words fill the session first; if fewer than 12 qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
+- Words are sorted by **score descending, then difficulty descending**. A random sample is drawn from the top slice of that sorted list, so sessions vary even when the same candidates qualify.
+  - Pool size: `min(n, max(2 × sessionSize, ceil(n × 0.25)))` where `n` = number of primary candidates.
+  - `sessionSize` words are picked at random from the pool.
+- If fewer than 12 primary candidates qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
 - If fewer than 10 words qualify, the focus session is skipped in the current rotation cycle.
 
 #### Focus Replay
@@ -321,9 +324,10 @@ A **★ Session** lets you practice all your starred (★) words in one focused 
 When you answer a time-based word (bucket 4+) **fully wrong**, the app gives you a second chance:
 
 1. A second word (W2) is inserted immediately after the current one, chosen from the full vocabulary (excluding words already in the session). Selection is biased toward harder words: each candidate is scored as `difficulty × 2 + bucket`; the top 25% (or top 5, whichever is larger) form a pool, and one is picked at random.
-2. How you answer W2 affects the original word (W1):
+2. W2 always shows **one input field**, even if the word normally requires two translations. Any single correct translation is accepted.
+3. How you answer W2 affects the original word (W1):
    - **W2 correct** → W1 enters the **second chance bucket** and is excluded from regular sessions until a dedicated Second Chance Session resolves it (see [Second Chance Session](#second-chance-session-highest-priority-at-most-once-per-day) above).
-   - **W2 wrong or partial** → W1 is reset to bucket 1 immediately.
+   - **W2 wrong** → W1 is reset to bucket 1 immediately.
 
 W2 itself is never affected — it only exists to give W1 a lifeline.
 
@@ -387,9 +391,9 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 | How | Amount |
 |---|---|
 | Word reaches a new highest bucket for the first time | +5 per bucket level |
-| Perfect session — normal/repetition/focus/veteran/★ (no mistakes, no hints, no second-chance words) | +20 |
-| Perfect discovery session (all correct, no push-backs) | +100 |
-| Perfect stress session (all answers fully correct) | +100 |
+| Perfect session — normal/repetition/focus/veteran/★ (no mistakes, no hints, no second-chance words, ≥ 5 words) | +20 |
+| Perfect discovery session (all correct, no push-backs, ≥ 5 words) | +100 |
+| Perfect stress session (all answers fully correct, ≥ 5 words) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |
 | Streak milestone reached | +10 to +1 000 (see Streaks) |
 | First time any word globally reaches a bucket never seen before (≥ 6) | min((N−5)×100, 500) — bucket 6 → +100, …, bucket 10+ → +500 (cap) |

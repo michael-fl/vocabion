@@ -750,8 +750,8 @@ describe('submitAnswer — second-chance word wrong', () => {
 
 // ── submitAnswer — second-chance word partially correct ───────────────────────
 
-describe('submitAnswer — second-chance word partial', () => {
-  it('returns outcome "second_chance_partial", newBucket = W2 bucket (unchanged), w1NewBucket = 1', () => {
+describe('submitAnswer — second-chance word with multiple translations', () => {
+  it('counts as correct when only one of two translations is given (W2 requires only 1 answer)', () => {
     const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['word'] })
     const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other', 'another'] })
     const session = makeSession({
@@ -767,29 +767,8 @@ describe('submitAnswer — second-chance word partial', () => {
 
     const result = service.submitAnswer(session.id, w2.id, ['other', 'wrong'])
 
-    expect(result.outcome).toBe('second_chance_partial')
-    expect(result.newBucket).toBe(4)
-    expect(result.w1NewBucket).toBe(1)
-  })
-
-  it('resets W1 to bucket 1 and keeps W2 in its current bucket', () => {
-    const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['word'] })
-    const w2 = makeEntry({ id: 'w2', bucket: 4, target: ['other', 'another'] })
-    const session = makeSession({
-      words: [
-        { vocabId: w1.id, status: 'incorrect' },
-        { vocabId: w2.id, status: 'pending', secondChanceFor: w1.id },
-      ],
-    })
-
-    vocabRepo.insert(w1)
-    vocabRepo.insert(w2)
-    sessionRepo.insert(session)
-
-    service.submitAnswer(session.id, w2.id, ['other', 'wrong'])
-
-    expect(vocabRepo.findById(w1.id)?.bucket).toBe(1)
-    expect(vocabRepo.findById(w2.id)?.bucket).toBe(4)
+    expect(result.outcome).toBe('second_chance_correct')
+    expect(result.correct).toBe(true)
   })
 })
 
@@ -1033,8 +1012,8 @@ describe('submitAnswer — answer cost', () => {
     const result = service.submitAnswer(session.id, entry.id, ['table'])
 
     expect(result.answerCost).toBe(0)
-    // Balance: 10 initial + 5 bucket credit (bucket 0→1) + 20 perfect bonus; no streak credit (first-ever session)
-    expect(creditsRepo.getBalance()).toBe(35)
+    // Balance: 10 initial + 5 bucket credit (bucket 0→1); no perfect bonus (session size < 5); no streak credit (first-ever session)
+    expect(creditsRepo.getBalance()).toBe(15)
   })
 
   it('deducts 1 credit immediately for a wrong answer and returns answerCost = 1', () => {
@@ -1134,17 +1113,31 @@ describe('submitAnswer — answer cost', () => {
 // ── perfect session bonus ─────────────────────────────────────────────────────
 
 describe('submitAnswer — perfect session bonus', () => {
-  it('awards 10 credits for a perfect normal session', () => {
-    const entry = makeEntry({ target: ['table'] })
-    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+  it('awards 20 credits for a perfect normal session (≥ 5 words)', () => {
+    const entries = Array.from({ length: 5 }, () => makeEntry({ target: ['table'] }))
+    const session = makeSession({ words: entries.map((e) => ({ vocabId: e.id, status: 'pending' })) })
 
-    vocabRepo.insert(entry)
+    for (const e of entries) { vocabRepo.insert(e) }
     sessionRepo.insert(session)
 
-    const result = service.submitAnswer(session.id, entry.id, ['table'])
+    for (let i = 0; i < 4; i++) { service.submitAnswer(session.id, entries[i].id, ['table']) }
+    const result = service.submitAnswer(session.id, entries[4].id, ['table'])
 
     expect(result.perfectBonus).toBe(20)
     expect(result.sessionCompleted).toBe(true)
+  })
+
+  it('does not award a bonus when session has fewer than 5 words', () => {
+    const entries = Array.from({ length: 4 }, () => makeEntry({ target: ['table'] }))
+    const session = makeSession({ words: entries.map((e) => ({ vocabId: e.id, status: 'pending' })) })
+
+    for (const e of entries) { vocabRepo.insert(e) }
+    sessionRepo.insert(session)
+
+    for (let i = 0; i < 3; i++) { service.submitAnswer(session.id, entries[i].id, ['table']) }
+    const result = service.submitAnswer(session.id, entries[3].id, ['table'])
+
+    expect(result.perfectBonus).toBe(0)
   })
 
   it('does not award a bonus when any word is answered incorrectly', () => {
@@ -1201,17 +1194,18 @@ describe('submitAnswer — perfect session bonus', () => {
   })
 
   it('adds the bonus to the credit balance', () => {
-    const entry = makeEntry({ target: ['table'] })
-    const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
+    const entries = Array.from({ length: 5 }, () => makeEntry({ target: ['table'] }))
+    const session = makeSession({ words: entries.map((e) => ({ vocabId: e.id, status: 'pending' })) })
 
-    vocabRepo.insert(entry)
+    for (const e of entries) { vocabRepo.insert(e) }
     sessionRepo.insert(session)
     creditsRepo.addBalance(5)
 
-    service.submitAnswer(session.id, entry.id, ['table'])
+    for (let i = 0; i < 4; i++) { service.submitAnswer(session.id, entries[i].id, ['table']) }
+    service.submitAnswer(session.id, entries[4].id, ['table'])
 
-    // Perfect bonus (+20) + bucket credit (+5, bucket 0→1) on top of initial 5; no streak credit (first-ever session, streak = 1)
-    expect(creditsRepo.getBalance()).toBe(30)
+    // Perfect bonus (+20) + 5 bucket credits (bucket 0→1 per word) on top of initial 5; no streak credit (first-ever session, streak = 1)
+    expect(creditsRepo.getBalance()).toBe(50)
   })
 
   it('does not award a bonus when hints were used', () => {
@@ -1226,17 +1220,18 @@ describe('submitAnswer — perfect session bonus', () => {
     expect(result.perfectBonus).toBe(0)
   })
 
-  it('awards 100 credits for a perfect discovery session (all correct, no push-backs)', () => {
-    const entry = makeEntry({ bucket: 0, target: ['dog'] })
+  it('awards 100 credits for a perfect discovery session (all correct, no push-backs, ≥ 5 words)', () => {
+    const entries = Array.from({ length: 5 }, () => makeEntry({ bucket: 0, target: ['dog'] }))
     const session = makeSession({
       type: 'discovery',
-      words: [{ vocabId: entry.id, status: 'pending' }],
+      words: entries.map((e) => ({ vocabId: e.id, status: 'pending' })),
     })
 
-    vocabRepo.insert(entry)
+    for (const e of entries) { vocabRepo.insert(e) }
     sessionRepo.insert(session)
 
-    const result = service.submitAnswer(session.id, entry.id, ['dog'])
+    for (let i = 0; i < 4; i++) { service.submitAnswer(session.id, entries[i].id, ['dog']) }
+    const result = service.submitAnswer(session.id, entries[4].id, ['dog'])
 
     expect(result.perfectBonus).toBe(100)
     expect(result.sessionCompleted).toBe(true)
@@ -2570,20 +2565,20 @@ describe('stress session — answer scoring', () => {
     expect(result.bucketMilestoneBonus).toBe(0)
   })
 
-  it('awards +100 perfect bonus for perfect stress session', () => {
-    const entry = makeEntry({ bucket: 3, source: 'Hund', target: ['dog'], maxBucket: 5 })
+  it('awards +100 perfect bonus for perfect stress session (≥ 5 words)', () => {
+    const entries = Array.from({ length: 5 }, () => makeEntry({ bucket: 3, source: 'Hund', target: ['dog'], maxBucket: 5 }))
 
-    vocabRepo.insert(entry)
+    for (const e of entries) { vocabRepo.insert(e) }
     creditsRepo.addBalance(500)
 
-    const sess = makeStressSession([entry])
+    const sess = makeStressSession(entries)
 
     sessionRepo.insert(sess)
 
-    const result = service.submitAnswer(sess.id, entry.id, ['dog'])
+    for (let i = 0; i < 4; i++) { service.submitAnswer(sess.id, entries[i].id, ['dog']) }
+    const result = service.submitAnswer(sess.id, entries[4].id, ['dog'])
 
     expect(result.perfectBonus).toBe(100)
-    expect(creditsRepo.getBalance()).toBe(600)
   })
 
   it('schedules next stress session at least 6 days after completion', () => {

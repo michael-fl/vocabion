@@ -75,8 +75,6 @@ export interface CreateSessionOptions {
  *   added to the session for a second-chance attempt.
  * - `second_chance_correct` — the second-chance word was answered correctly;
  *   W1 enters the second chance bucket (secondChanceDueAt set, bucket preserved as restore target), W2 stays in its current bucket.
- * - `second_chance_partial` — second-chance word was partially correct;
- *   W1 is reset to bucket 1, W2 stays in its current bucket.
  * - `second_chance_incorrect` — the second-chance word was also fully wrong;
  *   W1 is reset to bucket 1, W2 stays in its current bucket.
  */
@@ -89,8 +87,6 @@ export type AnswerOutcome =
   | 'second_chance'
   | 'second_chance_correct'
   | 'second_chance_correct_typo'
-  | 'second_chance_partial'
-  | 'second_chance_partial_typo'
   | 'second_chance_incorrect'
 
 /** Returned by `submitAnswer`. */
@@ -106,8 +102,8 @@ export interface AnswerResult {
    */
   newBucket: number
   /**
-   * Only present for `second_chance_correct`, `second_chance_partial`, and
-   * `second_chance_incorrect`: the new bucket of W1 (the original wrong word)
+   * Only present for `second_chance_correct` and `second_chance_incorrect`:
+   * the new bucket of W1 (the original wrong word)
    * after both outcomes are resolved.
    */
   w1NewBucket?: number
@@ -548,7 +544,8 @@ export class SessionService {
       throw new ApiError(404, `Vocabulary entry not found: ${vocabId}`)
     }
 
-    const checkResult = checkAnswerDetailed(entry, session.direction, answers)
+    const isSecondChanceWord = word.secondChanceFor !== undefined
+    const checkResult = checkAnswerDetailed(entry, session.direction, answers, isSecondChanceWord ? 1 : undefined)
     const correct = checkResult.correct
     const isPartial = !correct && checkResult.matchedCount > 0 && checkResult.requiredCount > 1
     const now = new Date().toISOString()
@@ -639,6 +636,7 @@ export class SessionService {
       }
 
       const isPerfect =
+        updatedWords.length >= 5 &&
         !hintsUsed &&
         updatedWords.every((w) => w.status === 'correct') &&
         updatedWords.every((w) => w.secondChanceFor === undefined)
@@ -916,20 +914,9 @@ export class SessionService {
     }
 
     if (word.secondChanceFor !== undefined) {
-      if (isPartial) {
-        // Second-chance word partially correct: W2 stays, W1 reset to bucket 1
-        this.vocabRepo.update({ ...entry, lastAskedAt: now })
-
-        const w1 = this.vocabRepo.findById(word.secondChanceFor)
-
-        if (w1 !== undefined) {
-          this.vocabRepo.update({ ...w1, bucket: 1, lastAskedAt: now })
-        }
-
-        return { outcome: typos.length > 0 ? 'second_chance_partial_typo' : 'second_chance_partial', answerCost }
-      }
-
-      // Second-chance word fully wrong: W2 stays, W1 reset to bucket 1
+      // W2 always requires only 1 answer (maxRequired=1 in checkAnswerDetailed),
+      // so isPartial is never true here — only fully correct or fully wrong.
+      // Wrong/timed-out: W2 stays in its bucket, W1 is reset to bucket 1.
       this.vocabRepo.update({ ...entry, lastAskedAt: now })
 
       const w1 = this.vocabRepo.findById(word.secondChanceFor)

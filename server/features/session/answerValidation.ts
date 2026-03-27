@@ -56,6 +56,7 @@ export interface AnswerCheckResult {
  * Rules:
  * - If the entry has 1 translation: 1 matching answer is required.
  * - If the entry has ≥ 2 translations: 2 distinct matching answers are required.
+ * - If `maxRequired` is provided, the required count is capped at that value.
  *
  * Comparison is case-insensitive and hyphen/space-normalised.
  * Each correct translation can only be matched once.
@@ -63,14 +64,16 @@ export interface AnswerCheckResult {
  * @param entry - The vocabulary entry being tested.
  * @param direction - The session direction (`SOURCE_TO_TARGET` or `TARGET_TO_SOURCE`).
  * @param answers - The user's submitted answers (one or more strings).
+ * @param maxRequired - Optional cap on the number of required answers (e.g. 1 for second-chance words).
  */
 export function checkAnswerDetailed(
   entry: VocabEntry,
   direction: SessionDirection,
   answers: string[],
+  maxRequired?: number,
 ): AnswerCheckResult {
   const translations = deduplicateTranslations(direction === 'SOURCE_TO_TARGET' ? entry.target : [entry.source])
-  const requiredCount = Math.min(translations.length, 2)
+  const requiredCount = Math.min(translations.length, 2, maxRequired ?? Infinity)
 
   let matchedCount = 0
   const matchedIndices = new Set<number>()
