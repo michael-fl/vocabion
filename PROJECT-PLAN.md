@@ -409,9 +409,9 @@ starting from bucket 4):
 
 **Session types:**
 
-There are seven session types: `stress`, `normal`, `repetition`, `focus`, `discovery`, `starred`, and `veteran`. The first six are chosen automatically on each `createSession` call using a **shuffled round-robin rotation**:
+There are eight session types: `stress`, `normal`, `repetition`, `focus`, `focus_quiz`, `discovery`, `starred`, and `veteran`. The first seven are chosen automatically on each `createSession` call using a **shuffled round-robin rotation**:
 
-- `SessionService` maintains a private in-memory sequence of the six automatic types, shuffled with Fisher-Yates at startup and reshuffled each time all six positions have been visited.
+- `SessionService` maintains a private in-memory sequence of the seven automatic types, shuffled with Fisher-Yates at startup and reshuffled each time all seven positions have been visited.
 - On each `createSession` call the service advances the sequence index, calling `trySelectType()` for the current candidate. If the candidate's eligibility conditions are met, that session type is used. Otherwise the candidate is skipped and the next one in the sequence is tried.
 - The sequence is server-side state — it persists across browser refreshes but resets when the server restarts.
 - `starred` is never part of the rotation; it is always manually triggered.
@@ -423,7 +423,9 @@ There are seven session types: `stress`, `normal`, `repetition`, `focus`, `disco
 | `stress` | ≥ 10 words in buckets 2+, `stress_session_due_at ≤ today` |
 | `discovery` | active pool (buckets 1–4) < `DISCOVERY_POOL_THRESHOLD` (80), ≥ `DISCOVERY_MIN_WORDS` (10) bucket-0 words exist, not already done today (`last_discovery_session_date`) |
 | `focus` | ≥ `FOCUS_MIN_WORDS` (10) words with `score ≥ 2` and `bucket` in 1–5 |
+| `focus_quiz` | same as `focus` |
 | `veteran` | `veteran_session_due_at ≤ today`, ≥ `VETERAN_MIN_BUCKET6_WORDS` (50) in buckets 6+, `selectVeteranWords` returns ≥ `VETERAN_MIN_WORDS` (10) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2) |
+| `recovery` | ≥ `RECOVERY_MIN_WORDS` (5) words with `maxBucket ≥ 6` and `maxBucket − bucket ≥ 2` |
 | `repetition` | ≥ `REPETITION_MIN_WORDS` (10) due time-based words (buckets 4+) exist |
 | `normal` | always eligible (at least one word in vocabulary) |
 
@@ -451,6 +453,23 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 3. Pool size: `min(n, max(2 × sessionSize, ceil(n × 0.25)))` where `n` = number of primary candidates. `sessionSize` words are randomly sampled from the pool.
 4. If fewer than `FOCUS_MIN_WORDS` (10) primary candidates exist, the focus session is **skipped** in the current rotation cycle.
 5. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
+
+*Focus Quiz sessions* — multiple-choice companion to focus sessions. Tests recognition (pick from a list) instead of recall (type the answer). Same word selection as focus, larger session size.
+1. **Word selection:** identical to focus — `selectFocusWords(allEntries, focusQuizSize=24, FOCUS_MIN_WORDS=10)` reused (same function, different size parameter).
+2. **Direction:** always `SOURCE_TO_TARGET`, regardless of user setting.
+3. **Per question:** 10 target-language options are presented as clickable buttons. The correct answer(s) are always included. Remaining slots are filled with random distractors drawn from the full vocabulary (excluding all translations of the current word). Required count: `min(translations.length, 2)`.
+4. **Submit guard:** the submit button (and Enter key) is disabled until exactly `requiredCount` options are selected. No partial answers possible.
+5. **Second-chance flow:** same as focus — a fully wrong answer on a time-based word (bucket 4+) appends a W2 second-chance question. W2 is also presented as multiple choice with 1 required answer.
+6. **No hints, no timer.**
+7. **Credit earning:** +1 credit when a word reaches a new personal highest bucket (vs. +5 in all other session types). All other credit rules identical to focus.
+8. **Perfect session bonus:** +20 credits (no mistakes, no second-chance words, ≥ 5 words).
+9. **Distractors:** selected randomly on the frontend from `vocabMap` (all vocab entries), picking one random target word per distractor entry, excluding all translations of the current word.
+
+**Frontend:** a dedicated `FocusQuizScreen.tsx` component handles the multiple-choice UI. `App.tsx` routes sessions of type `focus_quiz` to this screen instead of `TrainingScreen`.
+
+**Backend:** `submitAnswer` is reused unchanged — the user's selected words are submitted as `answers: string[]`, same as typed answers. The only backend difference is the reduced `creditDelta`: `session.type === 'focus_quiz' ? 1 : 5` in `handleCorrectAnswer`.
+
+**DB migration:** `focus_quiz` added to the `type` CHECK constraint on the `sessions` table.
 
 *Stress sessions* — high-stakes timed challenge that fires automatically once a week when trigger conditions are met. No credit balance requirement.
 1. **Trigger conditions:** at least `STRESS_MIN_WORDS` (10) words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When qualifying words first reach 10 and no stress session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
@@ -488,7 +507,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Discovery Session"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran.
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Session"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran.
 
 **Session size — how many questions will be asked:**
 
@@ -625,6 +644,7 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Time-based word selection (1 per due bucket) | `srsSelection.ts` — `selectTimeBasedWords()` | ✓ complete |
 | Repetition session word selection | `srsSelection.ts` — `selectRepetitionWords()` | ✓ complete |
 | Focus session word selection | `srsSelection.ts` — `selectFocusWords()` | ✓ complete |
+| Focus Quiz session | `sessionService.ts`, `FocusQuizScreen.tsx`, DB migration | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
 | Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal) | `sessionService.ts` — `createSession()` | ✓ complete |
 | Stress session word selection | `srsSelection.ts` — `selectStressWords()` | ✓ complete |

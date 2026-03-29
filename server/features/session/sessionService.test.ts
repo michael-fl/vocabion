@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 
-import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET, RECOVERY_MIN_WORDS } from './sessionService.ts'
+import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET, RECOVERY_MIN_WORDS, FOCUS_QUIZ_SESSION_SIZE, FOCUS_QUIZ_MIN_WORDS } from './sessionService.ts'
 import { StressSessionService } from './stressSessionService.ts'
 import { VeteranSessionService, VETERAN_MIN_BUCKET6_WORDS } from './veteranSessionService.ts'
 import { BreakthroughSessionService } from './breakthroughSessionService.ts'
@@ -76,7 +76,7 @@ beforeEach(() => {
   sessionRepo = new FakeSessionRepository()
   vocabRepo = new FakeVocabRepository()
   creditsRepo = new FakeCreditsRepository()
-  // Use identity shuffle so the sequence is always [stress, discovery, focus, veteran, repetition, normal].
+  // Use identity shuffle so the sequence is always [stress, discovery, focus, focus_quiz, veteran, breakthrough, recovery, repetition, normal].
   // This makes type-selection tests deterministic without relying on alternation state.
   service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo), (types) => [...types])
 })
@@ -3281,5 +3281,112 @@ describe('recovery session — createSession', () => {
     const sessionVocabIds = session.words.map((w) => w.vocabId)
 
     expect(sessionVocabIds.every((id) => !nonQualifyingIds.has(id))).toBe(true)
+  })
+})
+
+// ── createSession — focus quiz session ────────────────────────────────────────
+
+describe('createSession — focus quiz session', () => {
+  function makeHighScoreEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
+    return makeEntry({ bucket: 1, score: 2, ...overrides })
+  }
+
+  /** Creates a service whose shuffle always puts focus_quiz first. */
+  function makeFocusQuizFirstService() {
+    return new SessionService(
+      sessionRepo, vocabRepo, creditsRepo,
+      new StressSessionService(creditsRepo),
+      new VeteranSessionService(creditsRepo),
+      new BreakthroughSessionService(creditsRepo),
+      new SecondChanceSessionService(creditsRepo),
+      (types) => ['focus_quiz' as const, ...types.filter((t) => t !== 'focus_quiz')],
+    )
+  }
+
+  it(`creates a "focus_quiz" session when ${FOCUS_QUIZ_MIN_WORDS}+ qualifying words exist`, () => {
+    const svc = makeFocusQuizFirstService()
+
+    for (let i = 0; i < FOCUS_QUIZ_MIN_WORDS; i++) {
+      vocabRepo.insert(makeHighScoreEntry())
+    }
+
+    const session = svc.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('focus_quiz')
+  })
+
+  it(`does not create a "focus_quiz" session when fewer than ${FOCUS_QUIZ_MIN_WORDS} qualifying words exist`, () => {
+    const svc = makeFocusQuizFirstService()
+
+    for (let i = 0; i < FOCUS_QUIZ_MIN_WORDS - 1; i++) {
+      vocabRepo.insert(makeHighScoreEntry())
+    }
+
+    // Add enough bucket-0 words so normal session can proceed
+    for (let i = 0; i < 5; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 0 }))
+    }
+
+    const session = svc.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).not.toBe('focus_quiz')
+  })
+
+  it(`targets ${FOCUS_QUIZ_SESSION_SIZE} words`, () => {
+    const svc = makeFocusQuizFirstService()
+
+    for (let i = 0; i < FOCUS_QUIZ_SESSION_SIZE + 5; i++) {
+      vocabRepo.insert(makeHighScoreEntry())
+    }
+
+    const session = svc.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('focus_quiz')
+    expect(session.words).toHaveLength(FOCUS_QUIZ_SESSION_SIZE)
+  })
+
+  it('earns +1 credit (not +5) for a word reaching a new highest bucket in a focus_quiz session', () => {
+    const svc = makeFocusQuizFirstService()
+
+    for (let i = 0; i < FOCUS_QUIZ_MIN_WORDS; i++) {
+      vocabRepo.insert(makeHighScoreEntry())
+    }
+
+    const session = svc.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
+
+    expect(session.type).toBe('focus_quiz')
+
+    expect(session.words.length).toBeGreaterThan(0)
+
+    const vocabId = session.words[0]?.vocabId ?? ''
+    const entry = vocabRepo.findById(vocabId)
+
+    expect(entry).toBeDefined()
+
+    const safeEntry = entry ?? makeHighScoreEntry()
+
+    // Ensure promoting to a new max bucket
+    vocabRepo.update({ ...safeEntry, bucket: 3, maxBucket: 3 })
+
+    const result = svc.submitAnswer(session.id, vocabId, safeEntry.target)
+
+    expect(result.creditsEarned).toBe(1)
+  })
+
+  it('can be replayed via createReplaySession', () => {
+    const entry = makeEntry({ bucket: 1, score: 2 })
+    const original = makeSession({
+      type: 'focus_quiz',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+    })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+
+    expect(replay.type).toBe('focus_quiz')
+    expect(replay.status).toBe('open')
   })
 })

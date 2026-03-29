@@ -33,6 +33,7 @@ import { AppLayout } from '../components/AppLayout/AppLayout.tsx'
 import type { NavItem } from '../components/AppLayout/Sidebar.tsx'
 import { HomeScreen } from '../screens/HomeScreen.tsx'
 import { TrainingScreen } from '../screens/TrainingScreen.tsx'
+import { FocusQuizScreen } from '../screens/FocusQuizScreen.tsx'
 import { SummaryScreen } from '../screens/SummaryScreen.tsx'
 import { VocabListScreen } from '../screens/VocabListScreen.tsx'
 import { SettingsScreen } from '../screens/SettingsScreen.tsx'
@@ -95,15 +96,28 @@ function App() {
     if (screen.name === 'training') {
       const trainingScreen = screen
 
+      function handleTrainingComplete(session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel: string | undefined, bucketMilestoneBonus: number) {
+        refreshCredits()
+        refreshStreak()
+        setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus, replayCount: trainingScreen.replayCount })
+      }
+
+      if (screen.session.type === 'focus_quiz') {
+        return (
+          <FocusQuizScreen
+            session={screen.session}
+            vocabMap={screen.vocabMap}
+            onComplete={handleTrainingComplete}
+            onAnswerSubmitted={refreshCredits}
+          />
+        )
+      }
+
       return (
         <TrainingScreen
           session={screen.session}
           vocabMap={screen.vocabMap}
-          onComplete={(session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus) => {
-            refreshCredits()
-            refreshStreak()
-            setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus, replayCount: trainingScreen.replayCount })
-          }}
+          onComplete={handleTrainingComplete}
           onAnswerSubmitted={refreshCredits}
           credits={credits}
         />

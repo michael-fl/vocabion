@@ -19,7 +19,7 @@ export type { SessionWord }
 export type SessionDirection = 'SOURCE_TO_TARGET' | 'TARGET_TO_SOURCE'
 
 /** The type of a training session. */
-export type SessionType = 'normal' | 'repetition' | 'focus' | 'discovery' | 'starred' | 'stress' | 'veteran' | 'breakthrough' | 'second_chance_session' | 'recovery'
+export type SessionType = 'normal' | 'repetition' | 'focus' | 'focus_quiz' | 'discovery' | 'starred' | 'stress' | 'veteran' | 'breakthrough' | 'second_chance_session' | 'recovery'
 
 /**
  * A training session. At most one session can be open at a time.
@@ -36,6 +36,9 @@ export interface Session {
    * - `normal` — frequency-based learning session (buckets 0–3 plus due time-based words).
    * - `repetition` — review session drawn exclusively from due time-based buckets (4+).
    * - `focus` — targets the highest-priority words across all non-zero buckets.
+   * - `focus_quiz` — multiple-choice variant of focus: same word selection but the user
+   *   picks the correct translation(s) from 10 clickable options instead of typing.
+   *   Direction is always source → target. Part of the automatic rotation.
    * - `discovery` — introduces new words exclusively from bucket 0; triggered when
    *   the active pool (buckets 1–4) falls below a threshold.
    * - `starred` — reviews all words the user has starred (marked with ★), up to 100;
@@ -111,7 +114,7 @@ export function isSession(value: unknown): value is Session {
     return false
   }
 
-  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'discovery' && type !== 'starred' && type !== 'stress' && type !== 'veteran' && type !== 'breakthrough' && type !== 'second_chance_session' && type !== 'recovery') {
+  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'focus_quiz' && type !== 'discovery' && type !== 'starred' && type !== 'stress' && type !== 'veteran' && type !== 'breakthrough' && type !== 'second_chance_session' && type !== 'recovery') {
     return false
   }
 

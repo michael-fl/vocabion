@@ -44,6 +44,12 @@ export const DISCOVERY_MIN_WORDS = 10
 /** Minimum primary candidates (score ≥ 2 in buckets 1–5) required to run a focus session. */
 export const FOCUS_MIN_WORDS = 10
 
+/** Number of words in a focus quiz session. */
+export const FOCUS_QUIZ_SESSION_SIZE = 24
+
+/** Minimum primary candidates required to run a focus quiz session. */
+export const FOCUS_QUIZ_MIN_WORDS = 10
+
 /** Minimum due time-based words required to run a repetition session. */
 export const REPETITION_MIN_WORDS = 10
 
@@ -155,7 +161,7 @@ export const RECOVERY_SESSION_SIZE = 12
 export const RECOVERY_MIN_WORDS = 5
 
 /** The automatic session types that participate in the shuffle rotation. */
-const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'veteran', 'breakthrough', 'recovery', 'repetition', 'normal']
+const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'recovery', 'repetition', 'normal']
 
 /** Fisher-Yates shuffle. Returns a new array. */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -398,18 +404,18 @@ export class SessionService {
 
   /**
    * Creates a new session containing the same words as an existing completed
-   * focus or starred session, reshuffled into a random order.
+   * focus, focus_quiz, or starred session, reshuffled into a random order.
    *
    * Called when the user accepts the Replay offer on the summary screen.
-   * The replay preserves the original session type (focus → focus, starred → starred).
-   * Preventing a second replay offer is enforced on the frontend via a `replayCount`
-   * prop — no DB marker is needed.
+   * The replay preserves the original session type (focus → focus, focus_quiz → focus_quiz,
+   * starred → starred). Preventing a second replay offer is enforced on the frontend via
+   * a `replayCount` prop — no DB marker is needed.
    *
    * Only original words from the completed session are included (second-chance
    * duplicate entries are excluded).
    *
    * @throws {ApiError} 404 if the original session is not found.
-   * @throws {ApiError} 400 if the original session is not of type `focus` or `starred`.
+   * @throws {ApiError} 400 if the original session is not of type `focus`, `focus_quiz`, or `starred`.
    * @throws {ApiError} 409 if a session is already open.
    */
   createReplaySession(originalSessionId: string): Session {
@@ -419,8 +425,8 @@ export class SessionService {
       throw new ApiError(404, `Session not found: ${originalSessionId}`)
     }
 
-    if (original.type !== 'focus' && original.type !== 'starred') {
-      throw new ApiError(400, 'Only focus and starred sessions can be replayed')
+    if (original.type !== 'focus' && original.type !== 'focus_quiz' && original.type !== 'starred') {
+      throw new ApiError(400, 'Only focus, focus_quiz, and starred sessions can be replayed')
     }
 
     const existing = this.sessionRepo.findOpen()
@@ -483,6 +489,8 @@ export class SessionService {
       }
       case 'focus':
         return selectFocusWords(allEntries, options.size, FOCUS_MIN_WORDS)
+      case 'focus_quiz':
+        return selectFocusWords(allEntries, FOCUS_QUIZ_SESSION_SIZE, FOCUS_QUIZ_MIN_WORDS)
       case 'veteran':
         return this.veteranService.isAvailable(today, bucket6PlusCount)
           ? selectVeteranWords(allEntries, options.veteranSize, VETERAN_MIN_WORDS)
@@ -578,7 +586,7 @@ export class SessionService {
       outcome = result.outcome
       answerCost = result.answerCost
     } else if (correct) {
-      const result = this.handleCorrectAnswer(word, entry, updatedWords, wordIndex, now, checkResult.typos)
+      const result = this.handleCorrectAnswer(word, entry, updatedWords, wordIndex, now, checkResult.typos, session.type)
       outcome = result.outcome
       creditsEarned = result.creditsEarned
       bucketMilestoneBonus = result.bucketMilestoneBonus
@@ -832,6 +840,7 @@ export class SessionService {
     wordIndex: number,
     now: string,
     typos: TypoMatch[],
+    sessionType: SessionType,
   ): { outcome: AnswerOutcome; creditsEarned: number; bucketMilestoneBonus: number } {
     updatedWords[wordIndex] = { ...word, status: 'correct' }
 
@@ -862,7 +871,8 @@ export class SessionService {
     // Correct answer: promote the word.
     const newBucket = entry.bucket + 1
     const newMaxBucket = Math.max(entry.maxBucket, newBucket)
-    const creditDelta = newMaxBucket > entry.maxBucket ? 5 : 0
+    const bucketPromotionCredit = sessionType === 'focus_quiz' ? 1 : 5
+    const creditDelta = newMaxBucket > entry.maxBucket ? bucketPromotionCredit : 0
 
     this.vocabRepo.update({ ...entry, bucket: newBucket, maxBucket: newMaxBucket, lastAskedAt: now })
 

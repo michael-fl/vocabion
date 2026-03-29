@@ -120,7 +120,7 @@ The table below shows the earliest possible time to reach each group, assuming e
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are seven automatic types drawn from a **shuffled round-robin rotation**: the app cycles through all seven types in a random order, skipping any that aren't eligible, and reshuffles when all seven have been considered. An eighth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are eight automatic types drawn from a **shuffled round-robin rotation**: the app cycles through all eight types in a random order, skipping any that aren't eligible, and reshuffles when all eight have been considered. A ninth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
 #### Stress Session (~weekly)
 
@@ -192,6 +192,31 @@ If you have at least **10 words** with a **priority score of 2 or higher** (see 
 - If fewer than 12 primary candidates qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
 - If fewer than 10 words qualify, the focus session is skipped in the current rotation cycle.
 
+#### Focus Quiz Session
+
+A **Focus Quiz Session** is the multiple-choice companion to the Focus Session — it targets the same problematic words but tests recognition instead of recall.
+
+- Contains up to **24 words** (minimum 10 to trigger).
+- **Word selection** is identical to the Focus Session: buckets 1–5, score ≥ 2, sorted by score descending then difficulty descending, with pool-based random sampling.
+- **Direction is always source → target**: the source word is shown and you pick the correct translation(s).
+- **Per question**: 10 target-language options are shown as clickable buttons. The correct answer(s) are always among the 10; the remaining slots are filled with random distractors drawn from the full vocabulary.
+- A label above the options tells you how many to select: **"Select 1 answer"** or **"Select 2 answers"**. The Submit button is disabled until you have selected the required number.
+- **Second-chance flow** applies exactly as in the Focus Session — a fully wrong answer on a time-based word (bucket 4+) inserts a W2 second-chance question.
+- **No hints**, **no timer**.
+
+**Credits and SRS:**
+
+| Outcome | Credit effect | Bucket effect |
+|---|---|---|
+| Fully correct | none (or **+1** if new personal bucket record) | promoted one bucket if due |
+| Wrong | −1 credit (free for virgin words) | reset to bucket 1 |
+
+Note: the per-word new-bucket reward is **+1 credit** (vs. +5 in all other session types) — multiple choice is easier since the answer is visible.
+
+**Perfect session bonus:** +20 credits (no mistakes, no hints, no second-chance words, ≥ 5 words).
+
+If fewer than 10 primary candidates qualify, the Focus Quiz is skipped in the current rotation cycle.
+
 #### Focus Replay
 
 After completing a Focus Session with enough errors, the session summary screen offers a **"Play again"** button for up to two additional attempts.
@@ -251,7 +276,7 @@ A **Recovery Session** targets words that were once genuinely mastered but have 
 - `maxBucket ≥ 6` — the word once reached veteran territory (genuinely mastered)
 - `maxBucket − bucket ≥ 2` — it has since fallen back by at least 2 full bucket levels
 
-**Trigger condition:** at least **10 qualifying words** exist. The session is part of the normal shuffled rotation and fires whenever the threshold is met — no weekly timer or scheduling involved.
+**Trigger condition:** at least **5 qualifying words** exist. The session is part of the normal shuffled rotation and fires whenever the threshold is met — no weekly timer or scheduling involved.
 
 **Session rules:**
 - Up to **12 words**, selected regardless of due date — the point is targeted re-consolidation, not SRS scheduling.
@@ -297,16 +322,18 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 
 **Session type eligibility at a glance:**
 
-| Session type | Priority | Eligible when… |
-|---|---|---|
-| Second Chance | Highest (pre-rotation) | ≥ 1 due second-chance-bucket word AND not already played today |
-| Stress | Rotation | Due date reached, ≥ 10 qualifying words (buckets 2+) |
-| Discovery | Rotation | Active pool (buckets 1–4) < 80 words, ≥ 10 bucket-0 words, not already done today |
-| Focus | Rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
-| Veteran | Rotation | Due date reached, ≥ 50 words in buckets 6+, ≥ 10 of those with difficulty ≥ 2 |
-| Breakthrough | Rotation | Due date reached, ≥ 10 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
-| Repetition | Rotation | ≥ 10 due time-based words (buckets 4+) exist |
-| Normal | Rotation (fallback) | Always eligible — at least one word in vocabulary |
+| Session type | Priority | Frequency | Eligible when… |
+|---|---|---|---|
+| Second Chance | Highest (pre-rotation) | ≤ once / day | ≥ 1 due second-chance-bucket word AND not already played today |
+| Stress | Rotation | ~weekly | Due date reached, ≥ 10 qualifying words (buckets 2+) |
+| Discovery | Rotation | ≤ once / day | Active pool (buckets 1–4) < 80 words, ≥ 10 bucket-0 words, not already done today |
+| Focus | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
+| Focus Quiz | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
+| Veteran | Rotation | ~weekly | Due date reached, ≥ 50 words in buckets 6+, ≥ 10 of those with difficulty ≥ 2 |
+| Breakthrough | Rotation | ~weekly | Due date reached, ≥ 10 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
+| Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
+| Repetition | Rotation | rotation | ≥ 10 due time-based words (buckets 4+) exist |
+| Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
 
 #### ★ Session (manual, once per day)
 
