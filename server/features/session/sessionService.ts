@@ -730,6 +730,10 @@ export class SessionService {
    * fact. The word's status is changed from `'incorrect'` to `'correct'` so the
    * session summary reflects the updated outcome.
    *
+   * If the word triggered a second-chance flow (a pending W2 with `secondChanceFor === vocabId`
+   * exists), that W2 word is also removed — it is no longer needed. If removing W2 leaves
+   * no pending words, the session is marked as completed.
+   *
    * @throws {ApiError} 404 if session or vocab entry not found.
    * @throws {ApiError} 400 if the word is not in `'incorrect'` status.
    */
@@ -746,11 +750,17 @@ export class SessionService {
       throw new ApiError(400, `Word ${vocabId} is not incorrect in session ${sessionId}`)
     }
 
-    const updatedWords = [...session.words]
+    // Mark W1 correct and remove any pending W2 that was spawned for this word.
+    const updatedWords = session.words
+      .map((w, i) => (i === wordIndex ? { ...w, status: 'correct' as const } : w))
+      .filter((w) => !(w.secondChanceFor === vocabId && w.status === 'pending'))
 
-    updatedWords[wordIndex] = { ...session.words[wordIndex], status: 'correct' }
-
-    const updatedSession: Session = { ...session, words: updatedWords }
+    const sessionCompleted = updatedWords.every((w) => w.status !== 'pending')
+    const updatedSession: Session = {
+      ...session,
+      words: updatedWords,
+      status: sessionCompleted ? 'completed' : 'open',
+    }
 
     this.sessionRepo.update(updatedSession)
 

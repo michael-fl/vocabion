@@ -77,7 +77,7 @@ interface PendingAlternativeAnswer {
 
 /**
  * Tracks wrong answers that the user may want to add as valid alternatives.
- * Only set for `incorrect` and `second_chance_incorrect` outcomes.
+ * Set for `incorrect`, `second_chance`, `second_chance_incorrect`, `partial`, and `partial_typo` outcomes.
  * Each typed answer gets its own button so the user can pick which ones are correct.
  */
 interface PendingAlternative {
@@ -408,6 +408,7 @@ export function TrainingScreen({
 
       if (
         result.outcome === 'incorrect' ||
+        result.outcome === 'second_chance' ||
         result.outcome === 'second_chance_incorrect' ||
         result.outcome === 'partial' ||
         result.outcome === 'partial_typo'
@@ -500,6 +501,22 @@ export function TrainingScreen({
         const updatedSession = await sessionApi.markWordCorrect(currentSession.id, pendingAlternative.vocabId)
 
         setCurrentSession(updatedSession)
+
+        // If a pending W2 was removed (second-chance case), advance the current word.
+        const currentVocabId = currentWord?.vocabId
+        const currentWordGone = currentVocabId !== undefined &&
+          !updatedSession.words.some((w) => w.vocabId === currentVocabId && w.status === 'pending')
+
+        if (currentWordGone) {
+          if (updatedSession.status === 'completed') {
+            onComplete(updatedSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus)
+            return
+          }
+
+          setCurrentWord(findNextPending(updatedSession, vocabMap))
+          setAnswers(['', ''])
+          setStatusMessage(null)
+        }
 
         if (pendingAlternative.answerCost > 0) {
           await creditsApi.refundCredits(pendingAlternative.answerCost)

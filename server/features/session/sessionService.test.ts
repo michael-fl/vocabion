@@ -1305,6 +1305,65 @@ describe('markWordCorrect', () => {
     expect(updated.words[1]?.status).toBe('incorrect')
   })
 
+  it('removes a pending W2 word whose secondChanceFor references the corrected word', () => {
+    const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['table'] })
+    const w2 = makeEntry({ id: 'w2', target: ['chair'] })
+    const session = makeSession({
+      words: [
+        { vocabId: w1.id, status: 'incorrect' },
+        { vocabId: w2.id, status: 'pending', secondChanceFor: w1.id },
+      ],
+    })
+
+    vocabRepo.insert(w1)
+    vocabRepo.insert(w2)
+    sessionRepo.insert(session)
+
+    const updated = service.markWordCorrect(session.id, w1.id)
+
+    expect(updated.words).toHaveLength(1)
+    expect(updated.words[0]?.vocabId).toBe(w1.id)
+    expect(updated.words[0]?.status).toBe('correct')
+  })
+
+  it('marks session as completed when removing W2 leaves no pending words', () => {
+    const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['table'] })
+    const w2 = makeEntry({ id: 'w2', target: ['chair'] })
+    const session = makeSession({
+      words: [
+        { vocabId: w1.id, status: 'incorrect' },
+        { vocabId: w2.id, status: 'pending', secondChanceFor: w1.id },
+      ],
+    })
+
+    vocabRepo.insert(w1)
+    vocabRepo.insert(w2)
+    sessionRepo.insert(session)
+
+    const updated = service.markWordCorrect(session.id, w1.id)
+
+    expect(updated.status).toBe('completed')
+  })
+
+  it('does not remove a non-pending W2 (e.g. already answered)', () => {
+    const w1 = makeEntry({ id: 'w1', bucket: 5, target: ['table'] })
+    const w2 = makeEntry({ id: 'w2', target: ['chair'] })
+    const session = makeSession({
+      words: [
+        { vocabId: w1.id, status: 'incorrect' },
+        { vocabId: w2.id, status: 'correct', secondChanceFor: w1.id },
+      ],
+    })
+
+    vocabRepo.insert(w1)
+    vocabRepo.insert(w2)
+    sessionRepo.insert(session)
+
+    const updated = service.markWordCorrect(session.id, w1.id)
+
+    expect(updated.words).toHaveLength(2)
+  })
+
   it('throws ApiError 404 when session is not found', () => {
     expectApiError(() => service.markWordCorrect('no-such-session', 'any-vocab'), 404)
   })
