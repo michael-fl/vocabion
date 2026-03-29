@@ -1,17 +1,19 @@
 /**
- * Focus Quiz screen component.
+ * Discovery Quiz screen component.
  *
- * Multiple-choice training session where the user picks the correct
- * translation(s) from 10 clickable options. Direction is always source → target.
- * Uses the same word selection as the focus session. The user selects options
- * and submits — no typing required. Distractors are drawn from the full vocab.
+ * Multiple-choice training session for bucket-0 (new) words. The user picks
+ * the correct translation(s) from 10 clickable options — no typing required.
+ * Direction is always source → target.
  *
- * Second-chance flow applies: a time-bucket (4+) wrong answer triggers a
- * second-chance word for the same vocabulary entry.
+ * Gameplay mirrors the Focus Quiz Session with one addition: a **Push back**
+ * button lets the user return a word to bucket 0 for a later session (budget:
+ * 10 push-backs per session).
+ *
+ * No hints. Wrong answers are free (virgin words). Perfect-session bonus: +100.
  *
  * @example
  * ```tsx
- * <FocusQuizScreen
+ * <DiscoveryQuizScreen
  *   session={session}
  *   vocabMap={vocabMap}
  *   onComplete={(completedSession, cost, earned, spent, perfect, streak, milestone, bucketBonus) =>
@@ -34,9 +36,13 @@ import {
   buildOptions,
   buildStatusMessage,
 } from './multipleChoiceHelpers.tsx'
+
+// Reuse the Focus Quiz CSS — the layout and option styles are identical.
 import styles from './FocusQuizScreen.module.css'
 
-export interface FocusQuizScreenProps {
+// ── Props ──────────────────────────────────────────────────────────────────────
+
+export interface DiscoveryQuizScreenProps {
   session: Session
   vocabMap: Map<string, VocabEntry>
   onComplete: (
@@ -57,16 +63,16 @@ export interface FocusQuizScreenProps {
   correctFeedbackDelayMs?: number
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Component ──────────────────────────────────────────────────────────────────
 
-/** Renders the Focus Quiz screen for a multiple-choice training session. */
-export function FocusQuizScreen({
+/** Renders the Discovery Quiz screen — multiple-choice training for new (bucket-0) words. */
+export function DiscoveryQuizScreen({
   session: initialSession,
   vocabMap,
   onComplete,
   onAnswerSubmitted,
   correctFeedbackDelayMs = 2000,
-}: FocusQuizScreenProps) {
+}: DiscoveryQuizScreenProps) {
   const [currentSession, setCurrentSession] = useState(initialSession)
   const [currentWord, setCurrentWord] = useState<CurrentWord | null>(() =>
     findNextPending(initialSession, vocabMap),
@@ -78,7 +84,6 @@ export function FocusQuizScreen({
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
   const [completedSessionCost, setCompletedSessionCost] = useState(0)
   const [sessionCreditsEarned, setSessionCreditsEarned] = useState(0)
-  const [sessionCreditsSpent] = useState(0)
   const [sessionPerfectBonus, setSessionPerfectBonus] = useState(0)
   const [sessionBucketMilestoneBonus, setSessionBucketMilestoneBonus] = useState(0)
   const [sessionStreakCredit, setSessionStreakCredit] = useState(0)
@@ -104,12 +109,12 @@ export function FocusQuizScreen({
     if (isLastWord) {
       const delay = statusMessage.isCorrect ? 0 : correctFeedbackDelayMs
       const timer = setTimeout(() => {
-        onComplete(currentSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus)
+        onComplete(currentSession, completedSessionCost, sessionCreditsEarned, 0, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus)
       }, delay)
 
       return () => { clearTimeout(timer) }
     }
-  }, [statusMessage, currentSession, onComplete, correctFeedbackDelayMs, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus])
+  }, [statusMessage, currentSession, onComplete, correctFeedbackDelayMs, completedSessionCost, sessionCreditsEarned, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus])
 
   // Build the prompt text for the current word (stable per word, not per render)
   const prompt = useMemo(() => {
@@ -117,12 +122,10 @@ export function FocusQuizScreen({
       return ''
     }
 
-    // Direction is always SOURCE_TO_TARGET for focus quiz
     return currentWord.entry.source
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWord?.entry.id, currentWord?.isSecondChance])
 
-  // Build options list (stable per word)
   const translations = useMemo(() => {
     if (currentWord === null) {
       return []
@@ -137,7 +140,6 @@ export function FocusQuizScreen({
       return []
     }
 
-    // For second-chance words, always 1 required; otherwise at most 2 (mirrors text-input sessions)
     const correctTranslations = currentWord.isSecondChance
       ? translations.slice(0, 1)
       : translations.slice(0, 2)
@@ -157,6 +159,8 @@ export function FocusQuizScreen({
 
   const answered = currentSession.words.filter((w) => w.status !== 'pending').length
   const total = currentSession.words.length
+  const pushBacksUsed = currentSession.words.filter((w) => w.status === 'pushed_back').length
+  const pushBacksRemaining = sessionApi.DISCOVERY_PUSHBACK_BUDGET - pushBacksUsed
 
   async function handleToggleMark() {
     const newMarked = !isMarked
@@ -261,6 +265,34 @@ export function FocusQuizScreen({
     }
   }
 
+  async function handlePushBack() {
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const updatedSession = await sessionApi.pushBackWord(currentSession.id, currentWord.vocabId)
+
+      setCurrentSession(updatedSession)
+
+      // Push-back can complete the session when it was the last pending word.
+      if (updatedSession.status === 'completed') {
+        onComplete(updatedSession, completedSessionCost, sessionCreditsEarned, 0, 0, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus)
+
+        return
+      }
+
+      setCurrentWord(findNextPending(updatedSession, vocabMap))
+      setSelectedLabels(new Set())
+      setEverSelectedWrong(false)
+      setSubmitted(false)
+      setStatusMessage(null)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to push back word')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   // Determine per-option visual state after submission
   function getOptionState(label: string): QuizOption['state'] {
     if (!submitted) {
@@ -295,7 +327,7 @@ export function FocusQuizScreen({
   return (
     <div className={styles.screen}>
       <div>
-        <h2>Focus Quiz</h2>
+        <h2>Discovery Quiz</h2>
         <p className={styles.meta}>{answered} of {total} answered</p>
       </div>
 
@@ -360,6 +392,13 @@ export function FocusQuizScreen({
               disabled={!canSubmit}
             >
               Submit
+            </button>
+            <button
+              type="button"
+              onClick={() => { void handlePushBack() }}
+              disabled={submitting || submitted || pushBacksRemaining <= 0}
+            >
+              Push back ({pushBacksRemaining} left)
             </button>
           </div>
         </div>

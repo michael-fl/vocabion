@@ -33,6 +33,7 @@ import { AppLayout } from '../components/AppLayout/AppLayout.tsx'
 import type { NavItem } from '../components/AppLayout/Sidebar.tsx'
 import { HomeScreen } from '../screens/HomeScreen.tsx'
 import { TrainingScreen } from '../screens/TrainingScreen.tsx'
+import { DiscoveryQuizScreen } from '../screens/DiscoveryQuizScreen.tsx'
 import { FocusQuizScreen } from '../screens/FocusQuizScreen.tsx'
 import { SummaryScreen } from '../screens/SummaryScreen.tsx'
 import { VocabListScreen } from '../screens/VocabListScreen.tsx'
@@ -105,6 +106,17 @@ function App() {
       if (screen.session.type === 'focus_quiz') {
         return (
           <FocusQuizScreen
+            session={screen.session}
+            vocabMap={screen.vocabMap}
+            onComplete={handleTrainingComplete}
+            onAnswerSubmitted={refreshCredits}
+          />
+        )
+      }
+
+      if (screen.session.type === 'discovery') {
+        return (
+          <DiscoveryQuizScreen
             session={screen.session}
             vocabMap={screen.vocabMap}
             onComplete={handleTrainingComplete}

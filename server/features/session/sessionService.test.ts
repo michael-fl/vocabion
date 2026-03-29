@@ -1220,7 +1220,7 @@ describe('submitAnswer — perfect session bonus', () => {
     expect(result.perfectBonus).toBe(0)
   })
 
-  it('awards 100 credits for a perfect discovery session (all correct, no push-backs, ≥ 5 words)', () => {
+  it('awards 20 credits for a perfect discovery session (all correct, no push-backs, ≥ 5 words)', () => {
     const entries = Array.from({ length: 5 }, () => makeEntry({ bucket: 0, target: ['dog'] }))
     const session = makeSession({
       type: 'discovery',
@@ -1233,7 +1233,7 @@ describe('submitAnswer — perfect session bonus', () => {
     for (let i = 0; i < 4; i++) { service.submitAnswer(session.id, entries[i].id, ['dog']) }
     const result = service.submitAnswer(session.id, entries[4].id, ['dog'])
 
-    expect(result.perfectBonus).toBe(100)
+    expect(result.perfectBonus).toBe(20)
     expect(result.sessionCompleted).toBe(true)
   })
 

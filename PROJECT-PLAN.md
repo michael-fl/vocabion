@@ -431,13 +431,14 @@ There are eight session types: `stress`, `normal`, `repetition`, `focus`, `focus
 
 An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tests to inject a deterministic sequence.
 
-*Discovery sessions* — inject new words when the active pool is running low. Default size: **24 words** (`discoverySize` parameter, default 24).
+*Discovery sessions* — inject new words when the active pool is running low. Default size: **24 words** (`discoverySize` parameter, default 24). Uses the **multiple-choice format** (`DiscoveryQuizScreen`): source word shown, 10 clickable target-language options (same distractor-building logic as Focus Quiz), direction always source → target.
 1. Only bucket-0 words are included.
 2. Manually added words are drawn first, then regular words; within each group, sorted by score descending (ties shuffled randomly).
 3. A **push back** action is available: the user can remove a word from the session and keep it in bucket 0 for a future discovery session. Budget: **10 push-backs per session** (`DISCOVERY_PUSHBACK_BUDGET`). After a push-back the session continues with the next pending word; if no pending words remain the session completes.
 4. Wrong answers never deduct credits (`free = true` path in `handleWrongAnswer`).
-5. Hints are always free and automatic (bucket 0 auto-hint; no paid button shown).
-6. Perfect session bonus: **+100 credits** (instead of the standard +20) when all words are answered correctly with no push-backs and the session has at least 5 words.
+5. Bucket-promotion credit: **+0** (vs. +5 in other session types, +1 in focus_quiz) — multiple choice is easier since answers are visible.
+6. No hints available.
+7. Perfect session bonus: **+20 credits** (standard bonus) when all words are answered correctly with no push-backs and the session has at least 5 words.
 
 *Normal sessions* — focus on frequency learning (buckets 0–3 + up to 1 due word per time-based bucket). Described in detail below under "Session size". Default size: **12 words** (`size` parameter, default 12). If the total is still below `sessionSize` after frequency + 1-per-due-bucket selection, two fill-up phases run: first with additional due time-based words (lowest bucket first), then with non-due time-based words (lowest bucket first). Already-selected words are excluded from both phases.
 
@@ -507,7 +508,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Session"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran.
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran.
 
 **Session size — how many questions will be asked:**
 
@@ -645,6 +646,7 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Repetition session word selection | `srsSelection.ts` — `selectRepetitionWords()` | ✓ complete |
 | Focus session word selection | `srsSelection.ts` — `selectFocusWords()` | ✓ complete |
 | Focus Quiz session | `sessionService.ts`, `FocusQuizScreen.tsx`, DB migration | ✓ complete |
+| Discovery session (multiple-choice, DiscoveryQuizScreen) | `sessionService.ts`, `DiscoveryQuizScreen.tsx` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
 | Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal) | `sessionService.ts` — `createSession()` | ✓ complete |
 | Stress session word selection | `srsSelection.ts` — `selectStressWords()` | ✓ complete |
@@ -692,8 +694,7 @@ The bonus scales linearly and is capped at 500: **bucket N → min((N−5)×100,
 The bonus fires at most once per bucket level: if bucket 6 becomes empty again after a wrong answer and a different word later climbs into bucket 6, no second bonus is paid. The `bucketMilestoneBonus` field on `AnswerResult` carries the amount (0 or the scaled value) so the UI can display a celebration message.
 
 **Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints, and the session contains at least 5 words. The bonus amount depends on session type:
-- **Normal / repetition / focus / veteran / starred:** **+20 credits.**
-- **Discovery:** **+100 credits** — all words must be answered correctly with no push-backs (a `pushed_back` word counts as non-correct and disqualifies the bonus).
+- **Normal / repetition / focus / focus_quiz / discovery / veteran / starred:** **+20 credits.**
 - **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts, no second-chance words triggered). New-bucket-record bonuses (+5) also apply in stress sessions.
 
 All conditions that must hold (except discovery, which has no second-chance words or paid hints; and stress, which has no hints):

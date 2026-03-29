@@ -651,7 +651,7 @@ export class SessionService {
         updatedWords.every((w) => w.secondChanceFor === undefined)
 
       if (isPerfect) {
-        const isLargePerfectBonus = updatedSession.type === 'discovery' || updatedSession.type === 'stress'
+        const isLargePerfectBonus = updatedSession.type === 'stress'
 
         perfectBonus = isLargePerfectBonus ? 100 : 20
         this.creditsRepo.addBalance(perfectBonus)
@@ -871,7 +871,7 @@ export class SessionService {
     // Correct answer: promote the word.
     const newBucket = entry.bucket + 1
     const newMaxBucket = Math.max(entry.maxBucket, newBucket)
-    const bucketPromotionCredit = sessionType === 'focus_quiz' ? 1 : 5
+    const bucketPromotionCredit = sessionType === 'discovery' ? 0 : sessionType === 'focus_quiz' ? 1 : 5
     const creditDelta = newMaxBucket > entry.maxBucket ? bucketPromotionCredit : 0
 
     this.vocabRepo.update({ ...entry, bucket: newBucket, maxBucket: newMaxBucket, lastAskedAt: now })

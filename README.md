@@ -173,12 +173,15 @@ After each stress session completes, the next one is scheduled for **6 days + up
 
 When your active pool — words in buckets 1–4 — falls below **80 words**, the app injects a **Discovery Session** to replenish it. Up to **24 words** are drawn from bucket 0 (new words you haven't practiced yet). Manually added words are drawn first, then sorted by priority score. At least **10 bucket-0 words** must exist for the session to fire; if fewer than 24 exist, a shorter session is created with however many are available.
 
+Discovery Sessions use a **multiple-choice format** — the source word is shown and you pick the correct translation(s) from 10 clickable options. No typing required. Direction is always source → target.
+
 **Special rules for Discovery Sessions:**
 - **Once per day** — at most one discovery session per calendar day. If a discovery session was already completed today, the type is skipped in the rotation until the following day.
-- **No credit costs** — wrong answers never deduct credits.
-- **Hints are free and automatic** — the first 1–2 characters of each answer are always revealed; no paid hint button is shown.
+- **No credit costs** — wrong answers never deduct credits (new words are free).
+- **No bucket-promotion credits** — correct answers that move a word to a new personal highest bucket earn **+0 credits** (vs. +5 in other session types). Multiple choice is easier since answers are visible.
+- **No hints** — the hint button is not available.
 - **Push back** — a "Push back (N left)" button lets you skip a word and keep it in bucket 0 for a future session. You have **10 free push-backs per session**; the button is disabled once the budget is exhausted.
-- **Perfect session bonus: +100 credits** — awarded if you answer all words correctly with no push-backs and the session has at least 5 words (replaces the standard +20 bonus).
+- **Perfect session bonus: +20 credits** — awarded if you answer all words correctly with no push-backs and the session has at least 5 words.
 
 #### Focus Session
 
@@ -429,8 +432,7 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 | How | Amount |
 |---|---|
 | Word reaches a new highest bucket for the first time | +5 per bucket level |
-| Perfect session — normal/repetition/focus/veteran/★ (no mistakes, no hints, no second-chance words, ≥ 5 words) | +20 |
-| Perfect discovery session (all correct, no push-backs, ≥ 5 words) | +100 |
+| Perfect session — normal/repetition/focus/focus_quiz/discovery/veteran/★ (no mistakes, no hints, no second-chance words, ≥ 5 words) | +20 |
 | Perfect stress session (all answers fully correct, ≥ 5 words) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |
 | Streak milestone reached | +10 to +1 000 (see Streaks) |
