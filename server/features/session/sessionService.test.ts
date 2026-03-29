@@ -2862,7 +2862,7 @@ describe('createReplaySession', () => {
     expectApiError(() => service.createReplaySession('nonexistent'), 404)
   })
 
-  it('throws ApiError 400 when the original session is not a focus session', () => {
+  it('throws ApiError 400 when the original session is not a replayable type', () => {
     const session = makeSession({ type: 'normal', status: 'completed' })
 
     sessionRepo.insert(session)
@@ -2982,6 +2982,47 @@ describe('createReplaySession', () => {
     service.createReplaySession(original.id)
 
     expect(service.getOpenSession()).toBeDefined()
+  })
+
+  it('creates a starred replay with type "starred"', () => {
+    const entry = makeEntry()
+    const original = makeSession({
+      type: 'starred',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+    })
+
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+
+    expect(replay.type).toBe('starred')
+    expect(replay.status).toBe('open')
+  })
+
+  it('starred replay contains the same vocab IDs (second-chance words excluded)', () => {
+    const e1 = makeEntry()
+    const e2 = makeEntry()
+    const e3 = makeEntry()
+    const original = makeSession({
+      type: 'starred',
+      status: 'completed',
+      words: [
+        { vocabId: e1.id, status: 'incorrect' },
+        { vocabId: e2.id, status: 'correct' },
+        { vocabId: e3.id, status: 'correct', secondChanceFor: e2.id },
+      ],
+    })
+
+    sessionRepo.insert(original)
+
+    const replay = service.createReplaySession(original.id)
+    const replayIds = replay.words.map((w) => w.vocabId)
+
+    expect(replayIds).toHaveLength(2)
+    expect(replayIds).toContain(e1.id)
+    expect(replayIds).toContain(e2.id)
+    expect(replayIds).not.toContain(e3.id)
   })
 })
 

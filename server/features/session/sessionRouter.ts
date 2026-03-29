@@ -8,7 +8,7 @@
  * - `POST /`                              → create a new session
  * - `POST /:id/answer`                    → submit an answer for the current word
  * - `POST /:id/words/:vocabId/correct`    → retroactively mark a word as correct
- * - `POST /:id/replay`                    → create a focus replay from a completed focus session
+ * - `POST /:id/replay`                    → create a replay from a completed focus or starred session
  *
  * @example
  * ```ts

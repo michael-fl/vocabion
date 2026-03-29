@@ -317,6 +317,17 @@ A **★ Session** lets you practice all your starred (★) words in one focused 
 - SRS rules are the same as a Focus Session: words in time-based buckets (4+) that are not yet due will not be promoted to the next bucket.
 - The button is disabled if you have no starred words, if a ★ session was already completed today, or if another session is currently in progress.
 
+#### ★ Session Replay
+
+After completing a ★ Session with enough errors, the session summary screen offers a **"Play again"** button for up to two additional attempts — identical to the Focus Replay mechanic.
+
+- The replay contains the **exact same words** as the original, reshuffled into a random new order.
+- It is treated as a fully independent ★ Session: earns credits, perfect bonus, bucket promotions, and streak credit exactly like any other session.
+- **Up to two replays per session:**
+  - **Replay 1** is offered after the original ★ Session if **25% or more** of answers were wrong or partial.
+  - **Replay 2** is offered after Replay 1 if **at least 1** answer was wrong or partial.
+  - After Replay 2, no further replay is offered.
+
 ---
 
 ### Second-Chance Flow (Time-Based Words)

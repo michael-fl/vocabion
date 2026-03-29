@@ -397,18 +397,19 @@ export class SessionService {
   }
 
   /**
-   * Creates a new focus session containing the same words as an existing completed
-   * focus session, reshuffled into a random order.
+   * Creates a new session containing the same words as an existing completed
+   * focus or starred session, reshuffled into a random order.
    *
-   * Called when the user accepts the Focus Replay offer on the summary screen.
-   * The replay is a plain `focus` session. Preventing a second replay offer is
-   * enforced on the frontend via an `isReplay` flag — no DB marker is needed.
+   * Called when the user accepts the Replay offer on the summary screen.
+   * The replay preserves the original session type (focus → focus, starred → starred).
+   * Preventing a second replay offer is enforced on the frontend via a `replayCount`
+   * prop — no DB marker is needed.
    *
    * Only original words from the completed session are included (second-chance
    * duplicate entries are excluded).
    *
    * @throws {ApiError} 404 if the original session is not found.
-   * @throws {ApiError} 400 if the original session is not of type `focus`.
+   * @throws {ApiError} 400 if the original session is not of type `focus` or `starred`.
    * @throws {ApiError} 409 if a session is already open.
    */
   createReplaySession(originalSessionId: string): Session {
@@ -418,8 +419,8 @@ export class SessionService {
       throw new ApiError(404, `Session not found: ${originalSessionId}`)
     }
 
-    if (original.type !== 'focus') {
-      throw new ApiError(400, 'Only focus sessions can be replayed')
+    if (original.type !== 'focus' && original.type !== 'starred') {
+      throw new ApiError(400, 'Only focus and starred sessions can be replayed')
     }
 
     const existing = this.sessionRepo.findOpen()
@@ -437,7 +438,7 @@ export class SessionService {
     const session: Session = {
       id: crypto.randomUUID(),
       direction: original.direction,
-      type: 'focus',
+      type: original.type,
       words: shuffled.map((vocabId) => ({ vocabId, status: 'pending' })),
       status: 'open',
       createdAt: new Date().toISOString(),

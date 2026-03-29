@@ -5,7 +5,7 @@
  * completed session. Second-chance words are counted separately so the user
  * can see both original and second-chance outcomes.
  *
- * For focus sessions the screen may offer a "Play again" button:
+ * For focus and starred sessions the screen may offer a "Play again" button:
  * - After the original session: shown when error rate ≥ 25% (`replayCount` = 0).
  * - After Replay 1: shown when at least 1 answer was incorrect (`replayCount` = 1).
  * - After Replay 2 (`replayCount` ≥ 2): no further offer.
@@ -70,7 +70,7 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
 
   let showReplayOffer = false
 
-  if (session.type === 'focus' && onReplay !== undefined) {
+  if ((session.type === 'focus' || session.type === 'starred') && onReplay !== undefined) {
     if (replayCount === 0) {
       showReplayOffer = errorRate >= REPLAY_ERROR_THRESHOLD
     } else if (replayCount === 1) {

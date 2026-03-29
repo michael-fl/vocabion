@@ -1118,12 +1118,12 @@ The codebase currently has German/English hardcoded throughout. This refactoring
 - [ ] `scripts/IMPORT-VOCAB.md` — update format documentation
 - [ ] `server/db/database.test.ts` — update migration count
 
-## Focus Replay ✓
+## Focus Replay ✓ / ★ Session Replay ✓
 
-After completing a focus session with enough errors, the session summary screen offers the user up to **two** chances to replay the same session.
+After completing a focus or starred session with enough errors, the session summary screen offers the user up to **two** chances to replay the same session.
 
 **Trigger conditions:**
-- The completed session is of type `focus`
+- The completed session is of type `focus` or `starred`
 - **Replay 1** (after original session): error rate ≥ 25% — `(wrong + partial answers) / total words >= 0.25` (e.g. 3 or more errors in a 12-word session)
 - **Replay 2** (after Replay 1): at least 1 answer in Replay 1 was wrong or partial
 - No further replay is offered after Replay 2
@@ -1135,14 +1135,14 @@ After completing a focus session with enough errors, the session summary screen 
 
 **The replay session:**
 - Contains the **exact same words** as the original, but **reshuffled** (random new order)
-- Stored as a plain `focus` session — no special marker or flag
+- Stored as a plain session of the same type as the original (`focus` → `focus`, `starred` → `starred`) — no special marker or flag
 - Treated as a fully independent new session: earns credits, perfect bonus, bucket promotions, and streak credit exactly as any other session would (streak +1 only fires if it is the first session of that calendar day)
 
 **Implementation:**
-- `SummaryScreen`: computes the error rate from the completed session's word list (original words only, second-chance words excluded). The `replayCount` prop (passed through `App.tsx` training → summary state) tracks how many replays have already been played: `0` = original session, `1` = after Replay 1, `2` = after Replay 2. The offer is shown only when appropriate for the current `replayCount`.
-- `POST /api/v1/session/:id/replay` endpoint in `sessionRouter.ts` → `SessionService.createReplaySession(originalSessionId)`: looks up the completed focus session, excludes second-chance words, reshuffles the vocab IDs, inserts a new open `focus` session.
+- `SummaryScreen`: computes the error rate from the completed session's word list (original words only, second-chance words excluded). The `replayCount` prop (passed through `App.tsx` training → summary state) tracks how many replays have already been played: `0` = original session, `1` = after Replay 1, `2` = after Replay 2. The offer is shown only when appropriate for the current `replayCount` and when `session.type` is `focus` or `starred`.
+- `POST /api/v1/session/:id/replay` endpoint in `sessionRouter.ts` → `SessionService.createReplaySession(originalSessionId)`: looks up the completed session, excludes second-chance words, reshuffles the vocab IDs, inserts a new open session of the same type.
 - `createReplaySession(sessionId)` in `sessionApi.ts` calls the endpoint.
-- No new `SessionType` value — replay sessions are plain `focus`.
+- No new `SessionType` value — replay sessions are plain `focus` or `starred`.
 - No DB migration needed.
 
 ---
