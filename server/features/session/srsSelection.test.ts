@@ -1191,6 +1191,62 @@ describe('selectBreakthroughWords', () => {
 
     expect(ids.length).toBe(uniqueIds.size)
   })
+
+  it('fills remaining slots with due bucket ≥ 6 words when primary pool is smaller than sessionSize', () => {
+    // Primary pool: 3 bucket-3 words → well below sessionSize of 24
+    const b3 = makeEntries(3, { bucket: 3 })
+    // Extra due bucket-6 words available as fill
+    const b6Due = makeEntries(5, { bucket: 6, lastAskedAt: null })
+
+    const result = selectBreakthroughWords([...b3, ...b6Due], 24, 3, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    for (const e of b6Due) {
+      expect(ids.has(e.id)).toBe(true)
+    }
+  })
+
+  it('does not include non-due bucket ≥ 6 words in the fill', () => {
+    const b3 = makeEntries(3, { bucket: 3 })
+    // bucket-6 word asked just now — not due for two weeks
+    const b6NotDue = makeEntry({ bucket: 6, lastAskedAt: NOW.toISOString() })
+
+    const result = selectBreakthroughWords([...b3, b6NotDue], 24, 3, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    expect(ids.has(b6NotDue.id)).toBe(false)
+  })
+
+  it('does not duplicate fill words already selected in the primary pool', () => {
+    // bucket-7 words qualify as both cat3 (highest bucket) and potential fill candidates
+    const b3 = makeEntries(3, { bucket: 3 })
+    const b7Due = makeEntries(3, { bucket: 7, lastAskedAt: null })
+
+    const result = selectBreakthroughWords([...b3, ...b7Due], 24, 3, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = result?.map((e) => e.id) ?? []
+    const uniqueIds = new Set(ids)
+
+    expect(ids.length).toBe(uniqueIds.size)
+  })
+
+  it('caps total result at sessionSize even with fill candidates available', () => {
+    const b3 = makeEntries(5, { bucket: 3 })
+    const b6Due = makeEntries(30, { bucket: 6, lastAskedAt: null })
+
+    const result = selectBreakthroughWords([...b3, ...b6Due], 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+    expect(result?.length).toBeLessThanOrEqual(12)
+  })
 })
 
 // ── selectSecondChanceSessionWords ────────────────────────────────────────────

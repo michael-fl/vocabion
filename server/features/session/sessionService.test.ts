@@ -11,6 +11,7 @@ import { StressSessionService } from './stressSessionService.ts'
 import { VeteranSessionService, VETERAN_MIN_BUCKET6_WORDS } from './veteranSessionService.ts'
 import { BreakthroughSessionService } from './breakthroughSessionService.ts'
 import { SecondChanceSessionService } from './secondChanceSessionService.ts'
+import { MIN_SESSION_SIZE } from './sessionConstants.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
 import { FakeVocabRepository } from '../../test-utils/FakeVocabRepository.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
@@ -900,8 +901,8 @@ describe('createSession — session type alternation', () => {
   })
 
   it('creates a "repetition" session after a completed normal session (enough due words)', () => {
-    // Insert 12 due time-based words
-    for (let i = 0; i < 12; i++) {
+    // Insert MIN_SESSION_SIZE due time-based words
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
@@ -919,7 +920,7 @@ describe('createSession — session type alternation', () => {
   })
 
   it('repetition session contains only due time-based words', () => {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
@@ -944,13 +945,13 @@ describe('createSession — session type alternation', () => {
   })
 
   it('falls back to "normal" and skips repetition when fewer than REPETITION_MIN_WORDS due time-based words exist', () => {
-    // Only 3 due time-based words — not enough for REPETITION_MIN_WORDS=10
+    // Only 3 due time-based words — not enough for REPETITION_MIN_WORDS
     for (let i = 0; i < 3; i++) {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
     // Use bucket-1 words (active pool) so discovery does not fire
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeEntry({ bucket: 1 }))
     }
 
@@ -968,7 +969,7 @@ describe('createSession — session type alternation', () => {
     // So the NEXT session should also try repetition
 
     // Now provide enough due words
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeDueTimeEntry())
     }
 
@@ -1907,8 +1908,8 @@ describe('createSession — focus session', () => {
     return makeEntry({ bucket: 1, score: 2, ...overrides })
   }
 
-  it('creates a "focus" session when 10+ words with score >= 2 and bucket > 0 exist', () => {
-    for (let i = 0; i < 10; i++) {
+  it(`creates a "focus" session when ${MIN_SESSION_SIZE}+ words with score >= 2 and bucket > 0 exist`, () => {
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
@@ -1917,8 +1918,8 @@ describe('createSession — focus session', () => {
     expect(session.type).toBe('focus')
   })
 
-  it('does not create a "focus" session when fewer than 10 qualifying words exist', () => {
-    for (let i = 0; i < 9; i++) {
+  it(`does not create a "focus" session when fewer than ${MIN_SESSION_SIZE} qualifying words exist`, () => {
+    for (let i = 0; i < MIN_SESSION_SIZE - 1; i++) {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
@@ -1939,7 +1940,7 @@ describe('createSession — focus session', () => {
 
     sessionRepo.insert(prevSession)
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeHighScoreEntry())
     }
 
@@ -2037,7 +2038,7 @@ describe('createSession — discovery session', () => {
     // Active pool below threshold but not enough bucket-0 words
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeEntry({ bucket: 1, score: 2 }))
     }
 
@@ -2237,22 +2238,22 @@ describe('getStarredSessionAvailable', () => {
     expect(result.alreadyDoneToday).toBe(false)
   })
 
-  it('returns available=true when at least 5 marked words exist and none done today', () => {
-    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
+  it(`returns available=true when at least ${MIN_SESSION_SIZE} marked words exist and none done today`, () => {
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
     const result = service.getStarredSessionAvailable()
 
     expect(result.available).toBe(true)
-    expect(result.markedCount).toBe(5)
+    expect(result.markedCount).toBe(MIN_SESSION_SIZE)
   })
 
-  it('returns available=false when fewer than 5 words are marked', () => {
-    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
+  it(`returns available=false when fewer than ${MIN_SESSION_SIZE} words are marked`, () => {
+    for (let i = 0; i < MIN_SESSION_SIZE - 1; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
     const result = service.getStarredSessionAvailable()
 
     expect(result.available).toBe(false)
-    expect(result.markedCount).toBe(4)
+    expect(result.markedCount).toBe(MIN_SESSION_SIZE - 1)
   })
 
   it('returns available=false and alreadyDoneToday=true when session completed today', () => {
@@ -2287,7 +2288,7 @@ describe('getStarredSessionAvailable', () => {
   })
 
   it('returns available=true when the only open session is unstarted (0 answered words)', () => {
-    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
     sessionRepo.insert(makeSession({
       status: 'open',
       words: [{ vocabId: 'x', status: 'pending' }],
@@ -2303,13 +2304,13 @@ describe('getStarredSessionAvailable', () => {
 
 describe('createStarredSession', () => {
   it('creates a session of type "starred" from marked words', () => {
-    for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
     vocabRepo.insert(makeEntry({ marked: false }))
 
     const session = service.createStarredSession('SOURCE_TO_TARGET')
 
     expect(session.type).toBe('starred')
-    expect(session.words).toHaveLength(5)
+    expect(session.words).toHaveLength(MIN_SESSION_SIZE)
   })
 
   it('throws 400 when no words are marked', () => {
@@ -2318,8 +2319,8 @@ describe('createStarredSession', () => {
     expectApiError(() => service.createStarredSession('SOURCE_TO_TARGET'), 400)
   })
 
-  it('throws 400 when fewer than 5 words are marked', () => {
-    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
+  it(`throws 400 when fewer than ${MIN_SESSION_SIZE} words are marked`, () => {
+    for (let i = 0; i < MIN_SESSION_SIZE - 1; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
     expectApiError(() => service.createStarredSession('SOURCE_TO_TARGET'), 400)
   })
@@ -2338,7 +2339,7 @@ describe('createStarredSession', () => {
     const entry = makeEntry({ marked: true })
 
     vocabRepo.insert(entry)
-    for (let i = 0; i < 4; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
+    for (let i = 0; i < MIN_SESSION_SIZE - 1; i++) { vocabRepo.insert(makeEntry({ marked: true })) }
 
     const unstarted = makeSession({ status: 'open', words: [{ vocabId: entry.id, status: 'pending' }] })
 
@@ -2375,7 +2376,7 @@ describe('createStarredSession', () => {
   })
 
   it('records the last starred session date when session completes', () => {
-    const entries = Array.from({ length: 5 }, () => makeEntry({ marked: true }))
+    const entries = Array.from({ length: MIN_SESSION_SIZE }, () => makeEntry({ marked: true }))
 
     for (const e of entries) { vocabRepo.insert(e) }
 
@@ -2406,7 +2407,7 @@ describe('stress session — createSession', () => {
   it('creates a stress session when all conditions are met', () => {
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
-    const entries = makeQualifyingEntries(10)
+    const entries = makeQualifyingEntries(MIN_SESSION_SIZE)
 
     for (const e of entries) { vocabRepo.insert(e) }
 
@@ -2418,7 +2419,7 @@ describe('stress session — createSession', () => {
   it('creates stress session even with 0 credits (no balance requirement)', () => {
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
-    const entries = makeQualifyingEntries(10)
+    const entries = makeQualifyingEntries(MIN_SESSION_SIZE)
 
     for (const e of entries) { vocabRepo.insert(e) }
 
@@ -2432,7 +2433,7 @@ describe('stress session — createSession', () => {
     creditsRepo.addBalance(500)
     creditsRepo.setStressSessionDueAt('2026-01-01')
 
-    const entries = makeQualifyingEntries(10)
+    const entries = makeQualifyingEntries(MIN_SESSION_SIZE)
 
     for (const e of entries) { vocabRepo.insert(e) }
 
@@ -2443,7 +2444,7 @@ describe('stress session — createSession', () => {
   })
 
   it('schedules the first stress session when qualifying words first reach minimum', () => {
-    const entries = makeQualifyingEntries(10)
+    const entries = makeQualifyingEntries(MIN_SESSION_SIZE)
 
     for (const e of entries) { vocabRepo.insert(e) }
 
@@ -2455,7 +2456,7 @@ describe('stress session — createSession', () => {
   it('does not create stress session when due date is in the future', () => {
     creditsRepo.setStressSessionDueAt('9999-12-31')
 
-    const entries = makeQualifyingEntries(10)
+    const entries = makeQualifyingEntries(MIN_SESSION_SIZE)
 
     for (const e of entries) { vocabRepo.insert(e) }
 
@@ -2470,7 +2471,7 @@ describe('stress session — createSession', () => {
     for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 0 })) }
     for (let i = 0; i < 5; i++) { vocabRepo.insert(makeEntry({ bucket: 1 })) }
 
-    const qualifying = makeQualifyingEntries(10, 2)
+    const qualifying = makeQualifyingEntries(MIN_SESSION_SIZE, 2)
 
     for (const e of qualifying) { vocabRepo.insert(e) }
 
@@ -2490,7 +2491,7 @@ describe('stress session — createSession', () => {
 
     // Active pool < threshold to trigger discovery
     for (let i = 0; i < 30; i++) { vocabRepo.insert(makeEntry({ bucket: 0 })) }
-    for (let i = 0; i < 10; i++) { vocabRepo.insert(makeEntry({ bucket: 3 })) }
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) { vocabRepo.insert(makeEntry({ bucket: 3 })) }
 
     const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 10 })
 
@@ -2762,8 +2763,8 @@ describe('veteran session — createSession', () => {
       vocabRepo.insert(e)
     }
 
-    // Add 10 high-score entries in buckets 1–5 to trigger focus
-    for (let i = 0; i < 10; i++) {
+    // Add MIN_SESSION_SIZE high-score entries in buckets 1–5 to trigger focus
+    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
       vocabRepo.insert(makeEntry({ bucket: 2, score: 2 }))
     }
 
@@ -2808,7 +2809,7 @@ describe('veteran session — answer scoring', () => {
 
 describe('breakthrough session — createSession', () => {
   function makeBreakthroughPool(): VocabEntry[] {
-    return Array.from({ length: 10 }, (_, i) =>
+    return Array.from({ length: MIN_SESSION_SIZE }, (_, i) =>
       makeEntry({ bucket: 3, source: `Wort${i}`, target: [`word${i}`] }),
     )
   }
@@ -2846,7 +2847,7 @@ describe('breakthrough session — createSession', () => {
   it('does not create a breakthrough session when pool is below minimum', () => {
     creditsRepo.setBreakthroughSessionDueAt('2026-01-01')
 
-    // Only 4 qualifying words — below BREAKTHROUGH_MIN_WORDS of 10
+    // Only 4 qualifying words — below BREAKTHROUGH_MIN_WORDS (MIN_SESSION_SIZE)
     for (let i = 0; i < 4; i++) {
       vocabRepo.insert(makeEntry({ bucket: 3, source: `Wort${i}`, target: [`word${i}`] }))
     }

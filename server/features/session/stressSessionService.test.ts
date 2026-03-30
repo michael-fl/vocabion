@@ -8,6 +8,7 @@ import {
   STRESS_HIGH_STAKES_THRESHOLD,
   calcStressFee,
 } from './stressSessionService.ts'
+import { MIN_SESSION_SIZE } from './sessionConstants.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
 
 const TODAY = '2026-03-22'
@@ -31,7 +32,7 @@ describe('calcStressFee', () => {
 
 describe('StressSessionService — constants', () => {
   it('has expected constant values', () => {
-    expect(STRESS_MIN_WORDS).toBe(10)
+    expect(STRESS_MIN_WORDS).toBe(MIN_SESSION_SIZE)
     expect(STRESS_SESSION_SIZE).toBe(24)
     expect(STRESS_INTERVAL_DAYS).toBe(6)
     expect(STRESS_HIGH_STAKES_THRESHOLD).toBe(500)
@@ -50,29 +51,29 @@ describe('StressSessionService.isAvailable', () => {
   it('returns false when qualifying word count < STRESS_MIN_WORDS', () => {
     creditsRepo.setStressSessionDueAt(TODAY)
 
-    expect(service.isAvailable(TODAY, 9)).toBe(false)
+    expect(service.isAvailable(TODAY, MIN_SESSION_SIZE - 1)).toBe(false)
   })
 
   it('returns false when due date is null (never scheduled)', () => {
-    expect(service.isAvailable(TODAY, 10)).toBe(false)
+    expect(service.isAvailable(TODAY, MIN_SESSION_SIZE)).toBe(false)
   })
 
   it('returns false when due date is in the future', () => {
     creditsRepo.setStressSessionDueAt('2026-03-23')
 
-    expect(service.isAvailable(TODAY, 10)).toBe(false)
+    expect(service.isAvailable(TODAY, MIN_SESSION_SIZE)).toBe(false)
   })
 
   it('returns true when today equals the due date', () => {
     creditsRepo.setStressSessionDueAt(TODAY)
 
-    expect(service.isAvailable(TODAY, 10)).toBe(true)
+    expect(service.isAvailable(TODAY, MIN_SESSION_SIZE)).toBe(true)
   })
 
   it('returns true when due date is in the past', () => {
     creditsRepo.setStressSessionDueAt('2026-03-20')
 
-    expect(service.isAvailable(TODAY, 10)).toBe(true)
+    expect(service.isAvailable(TODAY, MIN_SESSION_SIZE)).toBe(true)
   })
 
   it('returns true with exactly minimum qualifying words', () => {
@@ -85,7 +86,7 @@ describe('StressSessionService.isAvailable', () => {
     creditsRepo.setStressSessionDueAt(TODAY)
 
     // creditsRepo starts with 0 balance — stress must still fire
-    expect(service.isAvailable(TODAY, 10)).toBe(true)
+    expect(service.isAvailable(TODAY, MIN_SESSION_SIZE)).toBe(true)
   })
 })
 

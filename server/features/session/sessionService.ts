@@ -32,6 +32,7 @@ import { BREAKTHROUGH_MIN_WORDS, BREAKTHROUGH_SESSION_SIZE } from './breakthroug
 import type { SecondChanceSessionService } from './secondChanceSessionService.ts'
 import { SECOND_CHANCE_SESSION_SIZE } from './secondChanceSessionService.ts'
 import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
+import { MIN_SESSION_SIZE } from './sessionConstants.ts'
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -39,22 +40,22 @@ import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
 export const DISCOVERY_POOL_THRESHOLD = 80
 
 /** Minimum bucket-0 words required to run a discovery session. */
-export const DISCOVERY_MIN_WORDS = 10
+export const DISCOVERY_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Minimum primary candidates (score ≥ 2 in buckets 1–5) required to run a focus session. */
-export const FOCUS_MIN_WORDS = 10
+export const FOCUS_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Number of words in a focus quiz session. */
 export const FOCUS_QUIZ_SESSION_SIZE = 24
 
 /** Minimum primary candidates required to run a focus quiz session. */
-export const FOCUS_QUIZ_MIN_WORDS = 10
+export const FOCUS_QUIZ_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Minimum due time-based words required to run a repetition session. */
-export const REPETITION_MIN_WORDS = 10
+export const REPETITION_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Minimum number of marked words required to start a starred session. */
-export const STARRED_MIN_WORDS = 5
+export const STARRED_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Number of free push-backs available per discovery session. */
 export const DISCOVERY_PUSHBACK_BUDGET = 10

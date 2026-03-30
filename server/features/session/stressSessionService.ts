@@ -25,9 +25,10 @@
  * ```
  */
 import type { CreditsRepository } from '../credits/CreditsRepository.ts'
+import { MIN_SESSION_SIZE } from './sessionConstants.ts'
 
 /** Minimum number of qualifying words (bucket >= 2) required to trigger a stress session. */
-export const STRESS_MIN_WORDS = 10
+export const STRESS_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Maximum number of words in a stress session. */
 export const STRESS_SESSION_SIZE = 24

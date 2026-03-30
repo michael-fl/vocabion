@@ -420,13 +420,13 @@ There are eight session types: `stress`, `normal`, `repetition`, `focus`, `focus
 
 | Type | Eligible when |
 |---|---|
-| `stress` | ≥ 10 words in buckets 2+, `stress_session_due_at ≤ today` |
-| `discovery` | active pool (buckets 1–4) < `DISCOVERY_POOL_THRESHOLD` (80), ≥ `DISCOVERY_MIN_WORDS` (10) bucket-0 words exist, not already done today (`last_discovery_session_date`) |
-| `focus` | ≥ `FOCUS_MIN_WORDS` (10) words with `score ≥ 2` and `bucket` in 1–5 |
+| `stress` | ≥ 12 words in buckets 2+, `stress_session_due_at ≤ today` |
+| `discovery` | active pool (buckets 1–4) < `DISCOVERY_POOL_THRESHOLD` (80), ≥ `DISCOVERY_MIN_WORDS` (12) bucket-0 words exist, not already done today (`last_discovery_session_date`) |
+| `focus` | ≥ `FOCUS_MIN_WORDS` (12) words with `score ≥ 2` and `bucket` in 1–5 |
 | `focus_quiz` | same as `focus` |
-| `veteran` | `veteran_session_due_at ≤ today`, ≥ `VETERAN_MIN_BUCKET6_WORDS` (50) in buckets 6+, `selectVeteranWords` returns ≥ `VETERAN_MIN_WORDS` (10) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2) |
+| `veteran` | `veteran_session_due_at ≤ today`, ≥ `VETERAN_MIN_BUCKET6_WORDS` (50) in buckets 6+, `selectVeteranWords` returns ≥ `VETERAN_MIN_WORDS` (12) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2) |
 | `recovery` | ≥ `RECOVERY_MIN_WORDS` (5) words with `maxBucket ≥ 6` and `maxBucket − bucket ≥ 2` |
-| `repetition` | ≥ `REPETITION_MIN_WORDS` (10) due time-based words (buckets 4+) exist |
+| `repetition` | ≥ `REPETITION_MIN_WORDS` (12) due time-based words (buckets 4+) exist |
 | `normal` | always eligible (at least one word in vocabulary) |
 
 An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tests to inject a deterministic sequence.
@@ -446,17 +446,17 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 1. Only due words from time-based buckets (4+) are included. No fallback to frequency buckets (0–3).
 2. Words are selected starting with bucket 4, score-ordered within each bucket (ties shuffled randomly), up to `repetitionSize`.
 3. If bucket 4 does not have enough due words, continue with bucket 5, then 6, and so on.
-4. If the total due time-based words across all buckets is still less than `REPETITION_MIN_WORDS` (10), the repetition session is skipped (see above). Between 10 and 24 due words, a shorter session is returned with however many are available.
+4. If the total due time-based words across all buckets is still less than `REPETITION_MIN_WORDS` (12), the repetition session is skipped (see above). Between 12 and 24 due words, a shorter session is returned with however many are available.
 
 *Focus sessions* — target the words with the highest priority scores to address problem words.
 1. Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
 2. Primary candidates: words with `score ≥ 2`, sorted by **score descending, then difficulty descending**.
 3. Pool size: `min(n, max(2 × sessionSize, ceil(n × 0.25)))` where `n` = number of primary candidates. `sessionSize` words are randomly sampled from the pool.
-4. If fewer than `FOCUS_MIN_WORDS` (10) primary candidates exist, the focus session is **skipped** in the current rotation cycle.
+4. If fewer than `FOCUS_MIN_WORDS` (12) primary candidates exist, the focus session is **skipped** in the current rotation cycle.
 5. If primary candidates fill fewer than `sessionSize` slots, remaining slots are filled from buckets 1+ words (any score), highest score first, excluding already selected words.
 
 *Focus Quiz sessions* — multiple-choice companion to focus sessions. Tests recognition (pick from a list) instead of recall (type the answer). Same word selection as focus, larger session size.
-1. **Word selection:** identical to focus — `selectFocusWords(allEntries, focusQuizSize=24, FOCUS_MIN_WORDS=10)` reused (same function, different size parameter).
+1. **Word selection:** identical to focus — `selectFocusWords(allEntries, focusQuizSize=24, FOCUS_MIN_WORDS=12)` reused (same function, different size parameter).
 2. **Direction:** always `SOURCE_TO_TARGET`, regardless of user setting.
 3. **Per question:** 10 target-language options are presented as clickable buttons. The correct answer(s) are always included. Remaining slots are filled with random distractors drawn from the full vocabulary (excluding all translations of the current word). Required count: `min(translations.length, 2)`.
 4. **Submit guard:** the submit button (and Enter key) is disabled until exactly `requiredCount` options are selected. No partial answers possible.
@@ -473,8 +473,8 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 **DB migration:** `focus_quiz` added to the `type` CHECK constraint on the `sessions` table.
 
 *Stress sessions* — high-stakes timed challenge that fires automatically once a week when trigger conditions are met. No credit balance requirement.
-1. **Trigger conditions:** at least `STRESS_MIN_WORDS` (10) words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When qualifying words first reach 10 and no stress session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
-2. **Word selection:** `selectStressWords(allEntries, stressSize=24, minWords=10)` — only words in **buckets 2+** are eligible (bucket 0/1 excluded as the user may not know them yet). Selects across three difficulty tiers (each shuffled randomly within the tier):
+1. **Trigger conditions:** at least `STRESS_MIN_WORDS` (12) words exist in buckets 2+, session is due (`stress_session_due_at ≤ today`). When qualifying words first reach 12 and no stress session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
+2. **Word selection:** `selectStressWords(allEntries, stressSize=24, minWords=12)` — only words in **buckets 2+** are eligible (bucket 0/1 excluded as the user may not know them yet). Selects across three difficulty tiers (each shuffled randomly within the tier):
    - Tier A (up to 8): difficulty ≥ 4
    - Tier B (up to 8): difficulty ≥ 2, excluding tier A picks
    - Tier C (remaining slots up to 24): any bucket-2+ word, excluding prior picks
@@ -493,7 +493,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 
 *Veteran sessions* — periodic review of mastered words (buckets 6+), firing automatically roughly once a week.
 1. **Trigger conditions:** at least `VETERAN_MIN_BUCKET6_WORDS` (50) words exist in buckets 6+, and `veteran_session_due_at ≤ today`. When the bucket-6+ count first reaches 50 and no veteran session has ever been scheduled, the first due date is set to `today + random(0–48 h)`.
-2. **Word selection:** `selectVeteranWords(allEntries, sessionSize, VETERAN_MIN_WORDS)` — filters bucket ≥ 6 **and** difficulty ≥ 2, sorts by difficulty descending (ties shuffled randomly). Returns null if fewer than `VETERAN_MIN_WORDS` (10) words qualify.
+2. **Word selection:** `selectVeteranWords(allEntries, sessionSize, VETERAN_MIN_WORDS)` — filters bucket ≥ 6 **and** difficulty ≥ 2, sorts by difficulty descending (ties shuffled randomly). Returns null if fewer than `VETERAN_MIN_WORDS` (12) words qualify.
 3. **SRS promotion rules:** same as focus sessions — due words (time-based bucket, `lastAskedAt + interval ≤ now`) are promoted one bucket; non-due words are not promoted.
 4. **Scheduling:** after the session completes (any outcome), the next due date is set to `today + VETERAN_INTERVAL_DAYS (6) + random(0–48 h)`.
 5. **Counts toward daily streak** like any other session type.
@@ -503,7 +503,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 2. Words are sorted by score descending (ties shuffled randomly) — the trickiest starred words come first.
 3. SRS promotion rules mirror focus sessions: time-based words (bucket 4+) that are not yet due are not promoted.
 4. `last_starred_session_date` is recorded when the session **completes**. Only one starred session per calendar day.
-5. The button is disabled when: no marked words exist, a starred session was already completed today, or another session is currently in progress (has at least one answered word).
+5. The button is disabled when: fewer than `STARRED_MIN_WORDS` (12) marked words exist, a starred session was already completed today, or another session is currently in progress (has at least one answered word).
 6. An unstarted open session (0 answered words) is automatically discarded before the starred session is created.
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
@@ -1173,7 +1173,7 @@ After completing a focus or starred session with enough errors, the session summ
 A session type that concentrates on words that are **one correct answer away from a bucket milestone** — promoting them efficiently in a single focused run.
 
 **Trigger conditions (all must be met):**
-- At least **5 qualifying words** exist (across all three pool categories below)
+- At least **12 qualifying words** exist (across all three pool categories below)
 - Part of the **shuffle rotation** alongside the other automatic session types
 - Fires at most **once per week** (6 days base + 0–48 h random jitter ≈ ±1 day), same scheduling pattern as veteran sessions
 
@@ -1187,6 +1187,7 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 **Word selection:**
 - Session size: up to **24 words**.
 - Slots are distributed **proportionally** by the relative size of each category within the flat pool — matching the bucket 1–3 distribution logic in normal sessions.
+- If the primary selection yields fewer than 24 words, remaining slots are filled with **due words from any time-based bucket ≥ 6** (not already selected), sorted by score descending.
 - Within each category, words are sorted by score descending (ties broken randomly).
 
 **SRS promotion rules:** same as normal/focus sessions — correct answer promotes by one bucket; due time-based words are promoted; non-due are not (though non-due words only reach this pool via category 1, where due-ness is not a requirement).
@@ -1460,10 +1461,10 @@ A high-stakes timed session type that fires automatically at most once per week 
 
 ### Trigger Conditions
 
-- At least `STRESS_MIN_WORDS` (10) words exist in buckets 2+.
+- At least `STRESS_MIN_WORDS` (12) words exist in buckets 2+.
 - `stress_session_due_at` (YYYY-MM-DD UTC) is ≤ today.
 
-**First trigger:** when qualifying words first reach 10 and `stress_session_due_at` is still null, it is set to `today + random(0–48 h)`.
+**First trigger:** when qualifying words first reach 12 and `stress_session_due_at` is still null, it is set to `today + random(0–48 h)`.
 
 The trigger is checked inside `createSession()` as part of the normal round-robin rotation.
 
@@ -1519,7 +1520,7 @@ Migration `024_stress_session.sql` adds one column to the `credits` table:
 - **`StressSessionService`** (new file `server/features/session/stressSessionService.ts`):
   - `isAvailable(today, qualifyingWordCount)`: returns true when all trigger conditions are met (no balance check).
   - `scheduleNext(today)`: sets `stress_session_due_at` to `today + 6 days + random 0–48 h`.
-  - `scheduleFirst(today)`: sets `stress_session_due_at` to `today + random 0–48 h` (used when qualifying words first reach 10).
+  - `scheduleFirst(today)`: sets `stress_session_due_at` to `today + random 0–48 h` (used when qualifying words first reach 12).
 - **`SessionService`** modifications:
   - `createSession()`: stress is part of the normal round-robin rotation; fee mode (high-stakes vs standard) stored on the session based on balance at creation time.
   - `submitAnswer()` for stress sessions: apply fee based on stored mode for wrong/partial; second-chance flow identical to normal sessions; award +5 new-bucket-record bonus; call `scheduleNext` on session completion; award +100 perfect bonus if applicable.
@@ -1616,7 +1617,7 @@ The trigger is checked inside `createSession()` via the shuffled round-robin rot
 
 - **Size:** up to 24 words (`veteranSize`), drawn from all words in buckets 6+.
 - **Word selection:** sorted by difficulty descending (ties shuffled randomly) via `selectVeteranWords()`.
-- **Minimum words:** if fewer than `VETERAN_MIN_WORDS` (5) qualifying words exist, the session is skipped.
+- **Minimum words:** if fewer than `VETERAN_MIN_WORDS` (12) qualifying words exist, the session is skipped.
 - **SRS promotion:** same as focus — due words are promoted one bucket; non-due words are unchanged.
 
 ### Scheduling

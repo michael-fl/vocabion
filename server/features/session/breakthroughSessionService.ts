@@ -22,9 +22,10 @@
  * ```
  */
 import type { CreditsRepository } from '../credits/CreditsRepository.ts'
+import { MIN_SESSION_SIZE } from './sessionConstants.ts'
 
 /** Minimum qualifying words required to schedule and run a breakthrough session. */
-export const BREAKTHROUGH_MIN_WORDS = 10
+export const BREAKTHROUGH_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Maximum number of words in a breakthrough session. */
 export const BREAKTHROUGH_SESSION_SIZE = 24

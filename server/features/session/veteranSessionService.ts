@@ -22,12 +22,13 @@
  * ```
  */
 import type { CreditsRepository } from '../credits/CreditsRepository.ts'
+import { MIN_SESSION_SIZE } from './sessionConstants.ts'
 
 /** Minimum words in buckets 6+ required to trigger a veteran session. */
 export const VETERAN_MIN_BUCKET6_WORDS = 50
 
-/** Minimum qualifying words required to run the session (must be ≥ 10). */
-export const VETERAN_MIN_WORDS = 10
+/** Minimum qualifying words required to run the session. */
+export const VETERAN_MIN_WORDS = MIN_SESSION_SIZE
 
 /** Base interval in days between veteran sessions. */
 export const VETERAN_INTERVAL_DAYS = 6

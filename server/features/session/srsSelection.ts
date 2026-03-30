@@ -360,6 +360,10 @@ export function selectVeteranWords(
  * Slot allocation is proportional to each category's share of the flat pool.
  * Within each category words are sorted by score descending (ties shuffled).
  *
+ * If the primary selection yields fewer than `sessionSize` words, remaining
+ * slots are filled with due words from any time-based bucket ≥ 6 (not already
+ * selected), sorted by score descending.
+ *
  * Returns `null` when fewer than `minWords` qualifying entries exist.
  *
  * @param all - All vocabulary entries in the database.
@@ -421,7 +425,7 @@ export function selectBreakthroughWords(
     ...cat3.slice(0, s3),
   ]
 
-  // Fill any rounding shortfall from the remaining pool, highest score first
+  // Fill any rounding shortfall from the remaining primary pool, highest score first
   const shortfall = effectiveSize - selected.length
 
   if (shortfall > 0) {
@@ -431,6 +435,18 @@ export function selectBreakthroughWords(
     )
 
     selected.push(...remaining.slice(0, shortfall))
+  }
+
+  // If still below sessionSize, fill with due time-based bucket ≥ 6 words
+  const stillNeeded = sessionSize - selected.length
+
+  if (stillNeeded > 0) {
+    const usedIds = new Set(selected.map((e) => e.id))
+    const bucket6Fill = sortByScoreThenShuffle(
+      all.filter((e) => e.bucket >= 6 && isDue(e, now) && !usedIds.has(e.id)),
+    )
+
+    selected.push(...bucket6Fill.slice(0, stillNeeded))
   }
 
   return selected

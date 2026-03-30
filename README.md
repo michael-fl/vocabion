@@ -193,13 +193,13 @@ If you have at least **10 words** with a **priority score of 2 or higher** (see 
   - Pool size: `min(n, max(2 × sessionSize, ceil(n × 0.25)))` where `n` = number of primary candidates.
   - `sessionSize` words are picked at random from the pool.
 - If fewer than 12 primary candidates qualify, the remaining slots are filled with other high-scoring words from buckets 1+.
-- If fewer than 10 words qualify, the focus session is skipped in the current rotation cycle.
+- If fewer than 12 words qualify, the focus session is skipped in the current rotation cycle.
 
 #### Focus Quiz Session
 
 A **Focus Quiz Session** is the multiple-choice companion to the Focus Session — it targets the same problematic words but tests recognition instead of recall.
 
-- Contains up to **24 words** (minimum 10 to trigger).
+- Contains up to **24 words** (minimum 12 to trigger).
 - **Word selection** is identical to the Focus Session: buckets 1–5, score ≥ 2, sorted by score descending then difficulty descending, with pool-based random sampling.
 - **Direction is always source → target**: the source word is shown and you pick the correct translation(s).
 - **Per question**: 10 target-language options are shown as clickable buttons. The correct answer(s) are always among the 10; the remaining slots are filled with random distractors drawn from the full vocabulary.
@@ -218,7 +218,7 @@ Note: the per-word new-bucket reward is **+1 credit** (vs. +5 in all other sessi
 
 **Perfect session bonus:** +20 credits (no mistakes, no hints, no second-chance words, ≥ 5 words).
 
-If fewer than 10 primary candidates qualify, the Focus Quiz is skipped in the current rotation cycle.
+If fewer than 12 primary candidates qualify, the Focus Quiz is skipped in the current rotation cycle.
 
 #### Focus Replay
 
@@ -246,15 +246,15 @@ If your bucket-6+ count first reaches 50, the initial session is scheduled to tr
 **Session rules:**
 - Up to **24 words** drawn from buckets 6+ with **difficulty ≥ 2**, sorted by difficulty descending (ties broken randomly) — your hardest veteran words come first.
 - SRS promotion rules mirror the Focus Session: words that are not yet due are not promoted.
-- If fewer than 10 qualifying words can be selected, the session is skipped.
+- If fewer than 12 qualifying words can be selected, the session is skipped.
 
 After each veteran session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
-#### Breakthrough Session (weekly, once ≥ 10 qualifying words exist)
+#### Breakthrough Session (weekly, once ≥ 12 qualifying words exist)
 
 A **Breakthrough Session** focuses on words that are **one correct answer away from a bucket milestone** — promoting them in a single targeted run. It fires automatically roughly once a week when all of the following conditions are met:
 
-- At least **10 qualifying words** exist across the three categories below
+- At least **12 qualifying words** exist across the three categories below
 - The breakthrough session is **due** (at least 6 days have passed since the last one)
 
 If qualifying words first reach 10 and no session is scheduled yet, the initial session is scheduled to trigger within the next **48 hours**.
@@ -266,6 +266,7 @@ If qualifying words first reach 10 and no session is scheduled yet, the initial 
 
 **Session rules:**
 - Up to **24 words**, slots distributed proportionally across the three categories.
+- If the primary selection yields fewer than 24 words, remaining slots are filled with **due words from any time-based bucket ≥ 6**, sorted by score descending.
 - Within each category, words are sorted by score descending (ties broken randomly).
 - SRS promotion rules are identical to normal sessions.
 
@@ -328,12 +329,12 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Session type | Priority | Frequency | Eligible when… |
 |---|---|---|---|
 | Second Chance | Highest (pre-rotation) | ≤ once / day | ≥ 1 due second-chance-bucket word AND not already played today |
-| Stress | Rotation | ~weekly | Due date reached, ≥ 10 qualifying words (buckets 2+) |
-| Discovery | Rotation | ≤ once / day | Active pool (buckets 1–4) < 80 words, ≥ 10 bucket-0 words, not already done today |
+| Stress | Rotation | ~weekly | Due date reached, ≥ 12 qualifying words (buckets 2+) |
+| Discovery | Rotation | ≤ once / day | Active pool (buckets 1–4) < 80 words, ≥ 12 bucket-0 words, not already done today |
 | Focus | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
 | Focus Quiz | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
-| Veteran | Rotation | ~weekly | Due date reached, ≥ 50 words in buckets 6+, ≥ 10 of those with difficulty ≥ 2 |
-| Breakthrough | Rotation | ~weekly | Due date reached, ≥ 10 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
+| Veteran | Rotation | ~weekly | Due date reached, ≥ 50 words in buckets 6+, ≥ 12 of those with difficulty ≥ 2 |
+| Breakthrough | Rotation | ~weekly | Due date reached, ≥ 12 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
 | Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
 | Repetition | Rotation | rotation | ≥ 10 due time-based words (buckets 4+) exist |
 | Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
@@ -345,7 +346,7 @@ A **★ Session** lets you practice all your starred (★) words in one focused 
 - Contains all words you have starred, up to a maximum of **100**.
 - Words are sorted highest-score first (ties broken randomly) — your trickiest starred words come first.
 - SRS rules are the same as a Focus Session: words in time-based buckets (4+) that are not yet due will not be promoted to the next bucket.
-- The button is disabled if you have no starred words, if a ★ session was already completed today, or if another session is currently in progress.
+- The button is disabled if fewer than **12 words** are starred, if a ★ session was already completed today, or if another session is currently in progress.
 
 #### ★ Session Replay
 
