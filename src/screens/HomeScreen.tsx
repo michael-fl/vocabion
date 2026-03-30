@@ -60,8 +60,6 @@ export interface HomeScreenProps {
 export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh, credits = null, streak = null }: HomeScreenProps) {
   // undefined = still loading; null = no open session
   const [openSession, setOpenSession] = useState<Session | null | undefined>(undefined)
-  // A session that exists but has 0 answered words — reused silently to avoid a 409 conflict
-  const [unstartedSession, setUnstartedSession] = useState<Session | null>(null)
   const [starredAvailable, setStarredAvailable] = useState<StarredAvailable | null>(null)
   const [starsOffer, setStarsOffer] = useState<StarsOffer | null>(null)
   const [hasVocab, setHasVocab] = useState<boolean | null>(null)
@@ -94,12 +92,8 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
         if (answeredCount > 0 && hasPending) {
           // Truly in-progress: offer to continue
           setOpenSession(session)
-        } else if (answeredCount === 0) {
-          // Not started yet: show "Start new session" but reuse the existing session
-          setUnstartedSession(session)
-          setOpenSession(null)
         } else {
-          // All words answered but session still open — stale, treat as none
+          // Not started yet, or all answered but still open — treat as none
           setOpenSession(null)
         }
       })
@@ -188,11 +182,32 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
     setError(null)
 
     try {
-      const [session, entries] = await Promise.all([
-        existingSession ?? unstartedSession ?? sessionApi.createSession(),
-        vocabApi.listVocab(),
-      ])
+      let session: Session
 
+      if (existingSession !== undefined) {
+        session = existingSession
+      } else {
+        try {
+          session = await sessionApi.createSession()
+        } catch (err: unknown) {
+          // 409 means an unstarted session already exists in the DB — fetch and reuse it.
+          // This can happen when the browser tab has been open for a long time and the
+          // HomeScreen's cached state is stale.
+          if (err instanceof Error && err.message.includes(': 409')) {
+            const open = await sessionApi.getOpenSession()
+
+            if (open === null) {
+              throw err
+            }
+
+            session = open
+          } else {
+            throw err
+          }
+        }
+      }
+
+      const entries = await vocabApi.listVocab()
       const vocabMap = new Map(entries.map((e) => [e.id, e]))
 
       onStartTraining(session, vocabMap)

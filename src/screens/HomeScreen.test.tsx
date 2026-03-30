@@ -113,8 +113,9 @@ describe('HomeScreen', () => {
     expect(await screen.findByRole('button', { name: 'Start new session' })).toBeInTheDocument()
   })
 
-  it('reuses the unstarted session without calling createSession when clicking "Start new session"', async () => {
+  it('falls back to the existing open session when createSession returns 409', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(mockSession)
+    vi.mocked(sessionApi.createSession).mockRejectedValue(new Error('Failed to create session: 409'))
     vi.mocked(vocabApi.listVocab).mockResolvedValue([mockEntry])
 
     const onStartTraining = vi.fn()
@@ -127,7 +128,7 @@ describe('HomeScreen', () => {
       expect(onStartTraining).toHaveBeenCalledWith(mockSession, expect.any(Map))
     })
 
-    expect(vi.mocked(sessionApi.createSession)).not.toHaveBeenCalled()
+    expect(vi.mocked(sessionApi.createSession)).toHaveBeenCalled()
   })
 
   it('treats an open session with no pending words as if no session exists', async () => {
