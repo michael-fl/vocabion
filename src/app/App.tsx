@@ -29,6 +29,7 @@ import { createReplaySession } from '../api/sessionApi.ts'
 import { listVocab } from '../api/vocabApi.ts'
 import type { StreakInfo } from '../api/streakApi.ts'
 import { useTheme } from '../hooks/useTheme.ts'
+import { useOnVisible } from '../hooks/useOnVisible.ts'
 import { AppLayout } from '../components/AppLayout/AppLayout.tsx'
 import type { NavItem } from '../components/AppLayout/Sidebar.tsx'
 import { HomeScreen } from '../screens/HomeScreen.tsx'
@@ -82,6 +83,13 @@ function App() {
     refreshCredits()
     refreshStreak()
   }, [refreshCredits, refreshStreak])
+
+  const refreshAll = useCallback(() => {
+    refreshCredits()
+    refreshStreak()
+  }, [refreshCredits, refreshStreak])
+
+  useOnVisible(refreshAll)
 
   function handleNavigate(item: NavItem) {
     if (item === 'home') {

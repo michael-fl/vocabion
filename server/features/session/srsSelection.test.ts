@@ -1223,6 +1223,19 @@ describe('selectBreakthroughWords', () => {
     expect(ids.has(b6NotDue.id)).toBe(false)
   })
 
+  it('excludes non-due words from the highest occupied bucket when that bucket is 6', () => {
+    const b3 = makeEntries(5, { bucket: 3 })
+    const b6NotDue = makeEntry({ bucket: 6, lastAskedAt: NOW.toISOString() })
+
+    const result = selectBreakthroughWords([...b3, b6NotDue], 12, 5, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = new Set(result?.map((e) => e.id) ?? [])
+
+    expect(ids.has(b6NotDue.id)).toBe(false)
+  })
+
   it('does not duplicate fill words already selected in the primary pool', () => {
     // bucket-7 words qualify as both cat3 (highest bucket) and potential fill candidates
     const b3 = makeEntries(3, { bucket: 3 })

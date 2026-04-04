@@ -541,7 +541,26 @@ describe('HomeScreen — last practiced notice', () => {
     expect(screen.getByText('You have practiced today.')).toBeInTheDocument()
   })
 
-  it('shows "Last practiced: [date]" when lastSessionDate is a past date', async () => {
+  it('shows "Last practiced: Yesterday" when lastSessionDate is yesterday', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 2, 22, 10, 0, 0))
+
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(
+      <HomeScreen
+        onStartTraining={vi.fn()}
+        streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-21', nextMilestone: null }}
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Start new session' })
+
+    expect(screen.getByText(/Last practiced: Yesterday/)).toBeInTheDocument()
+    expect(screen.getByText(/don't forget today's session/)).toBeInTheDocument()
+  })
+
+  it('shows "Last practiced: [date]" when lastSessionDate is older than yesterday', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 2, 22, 10, 0, 0))
 

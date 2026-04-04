@@ -10,7 +10,7 @@
  * <HomeScreen onStartTraining={(session, vocabMap) => setScreen('training')} />
  * ```
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 
@@ -38,6 +38,7 @@ import * as streakApi from '../api/streakApi.ts'
 import * as starsApi from '../api/starsApi.ts'
 import type { StarsOffer } from '../api/starsApi.ts'
 import { isEveningStreakWarning } from '../utils/streakWarning.ts'
+import { useOnVisible } from '../hooks/useOnVisible.ts'
 import { StarsPurchaseDialog } from '../components/StarsPurchaseDialog/StarsPurchaseDialog.tsx'
 import styles from './HomeScreen.module.css'
 
@@ -66,7 +67,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     Promise.all([
       sessionApi.getOpenSession(),
       sessionApi.getStarredAvailable(),
@@ -103,6 +104,10 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
         setHasVocab(false)
       })
   }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  useOnVisible(loadData)
 
   async function handleStarsPurchase(count: number) {
     await starsApi.purchaseStars(count)
@@ -222,7 +227,11 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
   }
 
   const pause = streak?.pause ?? null
-  const todayStr = new Date().toLocaleDateString('en-CA')
+  const now = new Date()
+  const todayStr = now.toLocaleDateString('en-CA')
+  const yesterdayDate = new Date(now)
+  yesterdayDate.setDate(now.getDate() - 1)
+  const yesterdayStr = yesterdayDate.toLocaleDateString('en-CA')
   const lastDate = streak?.lastSessionDate ?? null
   const practicedToday = lastDate !== null && lastDate === todayStr
 
@@ -272,7 +281,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
         <div className={styles.infoBanner}>
           {practicedToday
             ? <p>You have practiced today. <span className={styles.checkmark}>✓</span></p>
-            : <p>Last practiced: {formatSessionDate(lastDate)} — don't forget today's session!</p>
+            : <p>Last practiced: {lastDate === yesterdayStr ? 'Yesterday' : formatSessionDate(lastDate)} — don't forget today's session!</p>
           }
         </div>
       ) : null}
