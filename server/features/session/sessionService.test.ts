@@ -11,7 +11,7 @@ import { StressSessionService } from './stressSessionService.ts'
 import { VeteranSessionService, VETERAN_MIN_BUCKET6_WORDS } from './veteranSessionService.ts'
 import { BreakthroughSessionService } from './breakthroughSessionService.ts'
 import { SecondChanceSessionService } from './secondChanceSessionService.ts'
-import { MIN_SESSION_SIZE } from './sessionConstants.ts'
+import { MIN_SESSION_SIZE, NORMAL_SESSION_MAX_SIZE } from './sessionConstants.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
 import { FakeVocabRepository } from '../../test-utils/FakeVocabRepository.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
@@ -996,6 +996,30 @@ describe('createSession — session type alternation', () => {
     const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
     expect(session.type).toBe('normal')
+  })
+
+  it('normal session word count never exceeds NORMAL_SESSION_MAX_SIZE', () => {
+    // Fill the active pool to suppress discovery (threshold = 80)
+    for (let i = 0; i < 80; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 1 }))
+    }
+
+    // 11 due time-based words each in a distinct bucket (11 < REPETITION_MIN_WORDS so
+    // repetition does not fire, but `selectTimeBasedWords` adds all 11 on top of the
+    // 12 frequency words → 23 total, safely under the 24 cap)
+    for (let i = 0; i < 11; i++) {
+      vocabRepo.insert(makeEntry({ bucket: 4 + i, lastAskedAt: null }))
+    }
+
+    // Prevent all other timed session types from firing
+    creditsRepo.setStressSessionDueAt('9999-12-31')
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+    creditsRepo.setVeteranSessionDueAt('9999-12-31')
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
+
+    expect(session.type).toBe('normal')
+    expect(session.words.length).toBeLessThanOrEqual(NORMAL_SESSION_MAX_SIZE)
   })
 })
 

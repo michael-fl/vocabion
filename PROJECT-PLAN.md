@@ -440,7 +440,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 6. No hints available.
 7. Perfect session bonus: **+20 credits** (standard bonus) when all words are answered correctly with no push-backs and the session has at least 5 words.
 
-*Normal sessions* — focus on frequency learning (buckets 0–3 + up to 1 due word per time-based bucket). Described in detail below under "Session size". Default size: **12 words** (`size` parameter, default 12). If the total is still below `sessionSize` after frequency + 1-per-due-bucket selection, two fill-up phases run: first with additional due time-based words (lowest bucket first), then with non-due time-based words (lowest bucket first). Already-selected words are excluded from both phases.
+*Normal sessions* — focus on frequency learning (buckets 0–3 + up to 1 due word per time-based bucket). Described in detail below under "Session size". Frequency target: **12 words** (`size` parameter, default 12). Hard cap on total session size: **24 words** (`NORMAL_SESSION_MAX_SIZE`). Time-based words are added on top of the frequency selection up to that cap. If the total is still below `sessionSize` after frequency + 1-per-due-bucket selection, two fill-up phases run: first with additional due time-based words (lowest bucket first), then with non-due time-based words (lowest bucket first). Already-selected words are excluded from both phases.
 
 *Repetition sessions* — focus exclusively on reviewing overdue time-based words. Default size: **24 words** (`repetitionSize` parameter, default 24).
 1. Only due words from time-based buckets (4+) are included. No fallback to frequency buckets (0–3).

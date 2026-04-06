@@ -32,7 +32,7 @@ import { BREAKTHROUGH_MIN_WORDS, BREAKTHROUGH_SESSION_SIZE } from './breakthroug
 import type { SecondChanceSessionService } from './secondChanceSessionService.ts'
 import { SECOND_CHANCE_SESSION_SIZE } from './secondChanceSessionService.ts'
 import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
-import { MIN_SESSION_SIZE } from './sessionConstants.ts'
+import { MIN_SESSION_SIZE, NORMAL_SESSION_MAX_SIZE } from './sessionConstants.ts'
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -508,7 +508,7 @@ export class SessionService {
         return words.length >= REPETITION_MIN_WORDS ? words : null
       }
       case 'normal': {
-        const words = selectSessionWords(allEntries, options.size, now)
+        const words = selectSessionWords(allEntries, options.size, now, NORMAL_SESSION_MAX_SIZE)
 
         return words.length > 0 ? words : null
       }

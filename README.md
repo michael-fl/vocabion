@@ -297,12 +297,12 @@ A **Repetition Session** is an intensive review of time-based words (buckets 4+)
 
 #### Normal (Learning) Session
 
-The default session type, containing up to **12 words**. It draws from both frequency buckets and time-based buckets:
+The default session type. It targets **12 frequency-bucket words** and adds time-based words on top, up to a hard cap of **24 words** total. It draws from both frequency buckets and time-based buckets:
 
 - **Bucket 0**: 1 or 2 new words (random). Words you added manually via the UI are always drawn first.
 - **Buckets 1–3**: the remaining slots are distributed proportionally — a bucket with more words receives more session slots. This is self-tuning as your vocabulary grows.
-- **Time-based buckets (4+)**: up to 1 due word per occupied bucket is added on top.
-- If the session is still short of the target size, additional due time-based words are added (lowest bucket first), then non-due time-based words.
+- **Time-based buckets (4+)**: up to 1 due word per occupied bucket is added on top, subject to the 24-word total cap.
+- If the session is still short of 12 words, additional due time-based words are added (lowest bucket first), then non-due time-based words.
 
 Within every candidate pool, words are picked highest-score first (ties broken randomly).
 

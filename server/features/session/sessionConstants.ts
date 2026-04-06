@@ -15,3 +15,6 @@
 
 /** Minimum number of qualifying words required for most session types to fire. */
 export const MIN_SESSION_SIZE = 12
+
+/** Hard cap on the total number of words in a normal (learning) session. */
+export const NORMAL_SESSION_MAX_SIZE = 24
