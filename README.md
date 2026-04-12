@@ -250,14 +250,14 @@ If your bucket-6+ count first reaches 50, the initial session is scheduled to tr
 
 After each veteran session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
-#### Breakthrough Session (weekly, once ≥ 12 qualifying words exist)
+#### Breakthrough Session (daily, once ≥ 12 qualifying words exist)
 
-A **Breakthrough Session** focuses on words that are **one correct answer away from a bucket milestone** — promoting them in a single targeted run. It fires automatically roughly once a week when all of the following conditions are met:
+A **Breakthrough Session** focuses on words that are **one correct answer away from a bucket milestone** — promoting them in a single targeted run. It fires automatically at most once per day when all of the following conditions are met:
 
 - At least **12 qualifying words** exist across the three categories below
-- The breakthrough session is **due** (at least 6 days have passed since the last one)
+- The breakthrough session is **due** (at least 1 day has passed since the last one)
 
-If qualifying words first reach 10 and no session is scheduled yet, the initial session is scheduled to trigger within the next **48 hours**.
+If qualifying words first reach 12 and no session is scheduled yet, the initial session is immediately eligible.
 
 **Word pool — three categories, deduplicated (first match wins):**
 1. **Bucket 3** — one step from entering the time-based SRS system. Always eligible (frequency bucket, no due-date check).
@@ -266,11 +266,10 @@ If qualifying words first reach 10 and no session is scheduled yet, the initial 
 
 **Session rules:**
 - Up to **24 words**, slots distributed proportionally across the three categories.
-- If the primary selection yields fewer than 24 words, remaining slots are filled with **due words from any time-based bucket ≥ 6**, sorted by score descending.
 - Within each category, words are sorted by score descending (ties broken randomly).
 - SRS promotion rules are identical to normal sessions.
 
-After each breakthrough session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
+After each breakthrough session completes, the next one is scheduled for the **following day**.
 
 #### Breakthrough++ Session (backlog cleanup, chapter-based)
 
@@ -327,7 +326,7 @@ A **Repetition Session** is an intensive review of time-based words (buckets 4+)
 
 - Contains up to 24 words, all from due time-based buckets (4 and above).
 - No frequency bucket words (0–3) are included.
-- At least **10 due words** must exist across all time-based buckets for the session to fire; if fewer than 24 due words exist, a shorter session is created with however many are available.
+- At least **12 due words** must exist across all time-based buckets for the session to fire; if fewer than 24 due words exist, a shorter session is created with however many are available.
 
 #### Normal (Learning) Session
 
@@ -368,10 +367,10 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Focus | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
 | Focus Quiz | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
 | Veteran | Rotation | ~weekly | Due date reached, ≥ 50 words in buckets 6+, ≥ 12 of those with difficulty ≥ 2 |
-| Breakthrough | Rotation | ~weekly | Due date reached, ≥ 12 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
-| Breakthrough++ | Rotation | ≥ 2 days cooldown | ≥ 30 due words in buckets 4+, at least 2 days since last Breakthrough++ |
+| Breakthrough | Rotation | ≥ 1 day cooldown | Due date reached, ≥ 12 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
+| Breakthrough++ | Rotation | ≥ 1 day cooldown | ≥ 30 due words in buckets 4+, at least 1 day since last Breakthrough++ |
 | Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
-| Repetition | Rotation | rotation | ≥ 10 due time-based words (buckets 4+) exist |
+| Repetition | Rotation | rotation | ≥ 12 due time-based words (buckets 4+) exist |
 | Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
 
 #### ★ Session (manual, once per day)

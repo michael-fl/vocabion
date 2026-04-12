@@ -1177,7 +1177,7 @@ A session type that concentrates on words that are **one correct answer away fro
 **Trigger conditions (all must be met):**
 - At least **12 qualifying words** exist (across all three pool categories below)
 - Part of the **shuffle rotation** alongside the other automatic session types
-- Fires at most **once per week** (6 days base + 0–48 h random jitter ≈ ±1 day), same scheduling pattern as veteran sessions
+- Fires at most **once per day** (cooldown: 1 day)
 
 **Word pool — three categories, deduplicated into a flat pool first:**
 1. **Bucket 3 words** — one step from entering the time-based SRS system (bucket 4). Always eligible regardless of due date (frequency bucket).
@@ -1189,7 +1189,6 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 **Word selection:**
 - Session size: up to **24 words**.
 - Slots are distributed **proportionally** by the relative size of each category within the flat pool — matching the bucket 1–3 distribution logic in normal sessions.
-- If the primary selection yields fewer than 24 words, remaining slots are filled with **due words from any time-based bucket ≥ 6** (not already selected), sorted by score descending.
 - Within each category, words are sorted by score descending (ties broken randomly).
 
 **SRS promotion rules:** same as normal/focus sessions — correct answer promotes by one bucket; due time-based words are promoted; non-due are not (though non-due words only reach this pool via category 1, where due-ness is not a requirement).
@@ -1199,7 +1198,7 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 **Implementation notes:**
 - Added `SessionType` value `'breakthrough'` to `shared/types/Session.ts`; updated `isSession()` guard
 - Added `selectBreakthroughWords(allEntries, sessionSize, minWords, now)` to `srsSelection.ts` with three-category deduplication and proportional slot allocation
-- `BreakthroughSessionService` in `breakthroughSessionService.ts` handles `isAvailable`, `scheduleFirst` (within 48 h), and `scheduleNext` (6 days + 0–48 h random)
+- `BreakthroughSessionService` in `breakthroughSessionService.ts` handles `isAvailable`, `scheduleFirst` (immediately eligible), and `scheduleNext` (today + 1 day)
 - Added `breakthrough_session_due_at` column to the `credits` table (migration `030_breakthrough_session.sql`)
 - Added `getBreakthroughSessionDueAt`/`setBreakthroughSessionDueAt` to `CreditsRepository`, `SqliteCreditsRepository`, and `FakeCreditsRepository`
 - Added `'breakthrough'` to `SHUFFLED_TYPES` and implemented the case in `trySelectType()` in `sessionService.ts`; `scheduleFirst` triggered from `createSession`; `scheduleNext` called on session completion
@@ -1243,6 +1242,17 @@ A session type designed to keep the backlog of overdue time-based words under co
 - Implement `isAvailable` / `scheduleNext` (cooldown: `today + 1 day`) in session service
 - Add `'breakthrough_plus'` to `SHUFFLED_TYPES` in `sessionService.ts`
 - Frontend: chapter-based UI with inter-chapter summary screen showing progress and next perfect-chapter bonus
+
+**Remove Repetition Session after Breakthrough++ is implemented:**
+Repetition (due words, buckets 4+, lowest bucket first, score as tiebreaker) and Breakthrough++ (same pool, highest bucket first, score as tiebreaker) cover an identical word pool with only inverted priority. Once Breakthrough++ is available — and given that Normal sessions already include due time-based words as a supplement — Repetition becomes redundant. The plan is to **remove `repetition` as a session type** (code, tests, rotation, README, PROJECT-PLAN) as part of the Breakthrough++ implementation task.
+
+**Implications for existing databases when removing `repetition`:**
+
+- **`sessions.type` column (critical):** Historical session records with `type = 'repetition'` remain in the database permanently. Removing `'repetition'` from the `SessionType` union would break any code path that reads old sessions and validates or switches on the type. Two safe approaches:
+  - Keep `'repetition'` in the `SessionType` union as a deprecated/legacy value (not in `SHUFFLED_TYPES`, never created again, but parseable). Preferred — zero migration cost.
+  - Or: add a DB migration that rewrites old `type = 'repetition'` rows to `'normal'` before removing the type from code.
+- **`credits.rotation_sequence` (harmless):** If the persisted sequence JSON still contains `'repetition'`, `trySelectType` hits the `default` branch and silently skips it. The entry disappears on the next reshuffle. No migration needed.
+- **`credits.rotation_last_type` (harmless):** If set to `'repetition'`, the no-repeat check never triggers (the value won't appear in new sequences). Self-healing.
 
 ---
 

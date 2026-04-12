@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 
-import { BreakthroughSessionService, BREAKTHROUGH_INTERVAL_DAYS } from './breakthroughSessionService.ts'
+import { BreakthroughSessionService } from './breakthroughSessionService.ts'
 import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts'
 
 let creditsRepo: FakeCreditsRepository
@@ -55,40 +55,18 @@ describe('BreakthroughSessionService — scheduleFirst', () => {
     expect(creditsRepo.getBreakthroughSessionDueAt()).toBe('2026-05-01')
   })
 
-  it('schedules within 48 hours (same day or next two days)', () => {
+  it('schedules for today (immediately eligible)', () => {
     service.scheduleFirst('2026-03-24')
 
-    const dueAt = creditsRepo.getBreakthroughSessionDueAt()
-
-    expect(dueAt).not.toBeNull()
-    expect(dueAt >= '2026-03-24').toBe(true)
-    expect(dueAt <= '2026-03-26').toBe(true)
+    expect(creditsRepo.getBreakthroughSessionDueAt()).toBe('2026-03-24')
   })
 })
 
 describe('BreakthroughSessionService — scheduleNext', () => {
-  it('sets a due date at least BREAKTHROUGH_INTERVAL_DAYS from today', () => {
+  it('sets a due date exactly BREAKTHROUGH_INTERVAL_DAYS (1 day) from today', () => {
     service.scheduleNext('2026-03-24')
 
-    const dueAt = creditsRepo.getBreakthroughSessionDueAt()
-    const earliest = new Date('2026-03-24T00:00:00Z')
-
-    earliest.setUTCDate(earliest.getUTCDate() + BREAKTHROUGH_INTERVAL_DAYS)
-
-    expect(dueAt).not.toBeNull()
-    expect(dueAt >= earliest.toISOString().slice(0, 10)).toBe(true)
-  })
-
-  it('sets a due date no more than BREAKTHROUGH_INTERVAL_DAYS + 2 days from today', () => {
-    service.scheduleNext('2026-03-24')
-
-    const dueAt = creditsRepo.getBreakthroughSessionDueAt()
-    const latest = new Date('2026-03-24T00:00:00Z')
-
-    latest.setUTCDate(latest.getUTCDate() + BREAKTHROUGH_INTERVAL_DAYS + 2)
-
-    expect(dueAt).not.toBeNull()
-    expect(dueAt <= latest.toISOString().slice(0, 10)).toBe(true)
+    expect(creditsRepo.getBreakthroughSessionDueAt()).toBe('2026-03-25')
   })
 
   it('overwrites any existing due date', () => {
