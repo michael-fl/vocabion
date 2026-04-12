@@ -10,7 +10,7 @@
  * const service = new VocabService(vocabRepo, creditsRepo)
  * ```
  */
-import type { CreditsRepository, PauseState } from '../features/credits/CreditsRepository.ts'
+import type { CreditsRepository, PauseState, RotationState } from '../features/credits/CreditsRepository.ts'
 
 export class FakeCreditsRepository implements CreditsRepository {
   private balance = 0
@@ -30,6 +30,7 @@ export class FakeCreditsRepository implements CreditsRepository {
   private breakthroughSessionDueAt: string | null = null
   private pauseState: PauseState = { active: false, startDate: null, daysUsed: 0, budgetYear: 0 }
   private lastSecondChanceSessionDate: string | null = null
+  private rotationState: RotationState = { sequence: [], index: 0, lastType: null }
 
   getBalance(): number {
     return this.balance
@@ -180,5 +181,13 @@ export class FakeCreditsRepository implements CreditsRepository {
     this.pauseState.startDate = null
     this.pauseState.daysUsed = newDaysUsed
     this.pauseState.budgetYear = year
+  }
+
+  getRotationState(): RotationState {
+    return { ...this.rotationState, sequence: [...this.rotationState.sequence] }
+  }
+
+  saveRotationState(state: RotationState): void {
+    this.rotationState = { ...state, sequence: [...state.sequence] }
   }
 }

@@ -11,7 +11,7 @@
  * ```
  */
 import type Database from 'better-sqlite3'
-import type { CreditsRepository, PauseState } from '../features/credits/CreditsRepository.ts'
+import type { CreditsRepository, PauseState, RotationState } from '../features/credits/CreditsRepository.ts'
 
 export class SqliteCreditsRepository implements CreditsRepository {
   constructor(private readonly db: Database.Database) {}
@@ -270,5 +270,25 @@ export class SqliteCreditsRepository implements CreditsRepository {
     this.db
       .prepare('UPDATE credits SET pause_active = 0, pause_start_date = NULL, pause_days_used = ?, pause_budget_year = ? WHERE id = 1')
       .run(newDaysUsed, year)
+  }
+
+  getRotationState(): RotationState {
+    const row = this.db
+      .prepare('SELECT rotation_sequence, rotation_index, rotation_last_type FROM credits WHERE id = 1')
+      .get() as { rotation_sequence: string | null; rotation_index: number; rotation_last_type: string | null } | undefined
+
+    return {
+      sequence: row?.rotation_sequence !== null && row?.rotation_sequence !== undefined
+        ? JSON.parse(row.rotation_sequence) as string[]
+        : [],
+      index: row?.rotation_index ?? 0,
+      lastType: row?.rotation_last_type ?? null,
+    }
+  }
+
+  saveRotationState(state: RotationState): void {
+    this.db
+      .prepare('UPDATE credits SET rotation_sequence = ?, rotation_index = ?, rotation_last_type = ? WHERE id = 1')
+      .run(JSON.stringify(state.sequence), state.index, state.lastType)
   }
 }

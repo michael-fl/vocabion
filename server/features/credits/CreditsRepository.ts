@@ -12,6 +12,22 @@
  * repo.addBalance(-1)  // spend a credit
  * ```
  */
+
+/**
+ * Persistent state of the round-robin session-type rotation.
+ *
+ * Stored in the `credits` row so the rotation survives server restarts and the
+ * same session type is never played twice in a row across a sequence boundary.
+ */
+export interface RotationState {
+  /** Shuffled array of session-type identifiers for the current rotation cycle. */
+  sequence: string[]
+  /** Index of the next entry to read from `sequence`. */
+  index: number
+  /** The session type that was last played, or `null` if no session has been played yet. */
+  lastType: string | null
+}
+
 /** Snapshot of the pause state stored in the `credits` row. */
 export interface PauseState {
   /** Whether the game is currently in pause mode. */
@@ -191,4 +207,13 @@ export interface CreditsRepository {
    * @param year - Calendar year `newDaysUsed` belongs to.
    */
   setPauseInactive(newDaysUsed: number, year: number): void
+
+  /**
+   * Returns the persisted round-robin rotation state.
+   * When no state has been saved yet, `sequence` is `[]` and `lastType` is `null`.
+   */
+  getRotationState(): RotationState
+
+  /** Persists the round-robin rotation state. */
+  saveRotationState(state: RotationState): void
 }

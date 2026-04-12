@@ -63,8 +63,8 @@ export const DISCOVERY_PUSHBACK_BUDGET = 10
 /** Options for creating a new training session. */
 export interface CreateSessionOptions {
   direction: SessionDirection
-  /** Number of words in a normal (learning) session. */
-  size: number
+  /** Number of words in a normal (learning) session. Defaults to `MIN_SESSION_SIZE` (12). */
+  size?: number
   /** Number of words in a repetition session. Defaults to 24 if not provided. */
   repetitionSize?: number
   /** Number of words in a discovery session. Defaults to 24 if not provided. */
@@ -177,9 +177,6 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 export class SessionService {
-  private sequence: SessionType[] = []
-  private sequenceIndex = 0
-
   constructor(
     private readonly sessionRepo: SessionRepository,
     private readonly vocabRepo: VocabRepository,
@@ -201,10 +198,12 @@ export class SessionService {
    * Creates a new training session using the SRS word selection algorithm.
    *
    * Session types are drawn from a shuffled round-robin sequence containing all
-   * eight automatic types (stress, discovery, focus, veteran, breakthrough, recovery, repetition, normal).
-   * The sequence is advanced until a type whose eligibility conditions are met is
-   * found. When the sequence is exhausted it is reshuffled. Starred sessions are
-   * always manual and never part of this rotation.
+   * nine automatic types. The sequence is advanced until a type whose eligibility
+   * conditions are met is found. When the sequence is exhausted it is reshuffled —
+   * the reshuffle guarantees that the new sequence does not start with the same
+   * type that was just played, preventing back-to-back repeats across boundaries.
+   * The rotation state is persisted to the database so it survives server restarts.
+   * Starred sessions are always manual and never part of this rotation.
    *
    * @throws {ApiError} 409 if a session is already open.
    * @throws {ApiError} 400 if no vocabulary entries are available at all.
@@ -258,6 +257,7 @@ export class SessionService {
       throw new ApiError(400, 'No vocabulary entries are available for a session')
     }
 
+    const sessionSize = options.size ?? MIN_SESSION_SIZE
     const discSize = options.discoverySize ?? 24
     const repSize = options.repetitionSize ?? 24
     const balance = this.creditsRepo.getBalance()
@@ -280,25 +280,49 @@ export class SessionService {
 
     // Advance through the shuffled sequence until a qualifying type is found.
     // Normal always qualifies (words exist), so the loop always terminates.
+    // The rotation state is loaded from and persisted to the database so the
+    // position survives server restarts.
     let selected: VocabEntry[] | null = null
     let sessionType: SessionType = 'normal'
 
+    const rotation = this.creditsRepo.getRotationState()
+
+    let outerIterations = 0
+
     while (selected === null) {
-      if (this.sequenceIndex >= this.sequence.length) {
-        this.sequence = this.shuffleFn(SHUFFLED_TYPES)
-        this.sequenceIndex = 0
+      if (++outerIterations > 1000) {
+        throw new Error('createSession: rotation loop did not terminate (possible infinite loop)')
       }
 
-      const candidate = this.sequence[this.sequenceIndex]
-      this.sequenceIndex++
+      if (rotation.index >= rotation.sequence.length) {
+        // Reshuffle, ensuring the new sequence does not start with the type
+        // that was just played (prevents back-to-back repeats at boundaries).
+        let reshuffleCount = 0
 
-      const words = this.trySelectType(candidate, regularEntries, today, stressQualifyingCount, balance, bucket6PlusCount, options, now, discSize, repSize)
+        do {
+          if (++reshuffleCount > 100) {
+            throw new Error('createSession: reshuffle loop did not terminate (possible infinite loop)')
+          }
+
+          rotation.sequence = this.shuffleFn(SHUFFLED_TYPES)
+        } while (rotation.lastType !== null && rotation.sequence[0] === rotation.lastType)
+
+        rotation.index = 0
+      }
+
+      const candidate = rotation.sequence[rotation.index] as SessionType
+      rotation.index++
+
+      const words = this.trySelectType(candidate, regularEntries, today, stressQualifyingCount, balance, bucket6PlusCount, sessionSize, options.veteranSize, now, discSize, repSize)
 
       if (words !== null) {
         selected = words
         sessionType = candidate
       }
     }
+
+    rotation.lastType = sessionType
+    this.creditsRepo.saveRotationState(rotation)
 
     if (selected.length === 0) {
       throw new ApiError(400, 'No vocabulary entries are available for a session')
@@ -468,7 +492,8 @@ export class SessionService {
     stressQualifyingCount: number,
     balance: number,
     bucket6PlusCount: number,
-    options: CreateSessionOptions,
+    sessionSize: number,
+    veteranSize: number | undefined,
     now: Date,
     discSize: number,
     repSize: number,
@@ -489,12 +514,12 @@ export class SessionService {
         return selectDiscoveryWords(allEntries, discSize, DISCOVERY_MIN_WORDS)
       }
       case 'focus':
-        return selectFocusWords(allEntries, options.size, FOCUS_MIN_WORDS)
+        return selectFocusWords(allEntries, sessionSize, FOCUS_MIN_WORDS)
       case 'focus_quiz':
         return selectFocusWords(allEntries, FOCUS_QUIZ_SESSION_SIZE, FOCUS_QUIZ_MIN_WORDS)
       case 'veteran':
         return this.veteranService.isAvailable(today, bucket6PlusCount)
-          ? selectVeteranWords(allEntries, options.veteranSize, VETERAN_MIN_WORDS)
+          ? selectVeteranWords(allEntries, veteranSize, VETERAN_MIN_WORDS)
           : null
       case 'breakthrough':
         return this.breakthroughService.isAvailable(today)
@@ -508,7 +533,7 @@ export class SessionService {
         return words.length >= REPETITION_MIN_WORDS ? words : null
       }
       case 'normal': {
-        const words = selectSessionWords(allEntries, options.size, now, NORMAL_SESSION_MAX_SIZE)
+        const words = selectSessionWords(allEntries, sessionSize, now, NORMAL_SESSION_MAX_SIZE)
 
         return words.length > 0 ? words : null
       }

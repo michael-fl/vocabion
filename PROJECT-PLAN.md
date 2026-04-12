@@ -411,9 +411,10 @@ starting from bucket 4):
 
 There are twelve session types in total. Ten are chosen automatically via a **shuffled round-robin rotation**: `stress`, `discovery`, `focus`, `focus_quiz`, `veteran`, `breakthrough`, `breakthrough_plus`, `recovery`, `repetition`, `normal`. One fires before the rotation at highest priority: `second_chance`. One is triggered manually: `starred`.
 
-- `SessionService` maintains a private in-memory sequence of the seven automatic types, shuffled with Fisher-Yates at startup and reshuffled each time all seven positions have been visited.
+- `SessionService` maintains a shuffled rotation sequence over the ten automatic types. The rotation state (sequence, current index, last-played type) is **persisted in the `credits` table** (migration `035_rotation_state.sql`) so it survives server restarts.
 - On each `createSession` call the service advances the sequence index, calling `trySelectType()` for the current candidate. If the candidate's eligibility conditions are met, that session type is used. Otherwise the candidate is skipped and the next one in the sequence is tried.
-- The sequence is server-side state — it persists across browser refreshes but resets when the server restarts.
+- When the sequence is exhausted it is reshuffled with Fisher-Yates. The reshuffle is repeated until `sequence[0] !== lastPlayedType`, preventing the same session type from firing twice in a row across a reshuffle boundary.
+- To guard against misconfiguration causing an infinite loop, `createSession` throws after 1 000 outer iterations or 100 reshuffle iterations.
 - `starred` is never part of the rotation; it is always manually triggered.
 
 **Eligibility conditions per type:**

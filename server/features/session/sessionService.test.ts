@@ -3415,3 +3415,59 @@ describe('createSession — focus quiz session', () => {
     expect(replay.status).toBe('open')
   })
 })
+
+// ── Rotation state persistence ────────────────────────────────────────────────
+
+describe('rotation state', () => {
+  it('persists rotation state to the credits repository after each session', () => {
+    vocabRepo.insert(makeEntry())
+
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    const state = creditsRepo.getRotationState()
+
+    expect(state.lastType).not.toBeNull()
+    expect(state.sequence.length).toBeGreaterThan(0)
+    expect(state.index).toBeGreaterThan(0)
+  })
+
+  it('reshuffles when sequence is exhausted and rejects a new sequence that starts with the last-played type', () => {
+    // Control the shuffle directly via creditsRepo without running createSession.
+    // Pre-seed: sequence exhausted, last played type was 'normal'.
+    creditsRepo.saveRotationState({ sequence: [], index: 0, lastType: 'normal' })
+
+    let shuffleCount = 0
+
+    const svc = new SessionService(
+      sessionRepo,
+      vocabRepo,
+      creditsRepo,
+      new StressSessionService(creditsRepo),
+      new VeteranSessionService(creditsRepo),
+      new BreakthroughSessionService(creditsRepo),
+      new SecondChanceSessionService(creditsRepo),
+      () => {
+        shuffleCount++
+        // First shuffle returns a sequence starting with 'normal' — must be rejected.
+        // Second shuffle starts with 'stress' — accepted (even though stress won't be
+        // eligible; the loop will advance to 'normal' which always qualifies).
+        if (shuffleCount === 1) {
+          return ['normal', 'stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'recovery', 'repetition']
+        }
+        return ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'recovery', 'repetition', 'normal']
+      },
+    )
+
+    vocabRepo.insert(makeEntry())
+
+    svc.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    // Two shuffles must have occurred: first was rejected, second was accepted.
+    expect(shuffleCount).toBe(2)
+
+    // lastType is now updated to whatever was played.
+    const saved = creditsRepo.getRotationState()
+
+    expect(saved.lastType).not.toBeNull()
+  })
+})
