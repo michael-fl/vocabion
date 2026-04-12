@@ -1203,7 +1203,7 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 A session type designed to keep the backlog of overdue time-based words under control. Unlike Breakthrough, it is not limited to milestone words — it targets *all* overdue time-based words, highest bucket first, structured into chapters so the user stays in control of session length.
 
 **Trigger conditions (all must be met):**
-- At least **30 due words** in buckets 4 and above
+- At least **48 due words** in buckets 4 and above
 - At least **1 day** since the last Breakthrough++ Session
 - Part of the **shuffled rotation** alongside all other automatic session types
 

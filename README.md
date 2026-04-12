@@ -276,7 +276,7 @@ After each breakthrough session completes, the next one is scheduled for the **f
 A **Breakthrough++ Session** targets the growing backlog of overdue time-based words by working through them from highest to lowest bucket, structured into manageable **chapters** of 24 words. Unlike other session types it has no hard upper word limit — the user decides how long to play.
 
 **Eligibility:**
-- At least **30 due words** in buckets 4 and above
+- At least **48 due words** in buckets 4 and above
 - At least **1 day** has passed since the last Breakthrough++ Session
 
 **Word selection:**
@@ -360,7 +360,7 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Focus Quiz | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
 | Veteran | Rotation | ~weekly | Due date reached, ≥ 50 words in buckets 6+, ≥ 12 of those with difficulty ≥ 2 |
 | Breakthrough | Rotation | ≥ 1 day cooldown | Due date reached, ≥ 12 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
-| Breakthrough++ | Rotation | ≥ 1 day cooldown | ≥ 30 due words in buckets 4+, at least 1 day since last Breakthrough++ |
+| Breakthrough++ | Rotation | ≥ 1 day cooldown | ≥ 48 due words in buckets 4+, at least 1 day since last Breakthrough++ |
 | Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
 | Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
 

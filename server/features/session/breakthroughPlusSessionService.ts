@@ -23,7 +23,7 @@
 import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 
 /** Minimum due words in buckets 4+ required to schedule and run a Breakthrough++ session. */
-export const BREAKTHROUGH_PLUS_MIN_WORDS = 30
+export const BREAKTHROUGH_PLUS_MIN_WORDS = 48
 
 /** Number of words per Breakthrough++ chapter (= one session). */
 export const BREAKTHROUGH_PLUS_CHAPTER_SIZE = 24
