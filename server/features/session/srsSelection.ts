@@ -51,53 +51,6 @@ export function isDue(entry: VocabEntry, now: Date): boolean {
 }
 
 /**
- * Selects vocabulary words for a repetition session.
- *
- * Only picks due words from time-based buckets (4+), starting with the lowest
- * bucket and working upward. Returns fewer than `sessionSize` words if not
- * enough due time-based words exist — the caller is responsible for falling
- * back to a normal session in that case.
- *
- * @param all - All vocabulary entries.
- * @param sessionSize - Target number of words.
- * @param now - Current timestamp.
- * @returns Up to `sessionSize` due time-based words, sorted bucket-ascending.
- */
-export function selectRepetitionWords(
-  all: VocabEntry[],
-  sessionSize: number,
-  now: Date,
-): VocabEntry[] {
-  const byBucket = new Map<number, VocabEntry[]>()
-
-  for (const e of all) {
-    if (e.bucket < 4 || !isDue(e, now)) {
-      continue
-    }
-
-    const list = byBucket.get(e.bucket) ?? []
-    list.push(e)
-    byBucket.set(e.bucket, list)
-  }
-
-  const selected: VocabEntry[] = []
-  const sortedBuckets = [...byBucket.keys()].sort((a, b) => a - b)
-
-  for (const bucket of sortedBuckets) {
-    if (selected.length >= sessionSize) {
-      break
-    }
-
-    const available = sortByScoreThenShuffle(byBucket.get(bucket) ?? [])
-    const need = sessionSize - selected.length
-
-    selected.push(...available.slice(0, need))
-  }
-
-  return selected
-}
-
-/**
  * Selects vocabulary words for a training session.
  *
  * @param all - All vocabulary entries in the database.

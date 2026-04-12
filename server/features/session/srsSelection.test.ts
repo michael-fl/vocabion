@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectBreakthroughPlusWords, selectSecondChanceSessionWords, selectRecoveryWords } from './srsSelection.ts'
+import { isDue, selectSessionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectBreakthroughPlusWords, selectSecondChanceSessionWords, selectRecoveryWords } from './srsSelection.ts'
 import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -447,76 +447,6 @@ describe('selectSessionWords — shortfall fill-up', () => {
   })
 })
 
-// ── selectRepetitionWords ─────────────────────────────────────────────────────
-
-describe('selectRepetitionWords', () => {
-  it('returns only due time-based words', () => {
-    const dueB4 = makeEntry({ bucket: 4, lastAskedAt: null })
-    const notDueB4 = makeEntry({ bucket: 4, lastAskedAt: NOW.toISOString() }) // just asked
-    const freqEntry = makeEntry({ bucket: 0, lastAskedAt: null })
-
-    const selected = selectRepetitionWords([dueB4, notDueB4, freqEntry], 12, NOW)
-
-    expect(selected).toContain(dueB4)
-    expect(selected).not.toContain(notDueB4)
-    expect(selected).not.toContain(freqEntry)
-  })
-
-  it('starts with bucket 4 and proceeds to higher buckets', () => {
-    const b4entries = makeEntries(3, { bucket: 4, lastAskedAt: null })
-    const b5entries = makeEntries(3, { bucket: 5, lastAskedAt: null })
-
-    const selected = selectRepetitionWords([...b5entries, ...b4entries], 4, NOW)
-
-    // All bucket-4 entries must be selected before bucket-5 entries
-    const b4selected = selected.filter((e) => e.bucket === 4)
-    const b5selected = selected.filter((e) => e.bucket === 5)
-
-    expect(b4selected).toHaveLength(3)
-    expect(b5selected).toHaveLength(1)
-  })
-
-  it('returns fewer than sessionSize when not enough due time-based words exist', () => {
-    const dueB4 = makeEntries(3, { bucket: 4, lastAskedAt: null })
-
-    const selected = selectRepetitionWords(dueB4, 12, NOW)
-
-    expect(selected).toHaveLength(3)
-  })
-
-  it('returns empty array when no time-based words are due', () => {
-    const notDue = makeEntry({ bucket: 4, lastAskedAt: NOW.toISOString() })
-
-    const selected = selectRepetitionWords([notDue], 12, NOW)
-
-    expect(selected).toHaveLength(0)
-  })
-
-  it('fills up to sessionSize across multiple buckets', () => {
-    const b4 = makeEntries(4, { bucket: 4, lastAskedAt: null })
-    const b5 = makeEntries(4, { bucket: 5, lastAskedAt: null })
-    const b6 = makeEntries(4, { bucket: 6, lastAskedAt: null })
-
-    const selected = selectRepetitionWords([...b4, ...b5, ...b6], 10, NOW)
-
-    expect(selected).toHaveLength(10)
-  })
-
-  it('does not include frequency-bucket words even when time-based words fall short', () => {
-    const dueB4 = makeEntries(2, { bucket: 4, lastAskedAt: null })
-    const freqEntries = makeEntries(10, { bucket: 0, lastAskedAt: null })
-
-    const selected = selectRepetitionWords([...dueB4, ...freqEntries], 12, NOW)
-
-    expect(selected.every((e) => e.bucket >= 4)).toBe(true)
-    expect(selected).toHaveLength(2)
-  })
-
-  it('returns an empty array when there are no entries at all', () => {
-    expect(selectRepetitionWords([], 12, NOW)).toHaveLength(0)
-  })
-})
-
 // ── Score-based preference ─────────────────────────────────────────────────────
 
 describe('score-based preference', () => {
@@ -556,17 +486,6 @@ describe('score-based preference', () => {
       const timePicks = selected.filter((e) => e.bucket >= 4)
 
       expect(timePicks.map((e) => e.id)).toContain(preferred.id)
-    }
-  })
-
-  it('always includes higher-scored words first in repetition sessions', () => {
-    const preferred = makeEntry({ bucket: 4, score: 4, lastAskedAt: null })
-    const others = makeEntries(5, { bucket: 4, score: 0, lastAskedAt: null })
-
-    for (let i = 0; i < 20; i++) {
-      const selected = selectRepetitionWords([preferred, ...others], 3, NOW)
-
-      expect(selected.map((e) => e.id)).toContain(preferred.id)
     }
   })
 

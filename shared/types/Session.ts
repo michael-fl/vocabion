@@ -34,7 +34,8 @@ export interface Session {
   /**
    * Session type.
    * - `normal` — frequency-based learning session (buckets 0–3 plus due time-based words).
-   * - `repetition` — review session drawn exclusively from due time-based buckets (4+).
+   * - `repetition` — **deprecated/legacy** — no longer created; kept in the union so old session
+   *   records stored in the database remain parseable.
    * - `focus` — targets the highest-priority words across all non-zero buckets.
    * - `focus_quiz` — multiple-choice variant of focus: same word selection but the user
    *   picks the correct translation(s) from 10 clickable options instead of typing.

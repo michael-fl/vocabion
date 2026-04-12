@@ -19,7 +19,7 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
 import { checkAnswerDetailed } from './answerValidation.ts'
 import type { TypoMatch } from './answerValidation.ts'
-import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectBreakthroughPlusWords, selectSecondChanceSessionWords, selectRecoveryWords, isDue } from './srsSelection.ts'
+import { selectSessionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectBreakthroughPlusWords, selectSecondChanceSessionWords, selectRecoveryWords, isDue } from './srsSelection.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
@@ -53,9 +53,6 @@ export const FOCUS_QUIZ_SESSION_SIZE = 24
 /** Minimum primary candidates required to run a focus quiz session. */
 export const FOCUS_QUIZ_MIN_WORDS = MIN_SESSION_SIZE
 
-/** Minimum due time-based words required to run a repetition session. */
-export const REPETITION_MIN_WORDS = MIN_SESSION_SIZE
-
 /** Minimum number of marked words required to start a starred session. */
 export const STARRED_MIN_WORDS = MIN_SESSION_SIZE
 
@@ -67,8 +64,6 @@ export interface CreateSessionOptions {
   direction: SessionDirection
   /** Number of words in a normal (learning) session. Defaults to `MIN_SESSION_SIZE` (12). */
   size?: number
-  /** Number of words in a repetition session. Defaults to 24 if not provided. */
-  repetitionSize?: number
   /** Number of words in a discovery session. Defaults to 24 if not provided. */
   discoverySize?: number
   /** Number of words in a veteran session. Defaults to `size` if not provided. */
@@ -164,7 +159,7 @@ export const RECOVERY_SESSION_SIZE = 12
 export const RECOVERY_MIN_WORDS = 5
 
 /** The automatic session types that participate in the shuffle rotation. */
-const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'repetition', 'normal']
+const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'normal']
 
 /** Fisher-Yates shuffle. Returns a new array. */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -262,7 +257,6 @@ export class SessionService {
 
     const sessionSize = options.size ?? MIN_SESSION_SIZE
     const discSize = options.discoverySize ?? 24
-    const repSize = options.repetitionSize ?? 24
     const balance = this.creditsRepo.getBalance()
     const bucket6PlusCount = regularEntries.filter((e) => e.bucket >= 6).length
 
@@ -320,7 +314,7 @@ export class SessionService {
       const candidate = rotation.sequence[rotation.index] as SessionType
       rotation.index++
 
-      const words = this.trySelectType(candidate, regularEntries, today, stressQualifyingCount, balance, bucket6PlusCount, sessionSize, options.veteranSize, now, discSize, repSize)
+      const words = this.trySelectType(candidate, regularEntries, today, stressQualifyingCount, balance, bucket6PlusCount, sessionSize, options.veteranSize, now, discSize)
 
       if (words !== null) {
         selected = words
@@ -503,7 +497,6 @@ export class SessionService {
     veteranSize: number | undefined,
     now: Date,
     discSize: number,
-    repSize: number,
   ): VocabEntry[] | null {
     switch (type) {
       case 'stress':
@@ -538,11 +531,6 @@ export class SessionService {
           : null
       case 'recovery':
         return selectRecoveryWords(allEntries, RECOVERY_SESSION_SIZE, RECOVERY_MIN_WORDS)
-      case 'repetition': {
-        const words = selectRepetitionWords(allEntries, repSize, now)
-
-        return words.length >= REPETITION_MIN_WORDS ? words : null
-      }
       case 'normal': {
         const words = selectSessionWords(allEntries, sessionSize, now, NORMAL_SESSION_MAX_SIZE)
 

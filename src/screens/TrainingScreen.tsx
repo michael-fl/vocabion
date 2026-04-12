@@ -539,9 +539,7 @@ export function TrainingScreen({
     <div className={styles.screen}>
       <div>
         <h2>
-          {currentSession.type === 'repetition'
-            ? 'Repetition Session'
-            : currentSession.type === 'focus'
+          {currentSession.type === 'focus'
               ? 'Focus Session'
               : currentSession.type === 'discovery'
                 ? 'Discovery Session'

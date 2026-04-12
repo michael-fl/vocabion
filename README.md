@@ -120,7 +120,7 @@ The table below shows the earliest possible time to reach each group, assuming e
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are eleven automatic session types in total. Ten are drawn from a **shuffled round-robin rotation**: the app cycles through all ten in a random order, skipping any that aren't eligible, and reshuffles when all ten have been considered. One additional type — **Second Chance** — fires before the rotation at the highest priority whenever due second-chance words exist. A twelfth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are ten automatic session types in total. Nine are drawn from a **shuffled round-robin rotation**: the app cycles through all nine in a random order, skipping any that aren't eligible, and reshuffles when all nine have been considered. One additional type — **Second Chance** — fires before the rotation at the highest priority whenever due second-chance words exist. An eleventh type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
 #### Stress Session (~weekly)
 
@@ -320,14 +320,6 @@ A **Recovery Session** targets words that were once genuinely mastered but have 
 - Words are sorted by **regression gap descending** (`maxBucket − bucket`), with score descending as the tiebreaker — the biggest regressions come first.
 - Hints are available; second-chance flow applies for time-based wrong answers; credit rules are identical to a normal session.
 
-#### Repetition Session
-
-A **Repetition Session** is an intensive review of time-based words (buckets 4+) that are currently overdue.
-
-- Contains up to 24 words, all from due time-based buckets (4 and above).
-- No frequency bucket words (0–3) are included.
-- At least **12 due words** must exist across all time-based buckets for the session to fire; if fewer than 24 due words exist, a shorter session is created with however many are available.
-
 #### Normal (Learning) Session
 
 The default session type. It targets **12 frequency-bucket words** and adds time-based words on top, up to a hard cap of **24 words** total. It draws from both frequency buckets and time-based buckets:
@@ -370,7 +362,6 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Breakthrough | Rotation | ≥ 1 day cooldown | Due date reached, ≥ 12 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
 | Breakthrough++ | Rotation | ≥ 1 day cooldown | ≥ 30 due words in buckets 4+, at least 1 day since last Breakthrough++ |
 | Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
-| Repetition | Rotation | rotation | ≥ 12 due time-based words (buckets 4+) exist |
 | Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
 
 #### ★ Session (manual, once per day)
@@ -467,7 +458,7 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 | How | Amount |
 |---|---|
 | Word reaches a new highest bucket for the first time | +5 per bucket level |
-| Perfect session — normal/repetition/focus/focus_quiz/discovery/veteran/★ (no mistakes, no hints, no second-chance words, ≥ 5 words) | +20 |
+| Perfect session — normal/focus/focus_quiz/discovery/veteran/★ (no mistakes, no hints, no second-chance words, ≥ 5 words) | +20 |
 | Perfect Breakthrough++ chapter N (no mistakes, no hints, no second-chance words) | +20 × N (chapter 1 → +20, chapter 2 → +40, …) |
 | Perfect stress session (all answers fully correct, ≥ 5 words) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |
@@ -567,4 +558,4 @@ When a milestone is reached, the session summary shows a celebration line instea
 
 ### Vocabulary List
 
-The vocabulary list groups all your words by bucket. Each bucket section is collapsed by default and can be expanded. Within each bucket, words are sorted alphabetically. The table shows each word's current priority **Score** and **Difficulty** score. Time-based words (bucket 4+) also show a "Due in" column indicating when they will next appear in a repetition session.
+The vocabulary list groups all your words by bucket. Each bucket section is collapsed by default and can be expanded. Within each bucket, words are sorted alphabetically. The table shows each word's current priority **Score** and **Difficulty** score. Time-based words (bucket 4+) also show a "Due in" column indicating when they will next appear in a Breakthrough++ or normal session.

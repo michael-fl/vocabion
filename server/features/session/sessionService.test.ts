@@ -79,7 +79,7 @@ beforeEach(() => {
   sessionRepo = new FakeSessionRepository()
   vocabRepo = new FakeVocabRepository()
   creditsRepo = new FakeCreditsRepository()
-  // Use identity shuffle so the sequence is always [stress, discovery, focus, focus_quiz, veteran, breakthrough, breakthrough_plus, recovery, repetition, normal].
+  // Use identity shuffle so the sequence is always [stress, discovery, focus, focus_quiz, veteran, breakthrough, breakthrough_plus, recovery, normal].
   // This makes type-selection tests deterministic without relying on alternation state.
   service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new BreakthroughPlusSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo), (types) => [...types])
 })
@@ -884,116 +884,8 @@ describe('submitAnswer — typo (close but not exact answer)', () => {
 // ── createSession — session type alternation ──────────────────────────────────
 
 describe('createSession — session type alternation', () => {
-  const DAY_MS = 24 * 60 * 60 * 1000
-
-  function makeDueTimeEntry(overrides: Partial<VocabEntry> = {}): VocabEntry {
-    return makeEntry({
-      bucket: 4,
-      lastAskedAt: new Date(Date.now() - 2 * DAY_MS).toISOString(),
-      ...overrides,
-    })
-  }
-
   it('creates a "normal" session when there is no previous session', () => {
     vocabRepo.insert(makeEntry({ bucket: 0 }))
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
-
-    expect(session.type).toBe('normal')
-  })
-
-  it('creates a "repetition" session after a completed normal session (enough due words)', () => {
-    // Insert MIN_SESSION_SIZE due time-based words
-    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
-      vocabRepo.insert(makeDueTimeEntry())
-    }
-
-    // Prevent stress and breakthrough from firing (bucket-4 entries qualify for both)
-    creditsRepo.setStressSessionDueAt('9999-12-31')
-    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
-
-    const prevSession = makeSession({ status: 'completed', type: 'normal' })
-
-    sessionRepo.insert(prevSession)
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 12 })
-
-    expect(session.type).toBe('repetition')
-  })
-
-  it('repetition session contains only due time-based words', () => {
-    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
-      vocabRepo.insert(makeDueTimeEntry())
-    }
-
-    // Also add some frequency words that should NOT appear
-    vocabRepo.insert(makeEntry({ bucket: 0 }))
-
-    // Prevent stress and breakthrough from firing
-    creditsRepo.setStressSessionDueAt('9999-12-31')
-    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
-
-    const prevSession = makeSession({ status: 'completed', type: 'normal' })
-
-    sessionRepo.insert(prevSession)
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 12 })
-
-    expect(session.type).toBe('repetition')
-    expect(session.words.every((w) => {
-      const entry = vocabRepo.findById(w.vocabId)
-      return entry !== undefined && entry.bucket >= 4
-    })).toBe(true)
-  })
-
-  it('falls back to "normal" and skips repetition when fewer than REPETITION_MIN_WORDS due time-based words exist', () => {
-    // Only 3 due time-based words — not enough for REPETITION_MIN_WORDS
-    for (let i = 0; i < 3; i++) {
-      vocabRepo.insert(makeDueTimeEntry())
-    }
-
-    // Use bucket-1 words (active pool) so discovery does not fire
-    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
-      vocabRepo.insert(makeEntry({ bucket: 1 }))
-    }
-
-    const prevSession = makeSession({ status: 'completed', type: 'normal' })
-
-    sessionRepo.insert(prevSession)
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12 })
-
-    expect(session.type).toBe('normal')
-  })
-
-  it('tries repetition again after a skipped repetition (fallback normal session)', () => {
-    // First: simulate a skipped repetition — last session was 'normal' (fallback)
-    // So the NEXT session should also try repetition
-
-    // Now provide enough due words
-    for (let i = 0; i < MIN_SESSION_SIZE; i++) {
-      vocabRepo.insert(makeDueTimeEntry())
-    }
-
-    // Prevent stress and breakthrough from firing
-    creditsRepo.setStressSessionDueAt('9999-12-31')
-    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
-
-    const fallbackNormal = makeSession({ status: 'completed', type: 'normal' })
-
-    sessionRepo.insert(fallbackNormal)
-
-    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 12, repetitionSize: 12 })
-
-    expect(session.type).toBe('repetition')
-  })
-
-  it('creates a "normal" session after a completed repetition session', () => {
-    vocabRepo.insert(makeEntry({ bucket: 0 }))
-
-    const prevSession = makeSession({ status: 'completed', type: 'repetition' })
-
-    sessionRepo.insert(prevSession)
 
     const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: 1 })
 
@@ -1006,9 +898,8 @@ describe('createSession — session type alternation', () => {
       vocabRepo.insert(makeEntry({ bucket: 1 }))
     }
 
-    // 11 due time-based words each in a distinct bucket (11 < REPETITION_MIN_WORDS so
-    // repetition does not fire, but `selectTimeBasedWords` adds all 11 on top of the
-    // 12 frequency words → 23 total, safely under the 24 cap)
+    // 11 due time-based words each in a distinct bucket; `selectTimeBasedWords` adds
+    // all 11 on top of the 12 frequency words → 23 total, safely under the 24 cap
     for (let i = 0; i < 11; i++) {
       vocabRepo.insert(makeEntry({ bucket: 4 + i, lastAskedAt: null }))
     }
@@ -1959,9 +1850,8 @@ describe('createSession — focus session', () => {
     expect(session.type).not.toBe('focus')
   })
 
-  it('focus session takes priority over normal/repetition alternation', () => {
-    // Previous session was 'normal', so alternation would pick 'repetition'
-    // But focus conditions are met, so 'focus' wins
+  it('focus session takes priority over normal session in rotation', () => {
+    // Previous session was 'normal'; focus conditions are met, so 'focus' wins
     const prevSession = makeSession({ status: 'completed', type: 'normal' })
 
     sessionRepo.insert(prevSession)
@@ -2035,7 +1925,7 @@ describe('createSession — discovery session', () => {
     expect(session.type).toBe('discovery')
   })
 
-  it('discovery session takes priority over normal/repetition alternation', () => {
+  it('discovery session takes priority over normal session in rotation', () => {
     insertActivePoolWords(DISCOVERY_POOL_THRESHOLD - 1)
     insertBucket0Words(DISC_SIZE)
 
@@ -2763,7 +2653,7 @@ describe('veteran session — createSession', () => {
     expect(creditsRepo.getVeteranSessionDueAt()).not.toBeNull()
   })
 
-  it('veteran session takes priority over normal/repetition', () => {
+  it('veteran session takes priority over normal session in rotation', () => {
     creditsRepo.setVeteranSessionDueAt('2026-01-01')
     creditsRepo.setStressSessionDueAt('9999-12-31')
     sessionRepo.insert(makeSession({ status: 'completed', type: 'normal' }))
@@ -3576,9 +3466,9 @@ describe('rotation state', () => {
         // Second shuffle starts with 'stress' — accepted (even though stress won't be
         // eligible; the loop will advance to 'normal' which always qualifies).
         if (shuffleCount === 1) {
-          return ['normal', 'stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'repetition']
+          return ['normal', 'stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery']
         }
-        return ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'repetition', 'normal']
+        return ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'normal']
       },
     )
 

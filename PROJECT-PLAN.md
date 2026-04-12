@@ -409,9 +409,9 @@ starting from bucket 4):
 
 **Session types:**
 
-There are twelve session types in total. Ten are chosen automatically via a **shuffled round-robin rotation**: `stress`, `discovery`, `focus`, `focus_quiz`, `veteran`, `breakthrough`, `breakthrough_plus`, `recovery`, `repetition`, `normal`. One fires before the rotation at highest priority: `second_chance`. One is triggered manually: `starred`.
+There are eleven session types in total. Nine are chosen automatically via a **shuffled round-robin rotation**: `stress`, `discovery`, `focus`, `focus_quiz`, `veteran`, `breakthrough`, `breakthrough_plus`, `recovery`, `normal`. One fires before the rotation at highest priority: `second_chance`. One is triggered manually: `starred`. (`repetition` is a deprecated legacy value that can still appear in historical DB records but is never created.)
 
-- `SessionService` maintains a shuffled rotation sequence over the ten automatic types. The rotation state (sequence, current index, last-played type) is **persisted in the `credits` table** (migration `035_rotation_state.sql`) so it survives server restarts.
+- `SessionService` maintains a shuffled rotation sequence over the nine automatic types. The rotation state (sequence, current index, last-played type) is **persisted in the `credits` table** (migration `035_rotation_state.sql`) so it survives server restarts.
 - On each `createSession` call the service advances the sequence index, calling `trySelectType()` for the current candidate. If the candidate's eligibility conditions are met, that session type is used. Otherwise the candidate is skipped and the next one in the sequence is tried.
 - When the sequence is exhausted it is reshuffled with Fisher-Yates. The reshuffle is repeated until `sequence[0] !== lastPlayedType`, preventing the same session type from firing twice in a row across a reshuffle boundary.
 - To guard against misconfiguration causing an infinite loop, `createSession` throws after 1 000 outer iterations or 100 reshuffle iterations.
@@ -427,7 +427,6 @@ There are twelve session types in total. Ten are chosen automatically via a **sh
 | `focus_quiz` | same as `focus` |
 | `veteran` | `veteran_session_due_at ≤ today`, ≥ `VETERAN_MIN_BUCKET6_WORDS` (50) in buckets 6+, `selectVeteranWords` returns ≥ `VETERAN_MIN_WORDS` (12) qualifying words (bucket ≥ 6 **and** difficulty ≥ 2) |
 | `recovery` | ≥ `RECOVERY_MIN_WORDS` (5) words with `maxBucket ≥ 6` and `maxBucket − bucket ≥ 2` |
-| `repetition` | ≥ `REPETITION_MIN_WORDS` (12) due time-based words (buckets 4+) exist |
 | `normal` | always eligible (at least one word in vocabulary) |
 
 An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tests to inject a deterministic sequence.
@@ -442,12 +441,6 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 7. Perfect session bonus: **+20 credits** (standard bonus) when all words are answered correctly with no push-backs and the session has at least 5 words.
 
 *Normal sessions* — focus on frequency learning (buckets 0–3 + up to 1 due word per time-based bucket). Described in detail below under "Session size". Frequency target: **12 words** (`size` parameter, default 12). Hard cap on total session size: **24 words** (`NORMAL_SESSION_MAX_SIZE`). Time-based words are added on top of the frequency selection up to that cap. If the total is still below `sessionSize` after frequency + 1-per-due-bucket selection, two fill-up phases run: first with additional due time-based words (lowest bucket first), then with non-due time-based words (lowest bucket first). Already-selected words are excluded from both phases.
-
-*Repetition sessions* — focus exclusively on reviewing overdue time-based words. Default size: **24 words** (`repetitionSize` parameter, default 24).
-1. Only due words from time-based buckets (4+) are included. No fallback to frequency buckets (0–3).
-2. Words are selected starting with bucket 4, score-ordered within each bucket (ties shuffled randomly), up to `repetitionSize`.
-3. If bucket 4 does not have enough due words, continue with bucket 5, then 6, and so on.
-4. If the total due time-based words across all buckets is still less than `REPETITION_MIN_WORDS` (12), the repetition session is skipped (see above). Between 12 and 24 due words, a shorter session is returned with however many are available.
 
 *Focus sessions* — target the words with the highest priority scores to address problem words.
 1. Only words from **buckets 1–5** are eligible as primary candidates (bucket 0 and buckets 6+ are excluded — high-bucket words are considered well-learned regardless of their score).
@@ -509,7 +502,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Repetition Session"** for repetition, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran.
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran, **"Breakthrough Session"** for breakthrough, **"Breakthrough++ Session"** for breakthrough_plus, **"Recovery Session"** for recovery, **"Second Chance Session"** for second_chance_session.
 
 **Session size — how many questions will be asked:**
 
@@ -597,7 +590,7 @@ A **fully wrong** answer on a time-based word triggers a second-chance flow:
    - Word 2 **correct** → word 1 moves to `bucket − 1`; word 2 stays in its current bucket;
      `lastAskedAt` set to now for word 2. For word 1, if the new bucket is still time-based (≥ 4),
      `lastAskedAt` is backdated so that word 1 becomes due again in ~24 h — ensuring it appears in
-     the next day's repetition session regardless of the new bucket's normal interval. If the new
+     the next day's Breakthrough++ or normal session regardless of the new bucket's normal interval. If the new
      bucket is a frequency bucket (< 4), `lastAskedAt` is set to now (the word will appear in every
      normal session anyway).
    - Word 2 **partial** → word 1 is reset to `bucket 1`; word 2 stays in its current bucket;
@@ -609,7 +602,7 @@ There is no upper limit on the number of buckets.
 
 **Score-based word preference:**
 
-Every vocabulary entry has a persistent `score` (integer ≥ 0, stored in the DB). The score expresses how urgently the word needs practice. Within every candidate pool — frequency bucket picks, time-based 1-per-bucket selection, shortfall fill-up phases, and repetition session picks — candidates are **sorted by score descending**. Words with equal score are shuffled randomly within their group. The counts and proportions defined above are unchanged; only the draw order is affected.
+Every vocabulary entry has a persistent `score` (integer ≥ 0, stored in the DB). The score expresses how urgently the word needs practice. Within every candidate pool — frequency bucket picks, time-based 1-per-bucket selection, shortfall fill-up phases, and Breakthrough++ picks — candidates are **sorted by score descending**. Words with equal score are shuffled randomly within their group. The counts and proportions defined above are unchanged; only the draw order is affected.
 
 Formula:
 ```
@@ -644,12 +637,11 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Due-date calculation | `server/features/session/srsSelection.ts` — `isDue()` | ✓ complete |
 | Frequency word selection (weights + fallback) | `srsSelection.ts` — `selectFrequencyWords()` | ✓ complete |
 | Time-based word selection (1 per due bucket) | `srsSelection.ts` — `selectTimeBasedWords()` | ✓ complete |
-| Repetition session word selection | `srsSelection.ts` — `selectRepetitionWords()` | ✓ complete |
 | Focus session word selection | `srsSelection.ts` — `selectFocusWords()` | ✓ complete |
 | Focus Quiz session | `sessionService.ts`, `FocusQuizScreen.tsx`, DB migration | ✓ complete |
 | Discovery session (multiple-choice, DiscoveryQuizScreen) | `sessionService.ts`, `DiscoveryQuizScreen.tsx` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
-| Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal, breakthrough_plus) | `sessionService.ts` — `createSession()` | ✓ complete |
+| Session type selection (shuffled round-robin: stress, discovery, focus, focus_quiz, veteran, breakthrough, breakthrough_plus, recovery, normal) | `sessionService.ts` — `createSession()` | ✓ complete |
 | Stress session word selection | `srsSelection.ts` — `selectStressWords()` | ✓ complete |
 | Push back word (discovery sessions only) | `sessionService.ts` — `pushBackWord()` | ✓ complete |
 | Bucket promotion / demotion | `server/features/session/sessionService.ts` | ✓ complete |
@@ -695,7 +687,7 @@ The bonus scales linearly and is capped at 500: **bucket N → min((N−5)×100,
 The bonus fires at most once per bucket level: if bucket 6 becomes empty again after a wrong answer and a different word later climbs into bucket 6, no second bonus is paid. The `bucketMilestoneBonus` field on `AnswerResult` carries the amount (0 or the scaled value) so the UI can display a celebration message.
 
 **Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints, and the session contains at least 5 words. The bonus amount depends on session type:
-- **Normal / repetition / focus / focus_quiz / discovery / veteran / starred:** **+20 credits.**
+- **Normal / focus / focus_quiz / discovery / veteran / starred:** **+20 credits.**
 - **Breakthrough++ (per chapter N):** **+20 × N credits** — each chapter is evaluated independently; no cross-chapter streak required.
 - **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts, no second-chance words triggered). New-bucket-record bonuses (+5) also apply in stress sessions.
 
@@ -1042,7 +1034,7 @@ Replace the current flat layout with a proper single-page app shell:
 | Add-alternative + bucket restore | done |
 | Repetition sessions (alternating, time-based only) | done |
 | Typo-tolerant answer validation | done |
-| Different session sizes (normal=12, repetition=24) | done |
+| Different session sizes (normal=12, discovery/veteran=24) | done |
 | Credit system (`maxBucket` tracking, persistent header display) | done |
 | Answer hints (10 credits, shows first 1–2 chars per word as placeholder) | done |
 | Mark / favourite words (star toggle in training, ★ in vocab list) | done |
@@ -1244,16 +1236,9 @@ A session type designed to keep the backlog of overdue time-based words under co
 - Frontend: session title "Breakthrough++ Session" shown in `TrainingScreen`
 - Note: the chapter-based inter-session summary UI remains a future enhancement
 
-**Remove Repetition Session after Breakthrough++ is implemented:**
-Repetition (due words, buckets 4+, lowest bucket first, score as tiebreaker) and Breakthrough++ (same pool, highest bucket first, score as tiebreaker) cover an identical word pool with only inverted priority. Once Breakthrough++ is available — and given that Normal sessions already include due time-based words as a supplement — Repetition becomes redundant. The plan is to **remove `repetition` as a session type** (code, tests, rotation, README, PROJECT-PLAN) as part of the Breakthrough++ implementation task.
+**Repetition Session removed ✓**
 
-**Implications for existing databases when removing `repetition`:**
-
-- **`sessions.type` column (critical):** Historical session records with `type = 'repetition'` remain in the database permanently. Removing `'repetition'` from the `SessionType` union would break any code path that reads old sessions and validates or switches on the type. Two safe approaches:
-  - Keep `'repetition'` in the `SessionType` union as a deprecated/legacy value (not in `SHUFFLED_TYPES`, never created again, but parseable). Preferred — zero migration cost.
-  - Or: add a DB migration that rewrites old `type = 'repetition'` rows to `'normal'` before removing the type from code.
-- **`credits.rotation_sequence` (harmless):** If the persisted sequence JSON still contains `'repetition'`, `trySelectType` hits the `default` branch and silently skips it. The entry disappears on the next reshuffle. No migration needed.
-- **`credits.rotation_last_type` (harmless):** If set to `'repetition'`, the no-repeat check never triggers (the value won't appear in new sequences). Self-healing.
+Repetition (due words, buckets 4+, lowest bucket first) was redundant once Breakthrough++ was implemented (same pool, highest bucket first). It has been removed from the rotation, code, and docs. `'repetition'` is kept as a deprecated value in the `SessionType` union so old DB records remain parseable. Old rotation-state entries self-heal on the next reshuffle.
 
 ---
 
