@@ -603,7 +603,7 @@ function selectFrequencyWords(freqEntries: VocabEntry[], sessionSize: number): V
   }
 
   // Bucket 0: manually-added words always come first; then fill with score-sorted regular words.
-  // The draw count is normally 1 or 2, but is raised to include all manually-added words.
+  // At most 2 new words per session, regardless of how many manually-added words are pending.
   const b0entries = byBucket.get(0) ?? []
   const b0manual = shuffle(b0entries.filter((e) => e.manuallyAdded))
   const b0regular = sortByScoreThenShuffle(b0entries.filter((e) => !e.manuallyAdded))
@@ -613,7 +613,7 @@ function selectFrequencyWords(freqEntries: VocabEntry[], sessionSize: number): V
   const b3avail = (byBucket.get(3) ?? []).length
 
   const b0target = Math.random() < 0.5 ? 1 : 2
-  const b0count = Math.min(Math.max(b0manual.length, b0target), b0entries.length, sessionSize)
+  const b0count = Math.min(b0target, b0entries.length, sessionSize)
 
   // Buckets 1–3: fill remaining slots proportionally to current bucket sizes
   const remaining = sessionSize - b0count

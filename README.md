@@ -120,7 +120,7 @@ The table below shows the earliest possible time to reach each group, assuming e
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are eight automatic types drawn from a **shuffled round-robin rotation**: the app cycles through all eight types in a random order, skipping any that aren't eligible, and reshuffles when all eight have been considered. A ninth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are eleven automatic session types in total. Ten are drawn from a **shuffled round-robin rotation**: the app cycles through all ten in a random order, skipping any that aren't eligible, and reshuffles when all ten have been considered. One additional type — **Second Chance** — fires before the rotation at the highest priority whenever due second-chance words exist. A twelfth type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
 
 #### Stress Session (~weekly)
 
@@ -272,6 +272,40 @@ If qualifying words first reach 10 and no session is scheduled yet, the initial 
 
 After each breakthrough session completes, the next one is scheduled for **6 days + up to 48 random hours** later.
 
+#### Breakthrough++ Session (backlog cleanup, chapter-based)
+
+A **Breakthrough++ Session** targets the growing backlog of overdue time-based words by working through them from highest to lowest bucket, structured into manageable **chapters** of 24 words. Unlike other session types it has no hard upper word limit — the user decides how long to play.
+
+**Eligibility:**
+- At least **30 due words** in buckets 4 and above
+- At least **1 day** has passed since the last Breakthrough++ Session
+
+**Word selection:**
+- All due words in buckets 4+, sorted **highest bucket first** — the most advanced words come first
+- No random mixing: the order is deterministic and consistent across chapters
+
+**Chapter structure:**
+- One chapter = **24 words**
+- After each completed chapter the session pauses and shows a progress summary:
+  > *"Chapter 1 complete — 24 of 87 due words reviewed. Keep going? A perfect Chapter 2 earns you +40 credits."*
+- The user can stop after any chapter. The session counts as complete once at least one chapter is finished (≥ 24 words answered).
+- A further chapter is only offered if at least **12 due words** remain — chapters smaller than 12 words would not justify the escalating perfect-chapter bonus. If fewer than 12 due words remain after a chapter, the session ends automatically.
+- There is no other upper cap — the user may play through all remaining due words as long as each chapter meets the 12-word minimum.
+
+**Credits:**
+- **Bucket-lift bonus:** +5 per word reaching a new personal highest bucket, same as all other sessions.
+- **Perfect chapter bonus:** awarded per chapter independently — no streak across chapters required:
+  | Chapter | Perfect bonus |
+  |---------|---------------|
+  | 1 | +20 credits |
+  | 2 | +40 credits |
+  | 3 | +60 credits |
+  | N | +20 × N credits |
+  A chapter is *perfect* when every answer is fully correct with no hints and no second-chance words triggered.
+- **Wrong answers** cost 1 credit (standard rate).
+
+**SRS behaviour:** Standard rules apply — correct answers promote the word one bucket; wrong answers trigger the second-chance flow.
+
 #### Recovery Session
 
 A **Recovery Session** targets words that were once genuinely mastered but have since regressed — words you used to know well but have apparently forgotten again.
@@ -299,7 +333,7 @@ A **Repetition Session** is an intensive review of time-based words (buckets 4+)
 
 The default session type. It targets **12 frequency-bucket words** and adds time-based words on top, up to a hard cap of **24 words** total. It draws from both frequency buckets and time-based buckets:
 
-- **Bucket 0**: 1 or 2 new words (random). Words you added manually via the UI are always drawn first.
+- **Bucket 0**: 1 or 2 new words (random). Words you added manually via the UI are always drawn first. This cap of 2 applies even when more manually added words are pending — they will appear in subsequent sessions.
 - **Buckets 1–3**: the remaining slots are distributed proportionally — a bucket with more words receives more session slots. This is self-tuning as your vocabulary grows.
 - **Time-based buckets (4+)**: up to 1 due word per occupied bucket is added on top, subject to the 24-word total cap.
 - If the session is still short of 12 words, additional due time-based words are added (lowest bucket first), then non-due time-based words.
@@ -335,6 +369,7 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Focus Quiz | Rotation | rotation | 10+ words with score ≥ 2 exist in buckets 1–5 |
 | Veteran | Rotation | ~weekly | Due date reached, ≥ 50 words in buckets 6+, ≥ 12 of those with difficulty ≥ 2 |
 | Breakthrough | Rotation | ~weekly | Due date reached, ≥ 12 qualifying words across bucket-3, due bucket-5, and due highest-bucket words |
+| Breakthrough++ | Rotation | ≥ 2 days cooldown | ≥ 30 due words in buckets 4+, at least 2 days since last Breakthrough++ |
 | Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
 | Repetition | Rotation | rotation | ≥ 10 due time-based words (buckets 4+) exist |
 | Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
@@ -434,6 +469,7 @@ Credits are the in-app currency that tracks your long-term progress and lets you
 |---|---|
 | Word reaches a new highest bucket for the first time | +5 per bucket level |
 | Perfect session — normal/repetition/focus/focus_quiz/discovery/veteran/★ (no mistakes, no hints, no second-chance words, ≥ 5 words) | +20 |
+| Perfect Breakthrough++ chapter N (no mistakes, no hints, no second-chance words) | +20 × N (chapter 1 → +20, chapter 2 → +40, …) |
 | Perfect stress session (all answers fully correct, ≥ 5 words) | +100 |
 | Daily streak bonus (streak ≥ 2 days) | +1 |
 | Streak milestone reached | +10 to +1 000 (see Streaks) |

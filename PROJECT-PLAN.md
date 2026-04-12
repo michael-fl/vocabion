@@ -409,7 +409,7 @@ starting from bucket 4):
 
 **Session types:**
 
-There are eight session types: `stress`, `normal`, `repetition`, `focus`, `focus_quiz`, `discovery`, `starred`, and `veteran`. The first seven are chosen automatically on each `createSession` call using a **shuffled round-robin rotation**:
+There are twelve session types in total. Ten are chosen automatically via a **shuffled round-robin rotation**: `stress`, `discovery`, `focus`, `focus_quiz`, `veteran`, `breakthrough`, `breakthrough_plus`, `recovery`, `repetition`, `normal`. One fires before the rotation at highest priority: `second_chance`. One is triggered manually: `starred`.
 
 - `SessionService` maintains a private in-memory sequence of the seven automatic types, shuffled with Fisher-Yates at startup and reshuffled each time all seven positions have been visited.
 - On each `createSession` call the service advances the sequence index, calling `trySelectType()` for the current candidate. If the candidate's eligibility conditions are met, that session type is used. Otherwise the candidate is skipped and the next one in the sequence is tried.
@@ -648,7 +648,7 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Focus Quiz session | `sessionService.ts`, `FocusQuizScreen.tsx`, DB migration | ✓ complete |
 | Discovery session (multiple-choice, DiscoveryQuizScreen) | `sessionService.ts`, `DiscoveryQuizScreen.tsx` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
-| Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal) | `sessionService.ts` — `createSession()` | ✓ complete |
+| Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal, breakthrough_plus) | `sessionService.ts` — `createSession()` | ✓ complete (breakthrough_plus planned) |
 | Stress session word selection | `srsSelection.ts` — `selectStressWords()` | ✓ complete |
 | Push back word (discovery sessions only) | `sessionService.ts` — `pushBackWord()` | ✓ complete |
 | Bucket promotion / demotion | `server/features/session/sessionService.ts` | ✓ complete |
@@ -695,6 +695,7 @@ The bonus fires at most once per bucket level: if bucket 6 becomes empty again a
 
 **Perfect session bonus:** Awarded when a session is completed without any mistakes, second-chance words, or hints, and the session contains at least 5 words. The bonus amount depends on session type:
 - **Normal / repetition / focus / focus_quiz / discovery / veteran / starred:** **+20 credits.**
+- **Breakthrough++ (per chapter N):** **+20 × N credits** — each chapter is evaluated independently; no cross-chapter streak required.
 - **Stress:** **+100 credits** — all answers must be fully correct (no partials, no timeouts, no second-chance words triggered). New-bucket-record bonuses (+5) also apply in stress sessions.
 
 All conditions that must hold (except discovery, which has no second-chance words or paid hints; and stress, which has no hints):
@@ -951,7 +952,7 @@ Allows users to star individual words during a training session. Starred words a
 - [x] Migration `009_manually_added.sql`: `manually_added INTEGER NOT NULL DEFAULT 0` column on `vocab_entries`
 - [x] `VocabEntry.manuallyAdded: boolean` added to the shared type
 - [x] `VocabService.create()` sets `manuallyAdded: true`; `importEntries()` sets it to `false`
-- [x] `srsSelection.ts`: bucket-0 pool split into manually-added (shuffled, always included first) and regular (score-sorted); manually-added words override the normal 1-or-2 draw count
+- [x] `srsSelection.ts`: bucket-0 pool split into manually-added (shuffled, always included first) and regular (score-sorted); the hard cap of 1–2 words applies regardless of how many manually-added words are pending
 - [x] `sessionService.createSession()` clears `manuallyAdded` on all selected words after word selection
 - [x] Tests: 582 total, 27 test files, all passing
 
@@ -1067,7 +1068,7 @@ Replace the current flat layout with a proper single-page app shell:
 - Daily practice streaks: migration 010 adds `streak_count`, `last_session_date`, `streak_save_pending` to `credits` table. `StreakService` computes streak state (active / at-risk / lost). `streakRouter` exposes `GET /api/v1/streak` and `POST /api/v1/streak/save`. `SessionService` awards +1 streak credit when the first session of the day extends a streak to ≥ 2 days (no credit for day 1 or after a gap). HomeScreen always shows streak count, warning banner when at-risk, evening warning (≥ 20:00 + last session was yesterday), and save button. SummaryScreen shows +1 streak credit line. `src/api/streakApi.ts` provides typed fetch wrappers.
 - Score-based word selection: `score` column on `vocab_entries` (migration 006), backfill migration 008, `srsScore.ts` utility, `sortByScoreThenShuffle` in `srsSelection.ts`. VocabListScreen shows Score column; TrainingScreen shows `[score: N]` debug label.
 - Bucket milestone bonus: min((N−5)×100, 500) credits the first time any word globally enters a bucket ≥ 6 that has never existed before (capped at 500 from bucket 10 / Master onwards). `max_bucket_ever` in credits table (migration 007). `CreditsRepository.getMaxBucketEver/setMaxBucketEver`. `bucketMilestoneBonus` field on `AnswerResult`; TrainingScreen shows celebration message.
-- Manually-added word priority: `manuallyAdded: boolean` on `VocabEntry` (migration 009). Words added via the UI "Add word" form are always drawn first in bucket 0 (all of them, overriding the normal 1-or-2 draw count). Flag is cleared after first session inclusion. JSON-imported words are never flagged.
+- Manually-added word priority: `manuallyAdded: boolean` on `VocabEntry` (migration 009). Words added via the UI "Add word" form are always drawn first in bucket 0, but the hard cap of 1–2 words per session still applies — remaining manually-added words appear in subsequent sessions. Flag is cleared after first session inclusion. JSON-imported words are never flagged.
 
 - Word difficulty score: a permanent `difficulty` field on `VocabEntry` (migration `025_difficulty.sql` adds `max_score` and `difficulty` columns, backfilled from existing data). Formula: `spaceBonus + multipleBonus + lengthBonus + maxScore`, where `maxScore` is the all-time highest priority score. `computeDifficulty()` in `shared/utils/difficulty.ts`. Recomputed in `VocabService` (create, update, import, setMarked) and `SessionService` (answer submit). `VocabListScreen` shows a Difficulty column in every table.
 
@@ -1202,6 +1203,45 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 - Added `getBreakthroughSessionDueAt`/`setBreakthroughSessionDueAt` to `CreditsRepository`, `SqliteCreditsRepository`, and `FakeCreditsRepository`
 - Added `'breakthrough'` to `SHUFFLED_TYPES` and implemented the case in `trySelectType()` in `sessionService.ts`; `scheduleFirst` triggered from `createSession`; `scheduleNext` called on session completion
 - `TrainingScreen`: added "Breakthrough Session" label to the session title area
+
+---
+
+## Breakthrough++ Session (planned)
+
+A session type designed to keep the backlog of overdue time-based words under control. Unlike Breakthrough, it is not limited to milestone words — it targets *all* overdue time-based words, highest bucket first, structured into chapters so the user stays in control of session length.
+
+**Trigger conditions (all must be met):**
+- At least **30 due words** in buckets 4 and above
+- At least **1 day** since the last Breakthrough++ Session
+- Part of the **shuffled rotation** alongside all other automatic session types
+
+**Word pool:**
+- All due words in buckets 4+, sorted by bucket descending (highest first), score descending as tiebreaker
+
+**Chapter structure:**
+- One chapter = 24 words
+- After each chapter the session pauses; the user sees how many due words remain and what the next perfect-chapter bonus would be
+- Minimum to count as a session: 1 completed chapter (24 words)
+- No hard upper cap — the user may continue until all due words are exhausted
+
+**Credit rules:**
+- Bucket-lift bonus: +5 per new personal highest bucket (same as all sessions)
+- Perfect chapter N (no mistakes, no hints, no second-chance words): **+20 × N credits**
+  - Chapter 1 perfect → +20, chapter 2 perfect → +40, chapter 3 perfect → +60, …
+  - Each chapter is evaluated independently — a failed chapter does not disqualify subsequent chapters
+- Wrong answers: −1 credit (standard; virgin-word exemption applies)
+
+**SRS promotion rules:** same as normal/focus sessions — correct answer on a due word promotes by one bucket; wrong answer on a time-based word triggers second-chance flow.
+
+**Session title in UI:** "Breakthrough++ Session"
+
+**Implementation notes (to be filled in on implementation):**
+- Add `SessionType` value `'breakthrough_plus'` to `shared/types/Session.ts`
+- Add `selectBreakthroughPlusWords(allEntries, now)` to `srsSelection.ts` — returns all due B4+ entries sorted bucket desc
+- Add `breakthrough_plus_session_due_at` column to the `credits` table (new migration)
+- Implement `isAvailable` / `scheduleNext` (cooldown: `today + 1 day`) in session service
+- Add `'breakthrough_plus'` to `SHUFFLED_TYPES` in `sessionService.ts`
+- Frontend: chapter-based UI with inter-chapter summary screen showing progress and next perfect-chapter bonus
 
 ---
 

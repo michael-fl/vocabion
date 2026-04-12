@@ -601,19 +601,19 @@ describe('manually-added preference', () => {
     }
   })
 
-  it('includes all manually-added bucket-0 words even when they exceed the normal draw count', () => {
-    // 3 manually-added bucket-0 words; normal draw would be 1 or 2.
-    // All 3 must appear in every session.
-    const manuals = makeEntries(3, { bucket: 0, manuallyAdded: true })
-    const regular = makeEntries(3, { bucket: 0 })
+  it('caps bucket-0 draws at 2 even when more manually-added words are pending', () => {
+    // 5 manually-added bucket-0 words + many B1 words to fill remaining slots.
+    // No matter how many manually-added words exist, at most 2 B0 words must appear.
+    const manuals = makeEntries(5, { bucket: 0, manuallyAdded: true })
+    const b1words = makeEntries(20, { bucket: 1 })
 
-    for (let i = 0; i < 20; i++) {
-      const selected = selectSessionWords([...manuals, ...regular], 6, NOW)
-      const selectedIds = new Set(selected.map((e) => e.id))
+    for (let i = 0; i < 30; i++) {
+      const selected = selectSessionWords([...manuals, ...b1words], 12, NOW)
+      const b0Selected = selected.filter((e) => e.bucket === 0)
 
-      for (const m of manuals) {
-        expect(selectedIds).toContain(m.id)
-      }
+      expect(b0Selected.length).toBeLessThanOrEqual(2)
+      // The ones drawn must be manually-added
+      expect(b0Selected.every((e) => e.manuallyAdded)).toBe(true)
     }
   })
 
