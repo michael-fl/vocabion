@@ -649,7 +649,7 @@ time-based pass does **not** apply here — multiple words may be taken from the
 | Focus Quiz session | `sessionService.ts`, `FocusQuizScreen.tsx`, DB migration | ✓ complete |
 | Discovery session (multiple-choice, DiscoveryQuizScreen) | `sessionService.ts`, `DiscoveryQuizScreen.tsx` | ✓ complete |
 | Discovery session word selection | `srsSelection.ts` — `selectDiscoveryWords()` | ✓ complete |
-| Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal, breakthrough_plus) | `sessionService.ts` — `createSession()` | ✓ complete (breakthrough_plus planned) |
+| Session type selection (shuffled round-robin: stress, discovery, focus, veteran, repetition, normal, breakthrough_plus) | `sessionService.ts` — `createSession()` | ✓ complete |
 | Stress session word selection | `srsSelection.ts` — `selectStressWords()` | ✓ complete |
 | Push back word (discovery sessions only) | `sessionService.ts` — `pushBackWord()` | ✓ complete |
 | Bucket promotion / demotion | `server/features/session/sessionService.ts` | ✓ complete |
@@ -1206,7 +1206,7 @@ Deduplication: a word that falls into more than one category (e.g. highest bucke
 
 ---
 
-## Breakthrough++ Session (planned)
+## Breakthrough++ Session ✓
 
 A session type designed to keep the backlog of overdue time-based words under control. Unlike Breakthrough, it is not limited to milestone words — it targets *all* overdue time-based words, highest bucket first, structured into chapters so the user stays in control of session length.
 
@@ -1235,13 +1235,14 @@ A session type designed to keep the backlog of overdue time-based words under co
 
 **Session title in UI:** "Breakthrough++ Session"
 
-**Implementation notes (to be filled in on implementation):**
-- Add `SessionType` value `'breakthrough_plus'` to `shared/types/Session.ts`
-- Add `selectBreakthroughPlusWords(allEntries, now)` to `srsSelection.ts` — returns all due B4+ entries sorted bucket desc
-- Add `breakthrough_plus_session_due_at` column to the `credits` table (new migration)
-- Implement `isAvailable` / `scheduleNext` (cooldown: `today + 1 day`) in session service
-- Add `'breakthrough_plus'` to `SHUFFLED_TYPES` in `sessionService.ts`
-- Frontend: chapter-based UI with inter-chapter summary screen showing progress and next perfect-chapter bonus
+**Implementation:**
+- `SessionType` value `'breakthrough_plus'` added to `shared/types/Session.ts`
+- `selectBreakthroughPlusWords(all, sessionSize, minWords, now)` added to `srsSelection.ts` — returns due B4+ entries sorted bucket desc / score desc, or `null` if below minimum
+- `breakthrough_plus_session_due_at` column added to `credits` table (migration `036_breakthrough_plus_session.sql`)
+- `BreakthroughPlusSessionService` (in `breakthroughPlusSessionService.ts`) — `isAvailable` / `scheduleFirst` / `scheduleNext` (1-day cooldown)
+- `'breakthrough_plus'` added to `SHUFFLED_TYPES` in `sessionService.ts`
+- Frontend: session title "Breakthrough++ Session" shown in `TrainingScreen`
+- Note: the chapter-based inter-session summary UI remains a future enhancement
 
 **Remove Repetition Session after Breakthrough++ is implemented:**
 Repetition (due words, buckets 4+, lowest bucket first, score as tiebreaker) and Breakthrough++ (same pool, highest bucket first, score as tiebreaker) cover an identical word pool with only inverted priority. Once Breakthrough++ is available — and given that Normal sessions already include due time-based words as a supplement — Repetition becomes redundant. The plan is to **remove `repetition` as a session type** (code, tests, rotation, README, PROJECT-PLAN) as part of the Breakthrough++ implementation task.

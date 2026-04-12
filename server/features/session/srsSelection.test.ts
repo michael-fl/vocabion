@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords, selectRecoveryWords } from './srsSelection.ts'
+import { isDue, selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectBreakthroughPlusWords, selectSecondChanceSessionWords, selectRecoveryWords } from './srsSelection.ts'
 import type { VocabEntry } from '../../../shared/types/VocabEntry.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1205,6 +1205,71 @@ describe('selectBreakthroughWords', () => {
     expect(ids.has(b6NotDue.id)).toBe(false)
   })
 
+})
+
+// ── selectBreakthroughPlusWords ───────────────────────────────────────────────
+
+describe('selectBreakthroughPlusWords', () => {
+  it('returns null when fewer than minWords due words exist in buckets 4+', () => {
+    const entries = makeEntries(5, { bucket: 4, lastAskedAt: null })
+
+    expect(selectBreakthroughPlusWords(entries, 24, 30, NOW)).toBeNull()
+  })
+
+  it('returns words when due count meets minWords', () => {
+    const entries = makeEntries(30, { bucket: 4, lastAskedAt: null })
+    const result = selectBreakthroughPlusWords(entries, 24, 30, NOW)
+
+    expect(result).not.toBeNull()
+    expect(result?.length).toBe(24)
+  })
+
+  it('excludes non-due time-based words', () => {
+    const due = makeEntries(30, { bucket: 4, lastAskedAt: null })
+    const notDue = makeEntry({ bucket: 4, lastAskedAt: NOW.toISOString() })
+    const result = selectBreakthroughPlusWords([...due, notDue], 24, 30, NOW)
+
+    expect(result).not.toBeNull()
+    expect(result?.some((e) => e.id === notDue.id)).toBe(false)
+  })
+
+  it('excludes words below bucket 4', () => {
+    const b4Due = makeEntries(30, { bucket: 4, lastAskedAt: null })
+    const b3 = makeEntry({ bucket: 3 })
+    const result = selectBreakthroughPlusWords([...b4Due, b3], 24, 30, NOW)
+
+    expect(result).not.toBeNull()
+    expect(result?.some((e) => e.id === b3.id)).toBe(false)
+  })
+
+  it('sorts by bucket descending, score descending as tiebreaker', () => {
+    const b7 = makeEntry({ bucket: 7, lastAskedAt: null, score: 1 })
+    const b6 = makeEntry({ bucket: 6, lastAskedAt: null, score: 5 })
+    const filler = makeEntries(28, { bucket: 4, lastAskedAt: null })
+    const result = selectBreakthroughPlusWords([...filler, b7, b6], 24, 30, NOW)
+
+    expect(result).not.toBeNull()
+
+    const ids = result?.map((e) => e.id) ?? []
+
+    expect(ids[0]).toBe(b7.id)
+    expect(ids[1]).toBe(b6.id)
+  })
+
+  it('returns at most sessionSize words', () => {
+    const entries = makeEntries(50, { bucket: 4, lastAskedAt: null })
+    const result = selectBreakthroughPlusWords(entries, 24, 30, NOW)
+
+    expect(result?.length).toBe(24)
+  })
+
+  it('returns all due words when fewer than sessionSize but at least minWords', () => {
+    const entries = makeEntries(30, { bucket: 5, lastAskedAt: null })
+    const result = selectBreakthroughPlusWords(entries, 24, 30, NOW)
+
+    expect(result).not.toBeNull()
+    expect(result?.length).toBe(24)
+  })
 })
 
 // ── selectSecondChanceSessionWords ────────────────────────────────────────────

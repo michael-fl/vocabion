@@ -10,6 +10,8 @@ import { SessionService, DISCOVERY_POOL_THRESHOLD, DISCOVERY_PUSHBACK_BUDGET, RE
 import { StressSessionService } from './stressSessionService.ts'
 import { VeteranSessionService, VETERAN_MIN_BUCKET6_WORDS } from './veteranSessionService.ts'
 import { BreakthroughSessionService } from './breakthroughSessionService.ts'
+import { BreakthroughPlusSessionService } from './breakthroughPlusSessionService.ts'
+import { BREAKTHROUGH_PLUS_MIN_WORDS, BREAKTHROUGH_PLUS_CHAPTER_SIZE } from './breakthroughPlusSessionService.ts'
 import { SecondChanceSessionService } from './secondChanceSessionService.ts'
 import { MIN_SESSION_SIZE, NORMAL_SESSION_MAX_SIZE } from './sessionConstants.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
@@ -77,9 +79,9 @@ beforeEach(() => {
   sessionRepo = new FakeSessionRepository()
   vocabRepo = new FakeVocabRepository()
   creditsRepo = new FakeCreditsRepository()
-  // Use identity shuffle so the sequence is always [stress, discovery, focus, focus_quiz, veteran, breakthrough, recovery, repetition, normal].
+  // Use identity shuffle so the sequence is always [stress, discovery, focus, focus_quiz, veteran, breakthrough, breakthrough_plus, recovery, repetition, normal].
   // This makes type-selection tests deterministic without relying on alternation state.
-  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo), (types) => [...types])
+  service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new BreakthroughPlusSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo), (types) => [...types])
 })
 
 // ── getOpenSession ────────────────────────────────────────────────────────────
@@ -2939,6 +2941,126 @@ describe('breakthrough session — answer scoring', () => {
   })
 })
 
+// ── breakthrough_plus session ─────────────────────────────────────────────────
+
+describe('breakthrough_plus session — createSession', () => {
+  function makeDueB4Entry(overrides: Partial<VocabEntry> = {}): VocabEntry {
+    return makeEntry({ bucket: 4, lastAskedAt: null, ...overrides })
+  }
+
+  it('creates a breakthrough_plus session when conditions are met', () => {
+    for (let i = 0; i < BREAKTHROUGH_PLUS_MIN_WORDS; i++) {
+      vocabRepo.insert(makeDueB4Entry())
+    }
+
+    creditsRepo.setStressSessionDueAt('9999-12-31')
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+    creditsRepo.setBreakthroughPlusSessionDueAt('2026-01-01')
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    expect(session.type).toBe('breakthrough_plus')
+    expect(session.words.length).toBeLessThanOrEqual(BREAKTHROUGH_PLUS_CHAPTER_SIZE)
+  })
+
+  it('does not create a breakthrough_plus session when due date is in the future', () => {
+    for (let i = 0; i < BREAKTHROUGH_PLUS_MIN_WORDS; i++) {
+      vocabRepo.insert(makeDueB4Entry())
+    }
+
+    creditsRepo.setBreakthroughPlusSessionDueAt('9999-12-31')
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    expect(session.type).not.toBe('breakthrough_plus')
+  })
+
+  it('does not create a breakthrough_plus session when due word count is below minimum', () => {
+    for (let i = 0; i < BREAKTHROUGH_PLUS_MIN_WORDS - 1; i++) {
+      vocabRepo.insert(makeDueB4Entry())
+    }
+
+    creditsRepo.setBreakthroughPlusSessionDueAt('2026-01-01')
+
+    // Also insert a plain word so normal session is possible
+    vocabRepo.insert(makeEntry({ bucket: 0 }))
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    expect(session.type).not.toBe('breakthrough_plus')
+  })
+
+  it('schedules the first breakthrough_plus session when qualifying words first reach minimum', () => {
+    for (let i = 0; i < BREAKTHROUGH_PLUS_MIN_WORDS; i++) {
+      vocabRepo.insert(makeDueB4Entry())
+    }
+
+    expect(creditsRepo.getBreakthroughPlusSessionDueAt()).toBeNull()
+
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    expect(creditsRepo.getBreakthroughPlusSessionDueAt()).not.toBeNull()
+  })
+
+  it('does not overwrite an already-scheduled breakthrough_plus due date on createSession', () => {
+    for (let i = 0; i < BREAKTHROUGH_PLUS_MIN_WORDS; i++) {
+      vocabRepo.insert(makeDueB4Entry())
+    }
+
+    creditsRepo.setBreakthroughPlusSessionDueAt('9999-12-31')
+
+    service.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    expect(creditsRepo.getBreakthroughPlusSessionDueAt()).toBe('9999-12-31')
+  })
+
+  it('selects words sorted highest bucket first', () => {
+    for (let i = 0; i < BREAKTHROUGH_PLUS_MIN_WORDS; i++) {
+      vocabRepo.insert(makeDueB4Entry({ bucket: 4 }))
+    }
+
+    const highBucket = makeDueB4Entry({ bucket: 8 })
+
+    vocabRepo.insert(highBucket)
+    creditsRepo.setStressSessionDueAt('9999-12-31')
+    creditsRepo.setBreakthroughSessionDueAt('9999-12-31')
+    creditsRepo.setBreakthroughPlusSessionDueAt('2026-01-01')
+
+    const session = service.createSession({ direction: 'SOURCE_TO_TARGET', size: MIN_SESSION_SIZE })
+
+    expect(session.type).toBe('breakthrough_plus')
+    expect(session.words[0].vocabId).toBe(highBucket.id)
+  })
+})
+
+describe('breakthrough_plus session — answer scoring', () => {
+  function makeBreakthroughPlusSession(words: VocabEntry[]): Session {
+    return makeSession({
+      type: 'breakthrough_plus',
+      words: words.map((e) => ({ vocabId: e.id, status: 'pending' as const })),
+    })
+  }
+
+  it('schedules next breakthrough_plus session (tomorrow) after completion', () => {
+    const entry = makeEntry({ bucket: 4, source: 'Hund', target: ['dog'] })
+
+    vocabRepo.insert(entry)
+    creditsRepo.setBreakthroughPlusSessionDueAt('2026-01-01')
+
+    const sess = makeBreakthroughPlusSession([entry])
+
+    sessionRepo.insert(sess)
+    service.submitAnswer(sess.id, entry.id, ['dog'])
+
+    const newDueAt = creditsRepo.getBreakthroughPlusSessionDueAt()
+    const today = new Date().toISOString().slice(0, 10)
+
+    expect(newDueAt).not.toBeNull()
+    // Tomorrow or later (> today)
+    expect(newDueAt !== null && newDueAt > today).toBe(true)
+  })
+})
+
 // ── createReplaySession ───────────────────────────────────────────────────────
 
 describe('createReplaySession', () => {
@@ -3323,6 +3445,7 @@ describe('createSession — focus quiz session', () => {
       new StressSessionService(creditsRepo),
       new VeteranSessionService(creditsRepo),
       new BreakthroughSessionService(creditsRepo),
+      new BreakthroughPlusSessionService(creditsRepo),
       new SecondChanceSessionService(creditsRepo),
       (types) => ['focus_quiz' as const, ...types.filter((t) => t !== 'focus_quiz')],
     )
@@ -3445,6 +3568,7 @@ describe('rotation state', () => {
       new StressSessionService(creditsRepo),
       new VeteranSessionService(creditsRepo),
       new BreakthroughSessionService(creditsRepo),
+      new BreakthroughPlusSessionService(creditsRepo),
       new SecondChanceSessionService(creditsRepo),
       () => {
         shuffleCount++
@@ -3452,9 +3576,9 @@ describe('rotation state', () => {
         // Second shuffle starts with 'stress' — accepted (even though stress won't be
         // eligible; the loop will advance to 'normal' which always qualifies).
         if (shuffleCount === 1) {
-          return ['normal', 'stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'recovery', 'repetition']
+          return ['normal', 'stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'repetition']
         }
-        return ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'recovery', 'repetition', 'normal']
+        return ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'repetition', 'normal']
       },
     )
 

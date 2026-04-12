@@ -19,6 +19,7 @@ import { SessionService } from './features/session/sessionService.ts'
 import { StressSessionService } from './features/session/stressSessionService.ts'
 import { VeteranSessionService } from './features/session/veteranSessionService.ts'
 import { BreakthroughSessionService } from './features/session/breakthroughSessionService.ts'
+import { BreakthroughPlusSessionService } from './features/session/breakthroughPlusSessionService.ts'
 import { SecondChanceSessionService } from './features/session/secondChanceSessionService.ts'
 import { StreakService } from './features/streak/StreakService.ts'
 import { StarsService } from './features/stars/StarsService.ts'
@@ -39,8 +40,9 @@ const vocabService = new VocabService(vocabRepo, sessionRepo, creditsRepo)
 const stressSessionService = new StressSessionService(creditsRepo)
 const veteranSessionService = new VeteranSessionService(creditsRepo)
 const breakthroughSessionService = new BreakthroughSessionService(creditsRepo)
+const breakthroughPlusSessionService = new BreakthroughPlusSessionService(creditsRepo)
 const secondChanceSessionService = new SecondChanceSessionService(creditsRepo)
-const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo, stressSessionService, veteranSessionService, breakthroughSessionService, secondChanceSessionService)
+const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo, stressSessionService, veteranSessionService, breakthroughSessionService, breakthroughPlusSessionService, secondChanceSessionService)
 const streakService = new StreakService(creditsRepo)
 const starsService = new StarsService(creditsRepo)
 

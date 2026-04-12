@@ -187,6 +187,18 @@ export interface CreditsRepository {
   setBreakthroughSessionDueAt(date: string | null): void
 
   /**
+   * Returns the date (YYYY-MM-DD) when the next Breakthrough++ session becomes available,
+   * or `null` if no Breakthrough++ session has been scheduled yet.
+   */
+  getBreakthroughPlusSessionDueAt(): string | null
+
+  /**
+   * Sets the date (YYYY-MM-DD) when the next Breakthrough++ session becomes available.
+   * Pass `null` to clear the scheduled date.
+   */
+  setBreakthroughPlusSessionDueAt(date: string | null): void
+
+  /**
    * Returns the date (YYYY-MM-DD) on which the last second chance session was completed,
    * or `null` if no second chance session has ever been completed.
    */

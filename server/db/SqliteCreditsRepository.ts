@@ -233,6 +233,20 @@ export class SqliteCreditsRepository implements CreditsRepository {
       .run(date)
   }
 
+  getBreakthroughPlusSessionDueAt(): string | null {
+    const row = this.db
+      .prepare('SELECT breakthrough_plus_session_due_at FROM credits WHERE id = 1')
+      .get() as { breakthrough_plus_session_due_at: string | null } | undefined
+
+    return row?.breakthrough_plus_session_due_at ?? null
+  }
+
+  setBreakthroughPlusSessionDueAt(date: string | null): void {
+    this.db
+      .prepare('UPDATE credits SET breakthrough_plus_session_due_at = ? WHERE id = 1')
+      .run(date)
+  }
+
   getLastSecondChanceSessionDate(): string | null {
     const row = this.db
       .prepare('SELECT last_second_chance_session_date FROM credits WHERE id = 1')

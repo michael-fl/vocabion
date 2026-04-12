@@ -19,7 +19,7 @@ import type { CreditsRepository } from '../credits/CreditsRepository.ts'
 import { ApiError } from '../../errors/ApiError.ts'
 import { checkAnswerDetailed } from './answerValidation.ts'
 import type { TypoMatch } from './answerValidation.ts'
-import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectSecondChanceSessionWords, selectRecoveryWords, isDue } from './srsSelection.ts'
+import { selectSessionWords, selectRepetitionWords, selectFocusWords, selectDiscoveryWords, selectStarredWords, selectStressWords, selectVeteranWords, selectBreakthroughWords, selectBreakthroughPlusWords, selectSecondChanceSessionWords, selectRecoveryWords, isDue } from './srsSelection.ts'
 import { computeScore } from './srsScore.ts'
 import { subtractDays } from '../streak/StreakService.ts'
 import { checkMilestoneReached, diffDays } from '../../../shared/utils/streakMilestones.ts'
@@ -29,6 +29,8 @@ import type { VeteranSessionService } from './veteranSessionService.ts'
 import { VETERAN_MIN_BUCKET6_WORDS, VETERAN_MIN_WORDS } from './veteranSessionService.ts'
 import type { BreakthroughSessionService } from './breakthroughSessionService.ts'
 import { BREAKTHROUGH_MIN_WORDS, BREAKTHROUGH_SESSION_SIZE } from './breakthroughSessionService.ts'
+import type { BreakthroughPlusSessionService } from './breakthroughPlusSessionService.ts'
+import { BREAKTHROUGH_PLUS_MIN_WORDS, BREAKTHROUGH_PLUS_CHAPTER_SIZE } from './breakthroughPlusSessionService.ts'
 import type { SecondChanceSessionService } from './secondChanceSessionService.ts'
 import { SECOND_CHANCE_SESSION_SIZE } from './secondChanceSessionService.ts'
 import { computeDifficulty } from '../../../shared/utils/difficulty.ts'
@@ -162,7 +164,7 @@ export const RECOVERY_SESSION_SIZE = 12
 export const RECOVERY_MIN_WORDS = 5
 
 /** The automatic session types that participate in the shuffle rotation. */
-const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'recovery', 'repetition', 'normal']
+const SHUFFLED_TYPES: SessionType[] = ['stress', 'discovery', 'focus', 'focus_quiz', 'veteran', 'breakthrough', 'breakthrough_plus', 'recovery', 'repetition', 'normal']
 
 /** Fisher-Yates shuffle. Returns a new array. */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -184,6 +186,7 @@ export class SessionService {
     private readonly stressService: StressSessionService,
     private readonly veteranService: VeteranSessionService,
     private readonly breakthroughService: BreakthroughSessionService,
+    private readonly breakthroughPlusService: BreakthroughPlusSessionService,
     private readonly secondChanceService: SecondChanceSessionService,
     /** Override the shuffle function — used in tests to get a deterministic sequence. */
     private readonly shuffleFn: (types: SessionType[]) => SessionType[] = shuffleArray,
@@ -276,6 +279,10 @@ export class SessionService {
 
     if (selectBreakthroughWords(regularEntries, BREAKTHROUGH_SESSION_SIZE, BREAKTHROUGH_MIN_WORDS, now) !== null) {
       this.breakthroughService.scheduleFirst(today)
+    }
+
+    if (selectBreakthroughPlusWords(regularEntries, BREAKTHROUGH_PLUS_CHAPTER_SIZE, BREAKTHROUGH_PLUS_MIN_WORDS, now) !== null) {
+      this.breakthroughPlusService.scheduleFirst(today)
     }
 
     // Advance through the shuffled sequence until a qualifying type is found.
@@ -525,6 +532,10 @@ export class SessionService {
         return this.breakthroughService.isAvailable(today)
           ? selectBreakthroughWords(allEntries, BREAKTHROUGH_SESSION_SIZE, BREAKTHROUGH_MIN_WORDS, now)
           : null
+      case 'breakthrough_plus':
+        return this.breakthroughPlusService.isAvailable(today)
+          ? selectBreakthroughPlusWords(allEntries, BREAKTHROUGH_PLUS_CHAPTER_SIZE, BREAKTHROUGH_PLUS_MIN_WORDS, now)
+          : null
       case 'recovery':
         return selectRecoveryWords(allEntries, RECOVERY_SESSION_SIZE, RECOVERY_MIN_WORDS)
       case 'repetition': {
@@ -664,6 +675,10 @@ export class SessionService {
 
       if (updatedSession.type === 'breakthrough') {
         this.breakthroughService.scheduleNext(now.slice(0, 10))
+      }
+
+      if (updatedSession.type === 'breakthrough_plus') {
+        this.breakthroughPlusService.scheduleNext(now.slice(0, 10))
       }
 
       if (updatedSession.type === 'second_chance_session') {

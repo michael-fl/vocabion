@@ -16,6 +16,7 @@ import { SessionService } from './sessionService.ts'
 import { StressSessionService } from './stressSessionService.ts'
 import { VeteranSessionService } from './veteranSessionService.ts'
 import { BreakthroughSessionService } from './breakthroughSessionService.ts'
+import { BreakthroughPlusSessionService } from './breakthroughPlusSessionService.ts'
 import { SecondChanceSessionService } from './secondChanceSessionService.ts'
 import { FakeSessionRepository } from '../../test-utils/FakeSessionRepository.ts'
 import { FakeVocabRepository } from '../../test-utils/FakeVocabRepository.ts'
@@ -31,7 +32,7 @@ function makeTestApp() {
   const sessionRepo = new FakeSessionRepository()
   const vocabRepo = new FakeVocabRepository()
   const creditsRepo = new FakeCreditsRepository()
-  const service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo))
+  const service = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new BreakthroughPlusSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo))
   const app = express()
 
   app.use(express.json())

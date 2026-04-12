@@ -437,6 +437,38 @@ export function selectBreakthroughWords(
 }
 
 /**
+ * Selects vocabulary words for a Breakthrough++ session.
+ *
+ * Targets all overdue time-based words in buckets 4+, sorted by bucket
+ * descending (highest-level words first) with score descending as tiebreaker.
+ * The session contains up to `sessionSize` words from that pool.
+ *
+ * Returns `null` when fewer than `minWords` due words exist in buckets 4+.
+ *
+ * @param all - All vocabulary entries in the database.
+ * @param sessionSize - Maximum number of words to include (one chapter size).
+ * @param minWords - Minimum due word count required (e.g. 30).
+ * @param now - Current timestamp used for due-date checks.
+ * @returns Up to `sessionSize` due words sorted bucket desc, or `null`.
+ */
+export function selectBreakthroughPlusWords(
+  all: VocabEntry[],
+  sessionSize: number,
+  minWords: number,
+  now: Date,
+): VocabEntry[] | null {
+  const due = all.filter((e) => e.bucket >= 4 && isDue(e, now))
+
+  if (due.length < minWords) {
+    return null
+  }
+
+  due.sort((a, b) => b.bucket - a.bucket || b.score - a.score)
+
+  return due.slice(0, sessionSize)
+}
+
+/**
  * Selects vocabulary words for a recovery session.
  *
  * A recovery session targets words that were once genuinely mastered
