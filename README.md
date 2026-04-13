@@ -126,10 +126,10 @@ The app picks the session type automatically each time you start a new session. 
 
 A **Stress Session** is a high-stakes timed challenge that fires automatically at most once per week when all of the following conditions are met:
 
-- At least **10 words** exist in buckets 2 and above
+- At least **12 words** exist in buckets 2 and above
 - The stress session is **due** (at least 6 days have passed since the last one)
 
-No credit balance requirement — a stress session can fire even with 0 credits. When qualifying words first reach 10 and no session has ever been scheduled, the first one is scheduled to trigger within the next **48 hours**.
+No credit balance requirement — a stress session can fire even with 0 credits. When qualifying words first reach 12 and no session has ever been scheduled, the first one is scheduled to trigger within the next **48 hours**.
 
 **Session rules:**
 - Up to **24 words** are selected across three difficulty tiers (each tier is randomly shuffled internally). Only words in **buckets 2+** are eligible — bucket 0 and 1 words are excluded as the user may not know them yet:
@@ -153,7 +153,7 @@ The timer and your current credit balance are displayed prominently during the s
 | Partially correct | −½ × fee | stays in current bucket |
 | Wrong or timed out | −1 × fee | reset to bucket 1 |
 
-The **per-answer fee** is `floor(500 ÷ session size)`, rounded down to the nearest even number. For the maximum session size of 24 words this is **20 credits per wrong answer** (10 for partial).
+The **per-answer fee** is `floor(min(1000, balance) ÷ session size)`, rounded down to the nearest even number. The balance is capped at 1000 so the fee scales with how much you have, up to that limit. For a balance of 500 and maximum session size of 24 this is **20 credits per wrong answer** (10 for partial); at a balance of 1000 it is **40 credits** (20 for partial).
 
 *Standard mode (balance < 500 at session start):*
 
@@ -474,11 +474,11 @@ Each word only earns the credit for a given bucket level once — falling back a
 | Hint during a session | 10–(n−2)×10 credits depending on bucket |
 | Wrong answer (free in discovery sessions and for virgin words — see below) | 1 credit |
 | Partially correct answer (non-stress session) | free |
-| Wrong answer in a stress session (balance ≥ 500 at start) | floor(500 ÷ session size) credits, rounded to nearest even number |
+| Wrong answer in a stress session (balance ≥ 500 at start) | floor(min(1000, balance) ÷ session size) credits, rounded to nearest even number |
 | Partially correct answer in a stress session (balance ≥ 500 at start) | Half of the per-answer fee |
 | Wrong answer in a stress session (balance < 500 at start) | 1 credit |
 | Partially correct answer in a stress session (balance < 500 at start) | free |
-| Save a streak (see Streaks) | 50 credits |
+| Save a streak (see Streaks) | 200 credits |
 
 **Virgin words are free:** a word is considered a *virgin word* when its current bucket is ≤ 1 **and** it has never reached a higher bucket (`maxBucket ≤ 1`). Wrong answers on virgin words never deduct a credit — this protects newly introduced words that haven't yet proven themselves. Once a word has ever climbed to bucket 2 or above, it is no longer virgin and wrong answers cost the usual 1 credit, even if it has since fallen back.
 
@@ -525,7 +525,7 @@ During a session you can reveal a hint for the current word. The hint shows the 
 
 A **streak** counts how many consecutive calendar days you have completed at least one session.
 
-- The streak increments when you complete a session on a day you haven't practiced yet.
+- The streak increments based on the day you gave your **first answer** in the session. A session started just before midnight and finished just after still counts for the earlier day. Exception: if a session is left open for more than one calendar day, the completion date is used instead (to prevent cheating).
 - Missing a day **breaks** the streak (resets to 1 on your next session).
 - The streak counter is shown on the Home screen.
 
@@ -533,7 +533,7 @@ A **streak** counts how many consecutive calendar days you have completed at lea
 
 **Evening warning:** if your last session was yesterday and it is now 20:00 or later, the Home screen shows a warning reminding you to practice before the day ends.
 
-**Save-streak:** if you missed exactly one day, you can spend **50 credits** to bridge the gap and keep your streak alive. This is only available when the streak is saveable (the missed day is exactly yesterday − 1).
+**Save-streak:** if you missed exactly one day, you can spend **200 credits** to bridge the gap and keep your streak alive. This is only available when the streak is saveable (the missed day is exactly yesterday − 1) and your balance is at least 200.
 
 ---
 
@@ -553,6 +553,29 @@ Reaching certain streak lengths triggers a **milestone reward** — a larger cre
 Monthly milestones follow a calendar rule: if you started your streak on day 1–7 of a month, that partial month counts as month 1 (reward paid on the last day of that month). If you started on day 8 or later, month 1 is the next full calendar month.
 
 When a milestone is reached, the session summary shows a celebration line instead of the regular streak bonus line (e.g. _"Streak milestone: 2 Weeks! +20 credits"_). The Home screen also shows your next upcoming milestone and how many days away it is.
+
+---
+
+### Pausing the Game
+
+If you know you won't be able to practice for a few days — holiday, illness, travel — you can **pause** the game to protect your streak without spending credits.
+
+**How it works:**
+
+- Activating pause sets the start of the pause retroactively to the day after your last completed session. This means any days you have already missed since your last session are covered automatically, not just future days.
+- While paused, the game is suspended: no streak loss accrues, no save-streak option is shown, and sessions can still be played but do not advance the streak.
+- When you **resume**, the streak is advanced by the full number of days the pause covered, and any streak milestones (weekly or monthly bonuses) whose date fell within the pause window are awarded immediately.
+
+**Annual budget:** you have **14 pause days per calendar year**. The budget resets on 1 January. If activating a pause would require covering more retroactive days than your remaining budget allows, activation is rejected.
+
+**Special case — you missed exactly one day and then pause:**
+
+If your last session was the day before yesterday (the same situation where streak-save would be available), activating pause is an alternative to paying 200 credits:
+
+- **Pause:** consumes 1 day of your 14-day annual budget, no credit cost.
+- **Streak-save:** costs 200 credits, does not consume pause budget.
+
+Both options preserve the streak. Which to choose depends on whether you prefer to spend credits or save your pause budget.
 
 ---
 

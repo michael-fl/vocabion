@@ -477,7 +477,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 4. **Second-chance words:** a wrong answer on a time-based word inserts a second-chance word, identical to normal sessions. The countdown timer resets for each new question including second-chance questions.
 5. **Time limit per question:** 15 seconds when only one answer field is shown; 25 seconds when two fields are shown. The timer resets on each new word. When it expires, whatever is typed is auto-submitted (empty fields count as wrong).
 6. **Scoring — two modes, determined once at session start by the current balance:**
-   - *High-stakes mode (balance ≥ 500):* `fee = floor(500 / sessionSize)` rounded down to the nearest even number (max session size 24 → fee = 20). Wrong/timed out: deduct `fee` credits, reset to bucket 1. Partially correct: deduct `fee / 2`, stay in current bucket.
+   - *High-stakes mode (balance ≥ 500):* `fee = floor(min(1000, balance) / sessionSize)` rounded down to the nearest even number (balance 500 + max session size 24 → fee = 20; balance 1000 → fee = 40). Wrong/timed out: deduct `fee` credits, reset to bucket 1. Partially correct: deduct `fee / 2`, stay in current bucket.
    - *Standard mode (balance < 500):* Wrong/timed out: deduct 1 credit, reset to bucket 1. Partially correct: free, stay in current bucket.
    - Fully correct (both modes): no credit cost; word promoted one bucket if due.
 7. **Credit earning:** +5 credits when a word is promoted into a new personal highest bucket (`bucket > maxBucket`), same as any other session. **+100 credit bonus** for a perfect session (every answer fully correct, no partials, no timeouts, no second-chance words triggered).
@@ -1371,8 +1371,8 @@ counting). "Yesterday" means the calendar day before today, not "within the last
   Starting a brand-new streak (day 1) or resuming after a gap does not award a credit.
 - **Streak count display**: always shown on the Home screen.
 - **At-risk state** (last session date = the day before yesterday): Home screen shows a warning
-  "Your streak is at risk! Save it for 50 credits" with a Save button.
-  - Clicking deducts 50 credits and immediately starts a new session.
+  "Your streak is at risk! Save it for 200 credits" with a Save button (only shown when balance ≥ 200).
+  - Clicking deducts 200 credits and immediately starts a new session.
   - The streak is prolonged (i.e. `last_session_date` is set to yesterday) when the user
     answers the **first question** of that saving session.
 - **Lost state** (last session date is older than the day before yesterday): streak resets
@@ -1401,7 +1401,7 @@ Migration `010_streaks.sql` adds three columns to the `credits` table:
 - **`StreakService`**:
   - `getStreak(today: string)` — returns `{ streakCount, atRisk, lost }` computed from
     `last_session_date` relative to `today`.
-  - `saveStreak()` — validates balance ≥ 50, deducts 50 credits, sets `streak_save_pending = 1`.
+  - `saveStreak()` — validates balance ≥ 200, deducts 200 credits, sets `streak_save_pending = 1`.
 - **`streakRouter`**:
   - `GET  /api/v1/streak` — returns current streak info.
   - `POST /api/v1/streak/save` — triggers streak save (calls `StreakService.saveStreak()`).
@@ -1415,7 +1415,7 @@ Migration `010_streaks.sql` adds three columns to the `credits` table:
 - **`src/api/streakApi.ts`** — `getStreak()` and `saveStreak()` typed fetch wrappers.
 - **`HomeScreen`**:
   - Always displays streak count (e.g. "Streak: 7 days").
-  - When `atRisk` is true: shows warning banner and "Save streak (50 credits)" button.
+  - When `atRisk` is true: shows warning banner and "Save streak (200 credits)" button (only when balance ≥ 200).
   - When `lost` is true: shows "Streak lost" message (no save option).
 - **`SummaryScreen`**: when `streakCredit > 0`, shows "+1 streak credit" line.
 - **`TrainingScreen`**: passes `streakCredit` through `onComplete` callback.
@@ -1524,7 +1524,7 @@ Fee mode is determined **once at session start** based on the balance at that mo
 | Partially correct | −½ × fee | stays in current bucket |
 | Wrong or timed out | −1 × fee | reset to bucket 1 |
 
-**Per-answer fee:** `floor(500 ÷ sessionSize)` rounded down to the nearest even number. For the maximum session size of 24: fee = 20 credits (10 for partial).
+**Per-answer fee:** `floor(min(1000, balance) ÷ sessionSize)` rounded down to the nearest even number. Balance is capped at 1000. Examples at max session size (24): balance 500 → 20 credits (10 for partial), balance 1000 → 40 credits (20 for partial).
 
 *Standard mode (balance < 500 at session start):*
 

@@ -3,7 +3,7 @@
  *
  * Endpoints:
  * - `GET  /`       — returns the current streak count and whether the streak can be saved.
- * - `POST /save`   — deducts 50 credits and enables a streak-save bridging session.
+ * - `POST /save`   — deducts 200 credits and enables a streak-save bridging session.
  * - `POST /pause`  — activates pause mode (retroactive from day after last session).
  * - `POST /resume` — deactivates pause mode and awards any milestones crossed during the pause.
  *
@@ -15,6 +15,8 @@
 import { Router } from 'express'
 
 import type { StreakService } from './StreakService.ts'
+import type { SessionService } from '../session/sessionService.ts'
+import { ApiError } from '../../errors/ApiError.ts'
 
 function getTodayUtc(): string {
   return new Date().toISOString().slice(0, 10)
@@ -22,9 +24,10 @@ function getTodayUtc(): string {
 
 /**
  * Creates and returns the streak router.
- * @param streakService - Fully constructed service instance.
+ * @param streakService - Fully constructed streak service instance.
+ * @param sessionService - Used to detect open sessions before allowing a pause.
  */
-export function createStreakRouter(streakService: StreakService): Router {
+export function createStreakRouter(streakService: StreakService, sessionService: SessionService): Router {
   const router = Router()
 
   /** Returns the current streak count and save availability. */
@@ -36,7 +39,7 @@ export function createStreakRouter(streakService: StreakService): Router {
   })
 
   /**
-   * Deducts 50 credits and sets the streak-save-pending flag.
+   * Deducts 200 credits and sets the streak-save-pending flag.
    * The frontend must subsequently create a session; the streak is bridged
    * when the user answers the first question.
    */
@@ -50,8 +53,15 @@ export function createStreakRouter(streakService: StreakService): Router {
   /**
    * Activates pause mode. The pause starts retroactively from the day after
    * the last session. Returns the updated PauseInfo.
+   *
+   * Returns 409 when a training session is currently in progress, because
+   * pausing mid-session would leave the session in an unplayable state.
    */
   router.post('/pause', (_req, res) => {
+    if (sessionService.getOpenSession() !== undefined) {
+      throw new ApiError(409, 'Cannot pause while a training session is in progress')
+    }
+
     const today = getTodayUtc()
     const pauseInfo = streakService.activatePause(today)
 

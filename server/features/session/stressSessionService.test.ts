@@ -14,19 +14,32 @@ import { FakeCreditsRepository } from '../../test-utils/FakeCreditsRepository.ts
 const TODAY = '2026-03-22'
 
 describe('calcStressFee', () => {
-  it('returns 20 for maximum session size of 24', () => {
-    expect(calcStressFee(24)).toBe(20)
+  it('uses actual balance when balance is below 1000', () => {
+    // floor(500 / 24) = 20 — already even
+    expect(calcStressFee(24, 500)).toBe(20)
   })
 
-  it('rounds down to even when fee is odd', () => {
-    // floor(500 / 10) = 50 — already even
-    expect(calcStressFee(10)).toBe(50)
-    // floor(500 / 7) = 71 → floor(71/2)*2 = 70
-    expect(calcStressFee(7)).toBe(70)
-    // floor(500 / 3) = 166 → already even
-    expect(calcStressFee(3)).toBe(166)
-    // floor(500 / 9) = 55 → floor(55/2)*2 = 54
-    expect(calcStressFee(9)).toBe(54)
+  it('caps balance at 1000', () => {
+    // floor(min(1000, 2000) / 24) = floor(1000/24) = 41 → 40
+    expect(calcStressFee(24, 2000)).toBe(40)
+    // Same result for any balance > 1000
+    expect(calcStressFee(24, 5000)).toBe(40)
+  })
+
+  it('uses exactly 1000 when balance equals 1000', () => {
+    // floor(1000 / 24) = 41 → 40
+    expect(calcStressFee(24, 1000)).toBe(40)
+  })
+
+  it('rounds down to even', () => {
+    // floor(500 / 7) = 71 → 70
+    expect(calcStressFee(7, 500)).toBe(70)
+    // floor(500 / 9) = 55 → 54
+    expect(calcStressFee(9, 500)).toBe(54)
+    // floor(1000 / 7) = 142 — already even
+    expect(calcStressFee(7, 1000)).toBe(142)
+    // floor(1000 / 9) = 111 → 110
+    expect(calcStressFee(9, 1000)).toBe(110)
   })
 })
 

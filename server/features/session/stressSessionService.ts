@@ -8,7 +8,7 @@
  * No credit balance is required to trigger a stress session. The fee mode
  * (high-stakes vs. standard) is determined once at session creation based on
  * the balance at that moment:
- * - balance >= STRESS_HIGH_STAKES_THRESHOLD (500): fee = floor(500 / sessionSize)
+ * - balance >= STRESS_HIGH_STAKES_THRESHOLD (500): fee = floor(min(1000, balance) / sessionSize)
  * - balance < STRESS_HIGH_STAKES_THRESHOLD: fee = 1 credit per wrong answer
  *
  * The first time qualifying words reach STRESS_MIN_WORDS and no session has
@@ -45,9 +45,16 @@ export const STRESS_RANDOM_HOURS = 48
  */
 export const STRESS_HIGH_STAKES_THRESHOLD = 500
 
-/** Calculates the per-answer credit fee for high-stakes mode: floor(500 / sessionSize) rounded down to nearest even. */
-export function calcStressFee(sessionSize: number): number {
-  const raw = Math.floor(STRESS_HIGH_STAKES_THRESHOLD / sessionSize)
+/**
+ * Calculates the per-answer credit fee for high-stakes mode.
+ *
+ * Formula: `floor(min(1000, balance) / sessionSize)`, rounded down to the nearest even number.
+ *
+ * @param sessionSize - Number of words in the session.
+ * @param balance - Credit balance at session start.
+ */
+export function calcStressFee(sessionSize: number, balance: number): number {
+  const raw = Math.floor(Math.min(1000, balance) / sessionSize)
 
   return Math.floor(raw / 2) * 2
 }

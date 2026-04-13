@@ -604,7 +604,7 @@ export class SessionService {
     // High-stakes stress sessions use fee-based credit deductions.
     // Standard-mode stress sessions use the normal −1 credit per wrong answer.
     const isStressHighStakes = session.type === 'stress' && session.stressHighStakes === true
-    const stressFee = isStressHighStakes ? calcStressFee(session.words.length) : undefined
+    const stressFee = isStressHighStakes ? calcStressFee(session.words.length, this.creditsRepo.getBalance()) : undefined
 
     if (session.type === 'second_chance_session') {
       const result = this.handleSecondChanceSessionWord(word, entry, updatedWords, wordIndex, now, correct, isPartial)

@@ -19,6 +19,7 @@ import { BreakthroughSessionService } from '../session/breakthroughSessionServic
 import { SecondChanceSessionService } from '../session/secondChanceSessionService.ts'
 import { StreakService } from './StreakService.ts'
 import type { StreakInfo } from './StreakService.ts'
+import type { Session } from '../../../shared/types/Session.ts'
 
 function makeApp() {
   const vocabRepo = new FakeVocabRepository()
@@ -28,7 +29,7 @@ function makeApp() {
   const sessionService = new SessionService(sessionRepo, vocabRepo, creditsRepo, new StressSessionService(creditsRepo), new VeteranSessionService(creditsRepo), new BreakthroughSessionService(creditsRepo), new SecondChanceSessionService(creditsRepo))
   const streakService = new StreakService(creditsRepo)
 
-  return { app: createApp({ vocab: vocabService, session: sessionService, streak: streakService }), creditsRepo }
+  return { app: createApp({ vocab: vocabService, session: sessionService, streak: streakService }), creditsRepo, sessionRepo }
 }
 
 // ── GET /api/v1/streak ────────────────────────────────────────────────────────
@@ -78,20 +79,20 @@ describe('POST /api/v1/streak/save', () => {
 
     twoDaysAgo.setUTCDate(twoDaysAgo.getUTCDate() - 2)
     creditsRepo.updateStreak(5, twoDaysAgo.toISOString().slice(0, 10))
-    creditsRepo.addBalance(100)
+    creditsRepo.addBalance(300)
   })
 
   it('returns 200 and the new balance', async () => {
     const res = await request(app).post('/api/v1/streak/save')
 
     expect(res.status).toBe(200)
-    expect(res.body).toMatchObject({ balance: 50 })
+    expect(res.body).toMatchObject({ balance: 100 })
   })
 
-  it('deducts 50 credits', async () => {
+  it('deducts 200 credits', async () => {
     await request(app).post('/api/v1/streak/save')
 
-    expect(creditsRepo.getBalance()).toBe(50)
+    expect(creditsRepo.getBalance()).toBe(100)
   })
 
   it('sets streak_save_pending', async () => {
@@ -108,8 +109,8 @@ describe('POST /api/v1/streak/save', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 402 when balance is below 50', async () => {
-    creditsRepo.addBalance(-60)  // now 40
+  it('returns 402 when balance is below 200', async () => {
+    creditsRepo.addBalance(-200)  // now 100
 
     const res = await request(app).post('/api/v1/streak/save')
 
@@ -146,6 +147,26 @@ describe('POST /api/v1/streak/pause', () => {
 
     creditsRepo.updateStreak(5, '2020-01-01')  // many days ago
     creditsRepo.setPauseInactive(13, 2026)     // only 1 day remaining
+
+    const res = await request(app).post('/api/v1/streak/pause')
+
+    expect(res.status).toBe(409)
+  })
+
+  it('returns 409 when a training session is currently open', async () => {
+    const { app, sessionRepo } = makeApp()
+
+    const openSession: Session = {
+      id: 'test-session',
+      type: 'normal',
+      direction: 'SOURCE_TO_TARGET',
+      status: 'open',
+      words: [],
+      stressHighStakes: false,
+      firstAnsweredAt: null,
+    }
+
+    sessionRepo.insert(openSession)
 
     const res = await request(app).post('/api/v1/streak/pause')
 

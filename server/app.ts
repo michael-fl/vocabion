@@ -51,7 +51,7 @@ export function createApp(services: AppServices): Express {
 
   app.use('/api/v1/vocab', createVocabRouter(services.vocab))
   app.use('/api/v1/session', createSessionRouter(services.session))
-  app.use('/api/v1/streak', createStreakRouter(services.streak))
+  app.use('/api/v1/streak', createStreakRouter(services.streak, services.session))
   app.use('/api/v1/stars', createStarsRouter(services.stars))
 
   app.use(errorHandler)

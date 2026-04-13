@@ -157,22 +157,22 @@ describe('saveStreak', () => {
     expect(() => service.saveStreak('2026-03-16')).toThrow()
   })
 
-  it('throws ApiError 402 when balance is below 50', () => {
-    creditsRepo.addBalance(49)
+  it('throws ApiError 402 when balance is below 200', () => {
+    creditsRepo.addBalance(199)
 
     expect(() => service.saveStreak('2026-03-16')).toThrow()
   })
 
-  it('deducts 50 credits', () => {
-    creditsRepo.addBalance(100)
+  it('deducts 200 credits', () => {
+    creditsRepo.addBalance(300)
 
     service.saveStreak('2026-03-16')
 
-    expect(creditsRepo.getBalance()).toBe(50)
+    expect(creditsRepo.getBalance()).toBe(100)
   })
 
   it('sets streak save pending', () => {
-    creditsRepo.addBalance(50)
+    creditsRepo.addBalance(200)
 
     service.saveStreak('2026-03-16')
 
@@ -180,11 +180,11 @@ describe('saveStreak', () => {
   })
 
   it('returns the new balance', () => {
-    creditsRepo.addBalance(100)
+    creditsRepo.addBalance(300)
 
     const balance = service.saveStreak('2026-03-16')
 
-    expect(balance).toBe(50)
+    expect(balance).toBe(100)
   })
 
   it('throws 400 when the game is paused', () => {

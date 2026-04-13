@@ -29,6 +29,9 @@ import type { NextMilestone } from '../../../shared/utils/streakMilestones.ts'
 /** Maximum pause days available per calendar year. */
 export const PAUSE_BUDGET_DAYS = 14
 
+/** Credit cost to save a streak (bridge a missed day). */
+export const STREAK_SAVE_COST = 200
+
 /**
  * Returns `date` shifted backwards by `days` calendar days (UTC).
  * e.g. subtractDays('2026-03-16', 1) → '2026-03-15'
@@ -77,7 +80,7 @@ export interface StreakInfo {
   count: number
   /**
    * True if the streak is saveable: the last session was on the day before
-   * yesterday (calendar-day comparison, UTC). The user can pay 50 credits to
+   * yesterday (calendar-day comparison, UTC). The user can pay 200 credits to
    * bridge the gap. Always false when the game is paused.
    */
   saveAvailable: boolean
@@ -154,12 +157,12 @@ export class StreakService {
   }
 
   /**
-   * Deducts 50 credits and marks the streak as pending a bridge answer.
+   * Deducts {@link STREAK_SAVE_COST} credits and marks the streak as pending a bridge answer.
    *
    * @param today - Current date as YYYY-MM-DD (UTC). Injected for testability.
    * @returns The new credit balance after deduction.
    * @throws {ApiError} 400 if the streak is not saveable or the game is paused.
-   * @throws {ApiError} 402 if the balance is below 50.
+   * @throws {ApiError} 402 if the balance is below {@link STREAK_SAVE_COST}.
    */
   saveStreak(today: string): number {
     if (this.creditsRepo.getPauseState().active) {
@@ -174,11 +177,11 @@ export class StreakService {
 
     const balance = this.creditsRepo.getBalance()
 
-    if (balance < 50) {
-      throw new ApiError(402, `Insufficient credits: need 50 to save streak, have ${balance}`)
+    if (balance < STREAK_SAVE_COST) {
+      throw new ApiError(402, `Insufficient credits: need ${STREAK_SAVE_COST} to save streak, have ${balance}`)
     }
 
-    this.creditsRepo.addBalance(-50)
+    this.creditsRepo.addBalance(-STREAK_SAVE_COST)
     this.creditsRepo.setStreakSavePending(true)
 
     return this.creditsRepo.getBalance()
