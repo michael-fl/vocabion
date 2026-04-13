@@ -92,12 +92,24 @@ export async function saveStreak(): Promise<number> {
 }
 
 /**
- * Activates pause mode. The pause starts retroactively from the day after
- * the last session.
- *
- * Returns the updated PauseInfo.
+ * Result of activating pause mode.
+ * Extends PauseInfo with the number of streak days that could not be covered
+ * due to an insufficient budget (Fall B). Zero in the normal case (Fall A).
  */
-export async function activatePause(): Promise<PauseInfo> {
+export interface PauseActivationResult extends PauseInfo {
+  streakDaysLost: number
+}
+
+/**
+ * Activates pause mode.
+ *
+ * Fall A (sufficient budget): the pause starts retroactively from the day
+ * after the last session; `streakDaysLost` is 0.
+ *
+ * Fall B (insufficient budget): the pause starts from today; `streakDaysLost`
+ * contains the number of missed days that could not be covered retroactively.
+ */
+export async function activatePause(): Promise<PauseActivationResult> {
   const res = await fetch(`${BASE}/pause`, { method: 'POST' })
 
   if (!res.ok) {
@@ -105,7 +117,7 @@ export async function activatePause(): Promise<PauseInfo> {
     throw new Error(data.message ?? `Failed to activate pause: ${res.status}`)
   }
 
-  return res.json() as Promise<PauseInfo>
+  return res.json() as Promise<PauseActivationResult>
 }
 
 /**

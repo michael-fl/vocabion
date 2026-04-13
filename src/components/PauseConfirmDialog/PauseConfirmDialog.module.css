@@ -1,0 +1,87 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.heading {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.body {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.primaryButton {
+  padding: 0.65rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: var(--color-chrome-bg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondaryButton {
+  padding: 0.65rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin: 0;
+}

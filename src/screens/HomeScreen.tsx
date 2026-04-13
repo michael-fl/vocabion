@@ -40,6 +40,7 @@ import type { StarsOffer } from '../api/starsApi.ts'
 import { isEveningStreakWarning } from '../utils/streakWarning.ts'
 import { useOnVisible } from '../hooks/useOnVisible.ts'
 import { StarsPurchaseDialog } from '../components/StarsPurchaseDialog/StarsPurchaseDialog.tsx'
+import { PauseConfirmDialog } from '../components/PauseConfirmDialog/PauseConfirmDialog.tsx'
 import styles from './HomeScreen.module.css'
 
 export interface HomeScreenProps {
@@ -66,6 +67,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
   const [hasVocab, setHasVocab] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPauseConfirmDialog, setShowPauseConfirmDialog] = useState(false)
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -135,18 +137,10 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
     }
   }
 
-  async function handleActivatePause() {
-    setLoading(true)
-    setError(null)
-
-    try {
-      await streakApi.activatePause()
-      onStreakRefresh?.()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to activate pause')
-    } finally {
-      setLoading(false)
-    }
+  async function handleActivatePause(): Promise<void> {
+    await streakApi.activatePause()
+    setShowPauseConfirmDialog(false)
+    onStreakRefresh?.()
   }
 
   async function handleResumePause() {
@@ -246,6 +240,14 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
         />
       )}
 
+      {showPauseConfirmDialog && pause !== null && !pause.active && (
+        <PauseConfirmDialog
+          pauseInfo={pause}
+          onConfirm={handleActivatePause}
+          onCancel={() => { setShowPauseConfirmDialog(false) }}
+        />
+      )}
+
       <div className={styles.screen}>
         <h1 className={styles.title}>Home</h1>
 
@@ -323,17 +325,12 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
           </p>
           <div>
             <button
-              onClick={() => void handleActivatePause()}
-              disabled={loading || pause.daysToCharge > pause.budgetRemaining}
+              onClick={() => { setShowPauseConfirmDialog(true) }}
+              disabled={loading}
             >
-              {pause.daysToCharge > 0
-                ? `Pause game (charges ${pause.daysToCharge} ${pause.daysToCharge === 1 ? 'day' : 'days'})`
-                : 'Pause game'}
+              Pause game
             </button>
           </div>
-          {pause.daysToCharge > pause.budgetRemaining && (
-            <p role="alert">Insufficient pause budget: need {pause.daysToCharge} days, have {pause.budgetRemaining} remaining.</p>
-          )}
         </div>
       )}
       </div>

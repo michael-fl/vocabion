@@ -51,11 +51,15 @@ export function createStreakRouter(streakService: StreakService, sessionService:
   })
 
   /**
-   * Activates pause mode. The pause starts retroactively from the day after
-   * the last session. Returns the updated PauseInfo.
+   * Activates pause mode.
    *
-   * Returns 409 when a training session is currently in progress, because
-   * pausing mid-session would leave the session in an unplayable state.
+   * Fall A (sufficient budget): pause starts retroactively from the day after
+   * the last session; `streakDaysLost` is 0.
+   *
+   * Fall B (insufficient budget): pause starts from today; `streakDaysLost`
+   * contains the number of missed days that could not be covered.
+   *
+   * Returns 409 when a training session is currently in progress.
    */
   router.post('/pause', (_req, res) => {
     if (sessionService.getOpenSession() !== undefined) {
@@ -63,9 +67,9 @@ export function createStreakRouter(streakService: StreakService, sessionService:
     }
 
     const today = getTodayUtc()
-    const pauseInfo = streakService.activatePause(today)
+    const { pauseInfo, streakDaysLost } = streakService.activatePause(today)
 
-    res.json(pauseInfo)
+    res.json({ ...pauseInfo, streakDaysLost })
   })
 
   /**

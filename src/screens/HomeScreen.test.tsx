@@ -413,7 +413,7 @@ describe('HomeScreen — pause mode', () => {
     expect(await screen.findByRole('button', { name: /Pause game/ })).toBeInTheDocument()
   })
 
-  it('shows retroactive days in the pause button label when days were missed', async () => {
+  it('shows retroactive days in the pause box when days were missed', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
     const pauseWithRetro: streakApi.PauseInfo = { ...pauseOff, daysToCharge: 2, budgetRemaining: 14 }
 
@@ -424,10 +424,10 @@ describe('HomeScreen — pause mode', () => {
       />,
     )
 
-    expect(await screen.findByRole('button', { name: /charges 2 days/ })).toBeInTheDocument()
+    expect(await screen.findByText(/charge 2 days retroactively/)).toBeInTheDocument()
   })
 
-  it('disables the pause button when retroactive days exceed the budget', async () => {
+  it('does not disable the pause button when retroactive days exceed the budget', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
     const noBudget: streakApi.PauseInfo = { active: false, startDate: null, daysConsumed: 14, budgetRemaining: 0, daysToCharge: 3 }
 
@@ -438,12 +438,60 @@ describe('HomeScreen — pause mode', () => {
       />,
     )
 
-    expect(await screen.findByRole('button', { name: /Pause game/ })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: /Pause game/ })).toBeEnabled()
   })
 
-  it('calls activatePause and onStreakRefresh when pause button is clicked', async () => {
+  it('opens the confirm dialog when the pause button is clicked', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
-    vi.mocked(streakApi.activatePause).mockResolvedValue(pauseOn)
+
+    render(
+      <HomeScreen
+        onStartTraining={vi.fn()}
+        streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-15', nextMilestone: null, pause: pauseOff }}
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /Pause game/ }))
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('shows Fall B warning in dialog when budget is insufficient', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    const lowBudget: streakApi.PauseInfo = { active: false, startDate: null, daysConsumed: 13, budgetRemaining: 1, daysToCharge: 3 }
+
+    render(
+      <HomeScreen
+        onStartTraining={vi.fn()}
+        streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-13', nextMilestone: null, pause: lowBudget }}
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /Pause game/ }))
+
+    expect(await screen.findByText(/will be lost from your streak/)).toBeInTheDocument()
+  })
+
+  it('closes the dialog when Cancel is clicked', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(
+      <HomeScreen
+        onStartTraining={vi.fn()}
+        streak={{ count: 5, saveAvailable: false, lastSessionDate: '2026-03-15', nextMilestone: null, pause: pauseOff }}
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /Pause game/ }))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('calls activatePause and onStreakRefresh when confirmed in the dialog', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(streakApi.activatePause).mockResolvedValue({ ...pauseOn, streakDaysLost: 0 })
     const onStreakRefresh = vi.fn()
 
     render(
@@ -455,6 +503,8 @@ describe('HomeScreen — pause mode', () => {
     )
 
     fireEvent.click(await screen.findByRole('button', { name: /Pause game/ }))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getAllByRole('button', { name: /Pause game/ }).find(b => b.closest('[role="dialog"]')) ?? screen.getAllByRole('button', { name: /Pause game/ })[1])
 
     await waitFor(() => {
       expect(vi.mocked(streakApi.activatePause)).toHaveBeenCalledOnce()

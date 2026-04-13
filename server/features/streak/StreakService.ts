@@ -99,6 +99,22 @@ export interface StreakInfo {
   pause: PauseInfo
 }
 
+/**
+ * Result returned by `activatePause`.
+ * Includes the current pause state and the number of streak days that could
+ * not be covered due to an insufficient budget (Fall B).
+ */
+export interface PauseActivationResult {
+  /** The updated pause state after activation. */
+  pauseInfo: PauseInfo
+  /**
+   * Number of days since the last session that were NOT covered retroactively
+   * because the budget was insufficient. 0 in the normal case (Fall A).
+   * When > 0 (Fall B), the pause starts from today instead of retroactively.
+   */
+  streakDaysLost: number
+}
+
 /** Result returned by `resumePause`. */
 export interface ResumeResult {
   /** Total credits awarded for milestones crossed during the pause. */
@@ -188,15 +204,21 @@ export class StreakService {
   }
 
   /**
-   * Activates pause mode. The pause starts retroactively from the day after
-   * the last session (or today if no session has been completed yet).
+   * Activates pause mode.
+   *
+   * **Fall A** (enough budget): The pause starts retroactively from the day
+   * after the last session, covering all missed days. `streakDaysLost` is 0.
+   *
+   * **Fall B** (insufficient budget): The missed days since the last session
+   * exceed the remaining budget. The pause starts from today instead, leaving
+   * the retroactive days unprotected. `streakDaysLost` equals the number of
+   * missed days that cannot be covered.
    *
    * @param today - Current date as YYYY-MM-DD (UTC). Injected for testability.
-   * @returns The updated `PauseInfo` after activation.
+   * @returns The updated pause state and the number of streak days lost.
    * @throws {ApiError} 400 if the game is already paused.
-   * @throws {ApiError} 409 if the retroactive days already missed exceed the remaining budget.
    */
-  activatePause(today: string): PauseInfo {
+  activatePause(today: string): PauseActivationResult {
     const pauseState = this.creditsRepo.getPauseState()
 
     if (pauseState.active) {
@@ -204,25 +226,31 @@ export class StreakService {
     }
 
     const lastDate = this.creditsRepo.getLastSessionDate()
-    const pauseStartDate = lastDate !== null ? addDays(lastDate, 1) : today
+    const retroactivePauseStart = lastDate !== null ? addDays(lastDate, 1) : today
 
-    // Days already missed before today that need retroactive coverage.
-    const retroactiveDays = Math.max(0, diffDays(pauseStartDate, today))
+    // Days already missed before today that would need retroactive coverage.
+    const retroactiveDays = Math.max(0, diffDays(retroactivePauseStart, today))
 
     const todayYear = parseInt(today.slice(0, 4), 10)
     const effectiveDaysUsed = pauseState.budgetYear === todayYear ? pauseState.daysUsed : 0
     const budgetRemaining = PAUSE_BUDGET_DAYS - effectiveDaysUsed
 
+    let pauseStartDate: string
+    let streakDaysLost: number
+
     if (retroactiveDays > budgetRemaining) {
-      throw new ApiError(
-        409,
-        `Insufficient pause budget: need ${retroactiveDays} days to cover missed days, have ${budgetRemaining} remaining`,
-      )
+      // Fall B: budget insufficient — start from today, retroactive days are lost.
+      pauseStartDate = today
+      streakDaysLost = retroactiveDays
+    } else {
+      // Fall A: full retroactive coverage.
+      pauseStartDate = retroactivePauseStart
+      streakDaysLost = 0
     }
 
     this.creditsRepo.setPauseActive(pauseStartDate)
 
-    return this.getStreak(today).pause
+    return { pauseInfo: this.getStreak(today).pause, streakDaysLost }
   }
 
   /**

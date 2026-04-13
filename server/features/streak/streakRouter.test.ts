@@ -142,7 +142,7 @@ describe('POST /api/v1/streak/pause', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 409 when retroactive days exceed remaining budget', async () => {
+  it('returns 200 with streakDaysLost > 0 when retroactive days exceed budget (Fall B)', async () => {
     const { app, creditsRepo } = makeApp()
 
     creditsRepo.updateStreak(5, '2020-01-01')  // many days ago
@@ -150,7 +150,11 @@ describe('POST /api/v1/streak/pause', () => {
 
     const res = await request(app).post('/api/v1/streak/pause')
 
-    expect(res.status).toBe(409)
+    const body = res.body as { active: boolean; streakDaysLost: number }
+
+    expect(res.status).toBe(200)
+    expect(body.active).toBe(true)
+    expect(body.streakDaysLost).toBeGreaterThan(0)
   })
 
   it('returns 409 when a training session is currently open', async () => {

@@ -236,29 +236,37 @@ describe('activatePause', () => {
     expect(() => service.activatePause('2026-03-16')).toThrow()
   })
 
-  it('throws 409 when retroactive days exceed remaining budget', () => {
+  it('activates from today and returns streakDaysLost when retroactive days exceed budget (Fall B)', () => {
     creditsRepo.updateStreak(5, '2026-03-01')
     creditsRepo.setPauseInactive(13, 2026) // only 1 day left
 
-    // 5 retroactive days missed (Mar 2–6), but only 1 day remaining
-    expect(() => service.activatePause('2026-03-07')).toThrow()
+    // 5 retroactive days missed (Mar 2–6), only 1 day remaining → Fall B
+    const result = service.activatePause('2026-03-07')
+
+    expect(result.pauseInfo.active).toBe(true)
+    expect(result.pauseInfo.startDate).toBe('2026-03-07') // today, not retroactive
+    expect(result.streakDaysLost).toBe(5)
   })
 
-  it('allows activation when retroactive days exactly equal remaining budget', () => {
+  it('covers all retroactive days when budget exactly equals retroactive days (Fall A)', () => {
     creditsRepo.updateStreak(5, '2026-03-01')
     creditsRepo.setPauseInactive(11, 2026) // 3 days left
 
-    // 3 retroactive days missed (Mar 2–4)
-    expect(() => service.activatePause('2026-03-05')).not.toThrow()
+    // 3 retroactive days missed (Mar 2–4) — exactly equals budget → Fall A
+    const result = service.activatePause('2026-03-05')
+
+    expect(result.pauseInfo.startDate).toBe('2026-03-02') // retroactive
+    expect(result.streakDaysLost).toBe(0)
   })
 
-  it('returns updated PauseInfo', () => {
+  it('returns pauseInfo with active=true and streakDaysLost=0 for a normal activation', () => {
     creditsRepo.updateStreak(5, '2026-03-15')
 
-    const info = service.activatePause('2026-03-16')
+    const result = service.activatePause('2026-03-16')
 
-    expect(info.active).toBe(true)
-    expect(info.startDate).toBe('2026-03-16')
+    expect(result.pauseInfo.active).toBe(true)
+    expect(result.pauseInfo.startDate).toBe('2026-03-16')
+    expect(result.streakDaysLost).toBe(0)
   })
 })
 
