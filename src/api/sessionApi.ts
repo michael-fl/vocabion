@@ -17,6 +17,9 @@ const BASE = '/api/v1/session'
 /** Number of free push-backs available per discovery session. Must match server constant. */
 export const DISCOVERY_PUSHBACK_BUDGET = 10
 
+/** Minimum remaining due words in buckets 4+ required to offer a next Breakthrough++ chapter. Must match server MIN_SESSION_SIZE. */
+export const BREAKTHROUGH_PLUS_NEXT_CHAPTER_MIN_WORDS = 12
+
 /** Describes what happened when an answer was submitted. */
 export type AnswerOutcome =
   | 'correct'
@@ -59,6 +62,12 @@ export interface AnswerResult {
   streakCredit: number
   /** Label of the streak milestone reached, e.g. 'Week 1' or 'Month 1'. Absent if no milestone. */
   milestoneLabel?: string
+  /**
+   * Only populated for `breakthrough_plus` sessions when `sessionCompleted` is true.
+   * The number of due words in buckets 4+ remaining after this chapter.
+   * 0 means the pool is exhausted. `undefined` for all other session types.
+   */
+  remainingDueCount?: number
 }
 
 /** Returns the currently open session, or `null` if none exists. */
@@ -153,6 +162,22 @@ export async function pushBackWord(sessionId: string, vocabId: string): Promise<
 
   if (!res.ok) {
     throw new Error(`Failed to push back word: ${res.status}`)
+  }
+
+  return res.json() as Promise<Session>
+}
+
+/**
+ * Creates the next Breakthrough++ chapter session after the user chooses to
+ * continue from the summary screen.
+ */
+export async function createNextChapterSession(sessionId: string): Promise<Session> {
+  const res = await fetch(`${BASE}/${sessionId}/next-chapter`, {
+    method: 'POST',
+  })
+
+  if (!res.ok) {
+    throw new Error(`Failed to create next chapter: ${res.status}`)
   }
 
   return res.json() as Promise<Session>

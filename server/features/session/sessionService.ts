@@ -148,6 +148,13 @@ export interface AnswerResult {
    * 'Week 1' or 'Month 1'. `undefined` when no milestone was reached.
    */
   milestoneLabel?: string
+  /**
+   * Only populated for `breakthrough_plus` sessions when `sessionCompleted` is
+   * true. The number of due words in buckets 4+ that remain after this chapter.
+   * 0 means the pool is exhausted. `undefined` for all other session types and
+   * for non-final answers.
+   */
+  remainingDueCount?: number
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -344,7 +351,75 @@ export class SessionService {
       words: selected.map((e) => ({ vocabId: e.id, status: 'pending' })),
       status: 'open',
       createdAt: now.toISOString(),
+      firstAnsweredAt: null,
       stressHighStakes: sessionType === 'stress' ? balance >= STRESS_HIGH_STAKES_THRESHOLD : undefined,
+      chapterNumber: sessionType === 'breakthrough_plus' ? 1 : undefined,
+    }
+
+    this.sessionRepo.insert(session)
+
+    return session
+  }
+
+  /**
+   * Creates the next Breakthrough++ chapter session after the user chooses to
+   * continue from the summary screen.
+   *
+   * Selects the next batch of due words in buckets 4+ (highest bucket first,
+   * excluding words already covered in the previous chapter) and creates a new
+   * `breakthrough_plus` session with `chapterNumber = original.chapterNumber + 1`.
+   * This bypasses the normal rotation — the chapter resumes immediately.
+   *
+   * @throws {ApiError} 423 if the streak is paused.
+   * @throws {ApiError} 404 if the original session is not found.
+   * @throws {ApiError} 400 if the original session is not a completed `breakthrough_plus` session,
+   *   or if no due words remain for a next chapter.
+   * @throws {ApiError} 409 if a session is already open.
+   */
+  createNextChapterSession(originalSessionId: string): Session {
+    if (this.creditsRepo.getPauseState().active) {
+      throw new ApiError(423, 'Cannot start a session while the streak is paused')
+    }
+
+    const original = this.sessionRepo.findById(originalSessionId)
+
+    if (original === undefined) {
+      throw new ApiError(404, `Session not found: ${originalSessionId}`)
+    }
+
+    if (original.type !== 'breakthrough_plus' || original.status !== 'completed') {
+      throw new ApiError(400, 'Only completed breakthrough_plus sessions can continue to the next chapter')
+    }
+
+    const existing = this.sessionRepo.findOpen()
+
+    if (existing !== undefined) {
+      throw new ApiError(409, 'A training session is already open')
+    }
+
+    const now = new Date()
+    const sessionVocabIds = new Set(original.words.map((w) => w.vocabId))
+    const allEntries = this.vocabRepo.findAll()
+      .filter((e) => e.secondChanceDueAt === null && !sessionVocabIds.has(e.id))
+
+    // minWords=MIN_SESSION_SIZE so a follow-up chapter is only started when
+    // enough words remain to justify the escalating perfect-chapter bonus.
+    // The 48-word threshold is only for the first automatic chapter.
+    const selected = selectBreakthroughPlusWords(allEntries, BREAKTHROUGH_PLUS_CHAPTER_SIZE, MIN_SESSION_SIZE, now)
+
+    if (selected === null || selected.length === 0) {
+      throw new ApiError(400, 'No due words remaining for the next chapter')
+    }
+
+    const session: Session = {
+      id: crypto.randomUUID(),
+      direction: original.direction,
+      type: 'breakthrough_plus',
+      words: selected.map((e) => ({ vocabId: e.id, status: 'pending' })),
+      status: 'open',
+      createdAt: now.toISOString(),
+      firstAnsweredAt: null,
+      chapterNumber: (original.chapterNumber ?? 1) + 1,
     }
 
     this.sessionRepo.insert(session)
@@ -680,9 +755,14 @@ export class SessionService {
         updatedWords.every((w) => w.secondChanceFor === undefined)
 
       if (isPerfect) {
-        const isLargePerfectBonus = updatedSession.type === 'stress'
+        if (updatedSession.type === 'stress') {
+          perfectBonus = 100
+        } else if (updatedSession.type === 'breakthrough_plus') {
+          perfectBonus = 20 * (updatedSession.chapterNumber ?? 1)
+        } else {
+          perfectBonus = 20
+        }
 
-        perfectBonus = isLargePerfectBonus ? 100 : 20
         this.creditsRepo.addBalance(perfectBonus)
       }
 
@@ -757,7 +837,17 @@ export class SessionService {
       }
     }
 
-    return { correct, outcome, sessionCompleted, session: updatedSession, newBucket, w1NewBucket, typos, answerCost, creditsEarned, perfectBonus, bucketMilestoneBonus, streakCredit, milestoneLabel }
+    let remainingDueCount: number | undefined
+
+    if (sessionCompleted && updatedSession.type === 'breakthrough_plus') {
+      const sessionVocabIds = new Set(updatedSession.words.map((w) => w.vocabId))
+
+      remainingDueCount = this.vocabRepo.findAll()
+        .filter((e) => e.secondChanceDueAt === null && !sessionVocabIds.has(e.id) && e.bucket >= 4 && isDue(e, now))
+        .length
+    }
+
+    return { correct, outcome, sessionCompleted, session: updatedSession, newBucket, w1NewBucket, typos, answerCost, creditsEarned, perfectBonus, bucketMilestoneBonus, streakCredit, milestoneLabel, remainingDueCount }
   }
 
   /**

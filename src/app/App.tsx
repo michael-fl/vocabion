@@ -25,7 +25,7 @@ import type { Session } from '../../shared/types/Session.ts'
 import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 import { getCreditsInfo } from '../api/creditsApi.ts'
 import { getStreak } from '../api/streakApi.ts'
-import { createReplaySession } from '../api/sessionApi.ts'
+import { createReplaySession, createNextChapterSession, BREAKTHROUGH_PLUS_NEXT_CHAPTER_MIN_WORDS } from '../api/sessionApi.ts'
 import { listVocab } from '../api/vocabApi.ts'
 import type { StreakInfo } from '../api/streakApi.ts'
 import { useTheme } from '../hooks/useTheme.ts'
@@ -45,7 +45,7 @@ const APP_VERSION: string = __APP_VERSION__
 type AppScreen =
   | { name: 'home' }
   | { name: 'training'; session: Session; vocabMap: Map<string, VocabEntry>; replayCount?: number }
-  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string; bucketMilestoneBonus: number; replayCount?: number }
+  | { name: 'summary'; session: Session; sessionCost: number; creditsEarned: number; creditsSpent: number; perfectBonus: number; streakCredit: number; milestoneLabel?: string; bucketMilestoneBonus: number; replayCount?: number; remainingDueCount?: number }
   | { name: 'vocab' }
   | { name: 'settings' }
 
@@ -105,10 +105,10 @@ function App() {
     if (screen.name === 'training') {
       const trainingScreen = screen
 
-      function handleTrainingComplete(session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel: string | undefined, bucketMilestoneBonus: number) {
+      function handleTrainingComplete(session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel: string | undefined, bucketMilestoneBonus: number, remainingDueCount?: number) {
         refreshCredits()
         refreshStreak()
-        setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus, replayCount: trainingScreen.replayCount })
+        setScreen({ name: 'summary', session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus, replayCount: trainingScreen.replayCount, remainingDueCount })
       }
 
       if (screen.session.type === 'focus_quiz') {
@@ -162,6 +162,22 @@ function App() {
         }
       }
 
+      async function handleNextChapter() {
+        try {
+          const [nextSession, entries] = await Promise.all([
+            createNextChapterSession(summaryScreen.session.id),
+            listVocab(),
+          ])
+
+          const vocabMap = new Map(entries.map((e) => [e.id, e]))
+
+          setScreen({ name: 'training', session: nextSession, vocabMap })
+        } catch {
+          // If the next chapter fails (e.g. pool exhausted), go back home.
+          setScreen({ name: 'home' })
+        }
+      }
+
       return (
         <SummaryScreen
           session={screen.session}
@@ -173,7 +189,13 @@ function App() {
           milestoneLabel={screen.milestoneLabel}
           bucketMilestoneBonus={screen.bucketMilestoneBonus}
           replayCount={screen.replayCount}
+          remainingDueCount={screen.remainingDueCount}
           onReplay={() => { void handleReplay() }}
+          onNextChapter={
+            screen.session.type === 'breakthrough_plus' && (screen.remainingDueCount ?? 0) >= BREAKTHROUGH_PLUS_NEXT_CHAPTER_MIN_WORDS
+              ? () => { void handleNextChapter() }
+              : undefined
+          }
           onBack={() => {
             refreshStreak()
             setScreen({ name: 'home' })

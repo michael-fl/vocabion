@@ -112,5 +112,14 @@ export function createSessionRouter(service: SessionService): Router {
     }
   })
 
+  // POST /:id/next-chapter
+  router.post('/:id/next-chapter', (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(201).json(service.createNextChapterSession(req.params.id))
+    } catch (err) {
+      next(err)
+    }
+  })
+
   return router
 }

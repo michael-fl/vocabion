@@ -256,7 +256,7 @@ describe('TrainingScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalledWith(completedSession, 0, 0, 0, 0, 0, undefined, 0)
+      expect(onComplete).toHaveBeenCalledWith(completedSession, 0, 0, 0, 0, 0, undefined, 0, undefined)
     })
   })
 

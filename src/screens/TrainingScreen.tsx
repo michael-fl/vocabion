@@ -39,7 +39,7 @@ import styles from './TrainingScreen.module.css'
 export interface TrainingScreenProps {
   session: Session
   vocabMap: Map<string, VocabEntry>
-  onComplete: (session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel: string | undefined, bucketMilestoneBonus: number) => void
+  onComplete: (session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel: string | undefined, bucketMilestoneBonus: number, remainingDueCount?: number) => void
   /** Called after each successful answer submission. Use to refresh external state such as credits. */
   onAnswerSubmitted?: () => void
   /** Current credit balance. When provided, enables the hint button when balance ≥ 10. */
@@ -184,6 +184,7 @@ export function TrainingScreen({
   const [sessionBucketMilestoneBonus, setSessionBucketMilestoneBonus] = useState(0)
   const [sessionStreakCredit, setSessionStreakCredit] = useState(0)
   const [sessionMilestoneLabel, setSessionMilestoneLabel] = useState<string | undefined>(undefined)
+  const [sessionRemainingDueCount, setSessionRemainingDueCount] = useState<number | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
   const [hints, setHints] = useState<HintInfo[] | null>(null)
   const [hintUpgraded, setHintUpgraded] = useState(false)
@@ -237,13 +238,13 @@ export function TrainingScreen({
       // Correct answers proceed immediately; wrong/partial answers pause so the user can read the feedback.
       const delay = statusMessage.isCorrect ? 0 : correctFeedbackDelayMs
       const timer = setTimeout(() => {
-        onComplete(currentSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus)
+        onComplete(currentSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus, sessionRemainingDueCount)
       }, delay)
       return () => { clearTimeout(timer) }
     }
 
     // All status messages stay visible until the next answer is submitted.
-  }, [statusMessage, currentSession, onComplete, correctFeedbackDelayMs, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus])
+  }, [statusMessage, currentSession, onComplete, correctFeedbackDelayMs, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus, sessionRemainingDueCount])
 
   // Stress session countdown timer: counts down per word, auto-submits on expiry.
   useEffect(() => {
@@ -404,6 +405,11 @@ export function TrainingScreen({
         setSessionStreakCredit(result.streakCredit)
         setSessionMilestoneLabel(result.milestoneLabel)
       }
+
+      if (result.sessionCompleted && result.remainingDueCount !== undefined) {
+        setSessionRemainingDueCount(result.remainingDueCount)
+      }
+
       onAnswerSubmitted?.()
 
       if (

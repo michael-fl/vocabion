@@ -1234,7 +1234,12 @@ A session type designed to keep the backlog of overdue time-based words under co
 - `BreakthroughPlusSessionService` (in `breakthroughPlusSessionService.ts`) — `isAvailable` / `scheduleFirst` / `scheduleNext` (1-day cooldown)
 - `'breakthrough_plus'` added to `SHUFFLED_TYPES` in `sessionService.ts`
 - Frontend: session title "Breakthrough++ Session" shown in `TrainingScreen`
-- Note: the chapter-based inter-session summary UI remains a future enhancement
+- `chapterNumber` field added to `Session` type and `sessions` table (migration `038_session_chapter_number.sql`); chapter 1 set on creation via rotation, incremented by `createNextChapterSession`
+- `SessionService.createNextChapterSession(originalSessionId)` — creates the next chapter (bypasses rotation, minWords=MIN_SESSION_SIZE=12, direction preserved, chapterNumber+1)
+- `POST /api/v1/session/:id/next-chapter` route added to `sessionRouter`
+- Perfect bonus for breakthrough_plus: +20 × N credits (chapter 1 → +20, chapter 2 → +40, …) instead of flat +20
+- `AnswerResult.remainingDueCount` — populated at session completion for breakthrough_plus; counts remaining due words in B4+ excluding the current chapter's words
+- Summary screen: shows "Play next chapter" button with remaining-word count and next-chapter perfect bonus preview when `remainingDueCount > 0`
 
 **Repetition Session removed ✓**
 

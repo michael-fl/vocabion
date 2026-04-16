@@ -10,6 +10,9 @@
  * - After Replay 1: shown when at least 1 answer was incorrect (`replayCount` = 1).
  * - After Replay 2 (`replayCount` ≥ 2): no further offer.
  *
+ * For breakthrough_plus sessions the screen offers a "Play next chapter" button
+ * when `remainingDueCount > 0` and `onNextChapter` is provided.
+ *
  * @example
  * ```tsx
  * <SummaryScreen session={completedSession} onBack={() => setScreen('home')} />
@@ -49,11 +52,22 @@ export interface SummaryScreenProps {
    * - `2+`: no further replay is offered.
    */
   replayCount?: number
+  /**
+   * For `breakthrough_plus` sessions: the number of due words in buckets 4+
+   * remaining after this chapter. When > 0 and `onNextChapter` is provided,
+   * a "Play next chapter" offer is shown.
+   */
+  remainingDueCount?: number
+  /**
+   * When provided, renders a "Play next chapter" button for Breakthrough++ sessions
+   * with remaining due words. Called when the user accepts the offer.
+   */
+  onNextChapter?: () => void
   onBack: () => void
 }
 
 /** Renders a summary of a completed training session. */
-export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onReplay, replayCount = 0, onBack }: SummaryScreenProps) {
+export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onReplay, replayCount = 0, remainingDueCount, onNextChapter, onBack }: SummaryScreenProps) {
   const sessionLabel = session.type === 'stress' ? 'Stress Session complete' : 'Session complete'
   const originalWords = session.words.filter((w) => w.secondChanceFor === undefined)
   const secondChanceWords = session.words.filter((w) => w.secondChanceFor !== undefined)
@@ -183,6 +197,17 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
           </p>
 
           <button className={styles.replayButton} onClick={onReplay}>Play again</button>
+        </div>
+      )}
+
+      {onNextChapter !== undefined && (remainingDueCount ?? 0) > 0 && (
+        <div className={styles.replaySection}>
+          <p className={styles.replayText}>
+            {remainingDueCount} due word{remainingDueCount !== 1 ? 's' : ''} remaining — continue to chapter {(session.chapterNumber ?? 1) + 1}
+            {' '}(perfect bonus: +{20 * ((session.chapterNumber ?? 1) + 1)} credits).
+          </p>
+
+          <button className={styles.replayButton} onClick={onNextChapter}>Play next chapter</button>
         </div>
       )}
 

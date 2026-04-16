@@ -276,10 +276,10 @@ describe('HomeScreen — streak display', () => {
     expect(screen.queryByText(/streak is at risk/)).not.toBeInTheDocument()
   })
 
-  it('disables the save-streak button when credits are below 50', async () => {
+  it('disables the save-streak button when credits are below 200', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
 
-    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 5, saveAvailable: true, lastSessionDate: null, nextMilestone: null }} credits={40} />)
+    render(<HomeScreen onStartTraining={vi.fn()} streak={{ count: 5, saveAvailable: true, lastSessionDate: null, nextMilestone: null }} credits={150} />)
 
     const saveBtn = await screen.findByRole('button', { name: /Save streak/ })
 

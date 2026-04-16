@@ -46,7 +46,7 @@ export interface StreakInfo {
   count: number
   /**
    * True if the streak is saveable: the last session was on the day before
-   * yesterday (calendar-day comparison, UTC). The user can pay 50 credits to
+   * yesterday (calendar-day comparison, UTC). The user can pay 200 credits to
    * bridge the gap.
    */
   saveAvailable: boolean
@@ -73,7 +73,7 @@ export async function getStreak(): Promise<StreakInfo> {
 }
 
 /**
- * Deducts 50 credits and marks the streak as pending a bridge answer.
+ * Deducts 200 credits and marks the streak as pending a bridge answer.
  * The caller must subsequently create a session so the user can answer
  * the first question, which officially extends the streak.
  *

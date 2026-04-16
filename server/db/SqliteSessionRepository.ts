@@ -29,6 +29,7 @@ interface SessionRow {
   created_at: string
   first_answered_at: string | null
   stress_high_stakes: number | null
+  chapter_number: number | null
 }
 
 function rowToSession(row: SessionRow): Session {
@@ -46,6 +47,7 @@ function rowToSession(row: SessionRow): Session {
     createdAt: row.created_at,
     firstAnsweredAt: row.first_answered_at,
     stressHighStakes,
+    chapterNumber: row.chapter_number ?? undefined,
   }
 }
 
@@ -88,8 +90,8 @@ export class SqliteSessionRepository implements SessionRepository {
 
     this.db
       .prepare(
-        `INSERT INTO sessions (id, direction, type, words, status, created_at, first_answered_at, stress_high_stakes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sessions (id, direction, type, words, status, created_at, first_answered_at, stress_high_stakes, chapter_number)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         session.id,
@@ -100,6 +102,7 @@ export class SqliteSessionRepository implements SessionRepository {
         session.createdAt,
         session.firstAnsweredAt,
         stressHighStakes,
+        session.chapterNumber ?? null,
       )
   }
 

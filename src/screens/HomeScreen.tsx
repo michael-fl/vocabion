@@ -265,13 +265,13 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
 
       {streak?.saveAvailable === true ? (
         <div className={styles.statusBanner}>
-          <p role="status">Your streak is at risk! Save it for 50 credits.</p>
+          <p role="status">Your streak is at risk! Save it for 200 credits.</p>
           <div>
             <button
               onClick={() => void handleSaveStreak()}
-              disabled={loading || credits === null || credits < 50}
+              disabled={loading || credits === null || credits < 200}
             >
-              Save streak (50 credits)
+              Save streak (200 credits)
             </button>
           </div>
         </div>

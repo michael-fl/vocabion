@@ -87,6 +87,14 @@ export interface Session {
    * - `undefined` → not a stress session
    */
   stressHighStakes?: boolean
+
+  /**
+   * Only present for `breakthrough_plus` sessions. The 1-based chapter number
+   * within a consecutive Breakthrough++ run. Chapter 1 is the first automatic
+   * session from the rotation; each subsequent chapter the user continues
+   * manually increments this by one.
+   */
+  chapterNumber?: number
 }
 
 /**

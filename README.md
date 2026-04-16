@@ -285,9 +285,9 @@ A **Breakthrough++ Session** targets the growing backlog of overdue time-based w
 
 **Chapter structure:**
 - One chapter = **24 words**
-- After each completed chapter the session pauses and shows a progress summary:
-  > *"Chapter 1 complete — 24 of 87 due words reviewed. Keep going? A perfect Chapter 2 earns you +40 credits."*
-- The user can stop after any chapter. The session counts as complete once at least one chapter is finished (≥ 24 words answered).
+- After each completed chapter the session summary shows remaining due words and a "Play next chapter" button:
+  > *"87 due words remaining — continue to chapter 2 (perfect bonus: +40 credits)."*
+- The user can stop after any chapter by clicking "Back to home". The session counts as complete once at least one chapter is finished (≥ 24 words answered).
 - A further chapter is only offered if at least **12 due words** remain — chapters smaller than 12 words would not justify the escalating perfect-chapter bonus. If fewer than 12 due words remain after a chapter, the session ends automatically.
 - There is no other upper cap — the user may play through all remaining due words as long as each chapter meets the 12-word minimum.
 
