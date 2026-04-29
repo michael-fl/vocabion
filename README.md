@@ -281,7 +281,7 @@ A **Breakthrough++ Session** targets the growing backlog of overdue time-based w
 
 **Word selection:**
 - All due words in buckets 4+, sorted **highest bucket first** — the most advanced words come first
-- No random mixing: the order is deterministic and consistent across chapters
+- Within the same bucket, words are sorted by score descending; ties are shuffled randomly so words imported together (e.g. all colours) don't cluster back-to-back
 
 **Chapter structure:**
 - One chapter = **24 words**

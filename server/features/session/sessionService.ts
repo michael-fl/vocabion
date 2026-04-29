@@ -842,8 +842,10 @@ export class SessionService {
     if (sessionCompleted && updatedSession.type === 'breakthrough_plus') {
       const sessionVocabIds = new Set(updatedSession.words.map((w) => w.vocabId))
 
+      const nowDate = new Date(now)
+
       remainingDueCount = this.vocabRepo.findAll()
-        .filter((e) => e.secondChanceDueAt === null && !sessionVocabIds.has(e.id) && e.bucket >= 4 && isDue(e, now))
+        .filter((e) => e.secondChanceDueAt === null && !sessionVocabIds.has(e.id) && e.bucket >= 4 && isDue(e, nowDate))
         .length
     }
 

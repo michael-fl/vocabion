@@ -1189,6 +1189,35 @@ describe('selectBreakthroughPlusWords', () => {
     expect(result).not.toBeNull()
     expect(result?.length).toBe(24)
   })
+
+  it('shuffles ties within the same bucket and score so insertion order does not cluster', () => {
+    // 40 equal-bucket / equal-score words. Without random tiebreaks the order
+    // would be the input/insertion order, identical across runs.
+    const entries = makeEntries(40, { bucket: 4, score: 0, lastAskedAt: null })
+
+    const run1 = (selectBreakthroughPlusWords(entries, 24, 30, NOW) ?? []).map((e) => e.id)
+    const run2 = (selectBreakthroughPlusWords(entries, 24, 30, NOW) ?? []).map((e) => e.id)
+    const run3 = (selectBreakthroughPlusWords(entries, 24, 30, NOW) ?? []).map((e) => e.id)
+
+    const sameOrder = run1.join(',') === run2.join(',') && run1.join(',') === run3.join(',')
+
+    expect(sameOrder).toBe(false)
+  })
+
+  it('keeps higher buckets before lower buckets even when ties are shuffled', () => {
+    const b6 = makeEntries(10, { bucket: 6, score: 0, lastAskedAt: null })
+    const b5 = makeEntries(10, { bucket: 5, score: 0, lastAskedAt: null })
+    const b4 = makeEntries(15, { bucket: 4, score: 0, lastAskedAt: null })
+    const result = selectBreakthroughPlusWords([...b4, ...b5, ...b6], 24, 30, NOW)
+
+    expect(result).not.toBeNull()
+
+    const buckets = result?.map((e) => e.bucket) ?? []
+
+    for (let i = 1; i < buckets.length; i += 1) {
+      expect(buckets[i]).toBeLessThanOrEqual(buckets[i - 1] ?? 0)
+    }
+  })
 })
 
 // ── selectSecondChanceSessionWords ────────────────────────────────────────────

@@ -1208,7 +1208,7 @@ A session type designed to keep the backlog of overdue time-based words under co
 - Part of the **shuffled rotation** alongside all other automatic session types
 
 **Word pool:**
-- All due words in buckets 4+, sorted by bucket descending (highest first), score descending as tiebreaker
+- All due words in buckets 4+, sorted by bucket descending (highest first), score descending as secondary key, with random tiebreaks within each (bucket, score) group so equal-score words imported together don't cluster back-to-back
 
 **Chapter structure:**
 - One chapter = 24 words
@@ -1229,7 +1229,7 @@ A session type designed to keep the backlog of overdue time-based words under co
 
 **Implementation:**
 - `SessionType` value `'breakthrough_plus'` added to `shared/types/Session.ts`
-- `selectBreakthroughPlusWords(all, sessionSize, minWords, now)` added to `srsSelection.ts` — returns due B4+ entries sorted bucket desc / score desc, or `null` if below minimum
+- `selectBreakthroughPlusWords(all, sessionSize, minWords, now)` added to `srsSelection.ts` — returns due B4+ entries grouped by bucket descending, with `sortByScoreThenShuffle` applied within each bucket (random tiebreaks within equal score), or `null` if below minimum
 - `breakthrough_plus_session_due_at` column added to `credits` table (migration `036_breakthrough_plus_session.sql`)
 - `BreakthroughPlusSessionService` (in `breakthroughPlusSessionService.ts`) — `isAvailable` / `scheduleFirst` / `scheduleNext` (1-day cooldown)
 - `'breakthrough_plus'` added to `SHUFFLED_TYPES` in `sessionService.ts`

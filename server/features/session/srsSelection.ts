@@ -416,9 +416,23 @@ export function selectBreakthroughPlusWords(
     return null
   }
 
-  due.sort((a, b) => b.bucket - a.bucket || b.score - a.score)
+  // Group by bucket descending; within each bucket, sort by score descending
+  // with random tiebreaks. Without the shuffle, equal-score words retain DB
+  // insertion order and words imported together (e.g. all colours) cluster
+  // back-to-back across chapters.
+  const byBucket = new Map<number, VocabEntry[]>()
 
-  return due.slice(0, sessionSize)
+  for (const e of due) {
+    const group = byBucket.get(e.bucket) ?? []
+    group.push(e)
+    byBucket.set(e.bucket, group)
+  }
+
+  const sorted = [...byBucket.keys()]
+    .sort((a, b) => b - a)
+    .flatMap((b) => sortByScoreThenShuffle(byBucket.get(b) ?? []))
+
+  return sorted.slice(0, sessionSize)
 }
 
 /**
