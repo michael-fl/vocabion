@@ -420,8 +420,18 @@ export function TrainingScreen({
         result.outcome === 'partial_typo'
       ) {
         const originalBucket = vocabMap.get(currentWord.vocabId)?.bucket ?? 0
-        const existingNorm = new Set(translations.map((t) => t.toLowerCase().replace(/-/g, ' ').trim()))
-        const newAnswers = toSubmit.filter((a) => !existingNorm.has(a.toLowerCase().replace(/-/g, ' ').trim()))
+        const normalize = (s: string) => s.toLowerCase().replace(/-/g, ' ').trim()
+        const existingNorm = new Set(translations.map(normalize))
+        // If any existing translation is a "to …" verb form, the user is missing
+        // the conventional verb prefix — silently prepend "to " to their answer
+        // so the suggested alternative is "to win" instead of "win".
+        const isVerbContext = translations.some((t) => t.toLowerCase().startsWith('to '))
+        const expandedAnswers = toSubmit.map((a) => (
+          isVerbContext && a.length > 0 && !a.toLowerCase().startsWith('to ')
+            ? `to ${a}`
+            : a
+        ))
+        const newAnswers = expandedAnswers.filter((a) => !existingNorm.has(normalize(a)))
         const altMarked = isMarked
 
         const pendingAnswers: PendingAlternativeAnswer[] = newAnswers.map((text) => ({ text, adding: false, added: false }))

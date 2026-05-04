@@ -597,6 +597,124 @@ describe('add alternative button', () => {
     })
   })
 
+  it('prepends "to " to the suggested alternative when the existing translations are verb forms', async () => {
+    const entry = makeEntry({ source: 'gewinnen', target: ['to win'] })
+    const session = makeSession()
+    const updatedSession: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+      status: 'completed',
+    }
+
+    vi.mocked(sessionApi.submitAnswer).mockResolvedValue({
+      correct: false,
+      outcome: 'incorrect',
+      sessionCompleted: true,
+      answerCost: 0,
+      creditsEarned: 0,
+      perfectBonus: 0,
+      bucketMilestoneBonus: 0,
+      streakCredit: 0,
+      creditsSpent: 0,
+      session: updatedSession,
+      newBucket: 1,
+    })
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue({
+      entry: { ...entry, target: ['to win', 'to triumph'] },
+      merged: true,
+    })
+    vi.mocked(vocabApi.setVocabBucket).mockResolvedValue(undefined)
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Your answer:'), { target: { value: 'triumph' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Add "to triumph" as alternative' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add "to triumph" as alternative' }))
+
+    await waitFor(() => {
+      expect(vocabApi.addOrMergeVocab).toHaveBeenCalledWith(['gewinnen'], ['to triumph'])
+    })
+  })
+
+  it('does not double-prepend "to " when the user already typed it', async () => {
+    const entry = makeEntry({ source: 'gewinnen', target: ['to win'] })
+    const session = makeSession()
+    const updatedSession: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+      status: 'completed',
+    }
+
+    vi.mocked(sessionApi.submitAnswer).mockResolvedValue({
+      correct: false,
+      outcome: 'incorrect',
+      sessionCompleted: true,
+      answerCost: 0,
+      creditsEarned: 0,
+      perfectBonus: 0,
+      bucketMilestoneBonus: 0,
+      streakCredit: 0,
+      creditsSpent: 0,
+      session: updatedSession,
+      newBucket: 1,
+    })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Your answer:'), { target: { value: 'to triumph' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Add "to triumph" as alternative' })).toBeInTheDocument()
+    })
+  })
+
+  it('does not prepend "to " when no existing translation is a verb form', async () => {
+    const entry = makeEntry({ source: 'Tisch', target: ['table'] })
+    const session = makeSession()
+    const updatedSession: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+      status: 'completed',
+    }
+
+    vi.mocked(sessionApi.submitAnswer).mockResolvedValue({
+      correct: false,
+      outcome: 'incorrect',
+      sessionCompleted: true,
+      answerCost: 0,
+      creditsEarned: 0,
+      perfectBonus: 0,
+      bucketMilestoneBonus: 0,
+      streakCredit: 0,
+      creditsSpent: 0,
+      session: updatedSession,
+      newBucket: 1,
+    })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Your answer:'), { target: { value: 'desk' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Add "desk" as alternative' })).toBeInTheDocument()
+    })
+
+    expect(screen.queryByRole('button', { name: 'Add "to desk" as alternative' })).not.toBeInTheDocument()
+  })
+
   it('does not show the add-alternative button after a correct answer', async () => {
     const entry = makeEntry({ target: ['table'] })
     const session = makeSession()

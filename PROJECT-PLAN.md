@@ -920,7 +920,7 @@ Vitest exits with a non-zero code when any threshold is not met. This causes CI 
 ### Phase 7 — Frontend: vocabulary management
 - [x] Vocab list screen: entries grouped by bucket, collapsible sections, alphabetical sort; time-based buckets (≥ 4) show "Due in" column with human-friendly remaining time
 - [x] Add word form (add-or-merge): two comma-separated inputs (DE / EN); creates a new entry or merges variants into an existing one (case-insensitive match on any DE word, deduplication)
-- [x] Add-alternative button: after an incorrect answer the user can click `Add "X" [+]` to add their typed answer as a valid translation; also restores the word to `originalBucket + 1` via `POST /api/v1/vocab/:id/set-bucket`
+- [x] Add-alternative button: after an incorrect answer the user can click `Add "X" [+]` to add their typed answer as a valid translation; also restores the word to `originalBucket + 1` via `POST /api/v1/vocab/:id/set-bucket`. When at least one existing translation starts with `to ` (verb form), the suggestion is silently prefixed — typing `win` offers `Add "to win"` rather than `Add "win"` (skipped if the user already typed `to `).
 - [ ] Edit / delete entry form
 - [ ] Import JSON (file picker → POST `/api/v1/vocab/import`)
 - [ ] Export JSON (GET `/api/v1/vocab/export` → file download)
