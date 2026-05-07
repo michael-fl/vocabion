@@ -571,7 +571,9 @@ export function TrainingScreen({
                         ? 'Second Chance Session'
                         : currentSession.type === 'recovery'
                           ? 'Recovery Session'
-                          : 'Learning Session'}
+                          : currentSession.type === 'starred'
+                            ? '★ Session'
+                            : 'Learning Session'}
         </h2>
         <p className={styles.meta}>{answered} of {total} answered</p>
       </div>

@@ -87,6 +87,17 @@ describe('TrainingScreen', () => {
     expect(screen.getByRole('heading', { name: 'Learning Session' })).toBeInTheDocument()
   })
 
+  it('shows "★ Session" title for a starred session', () => {
+    const entry = makeEntry()
+    const session = makeSession({ type: 'starred' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.getByRole('heading', { name: '★ Session' })).toBeInTheDocument()
+  })
+
   it('shows the prompt word', () => {
     const entry = makeEntry({ source: 'Hund', target: ['dog'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })

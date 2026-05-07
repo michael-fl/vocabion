@@ -502,7 +502,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"Starred Session"** for starred, **"Veteran Session"** for veteran, **"Breakthrough Session"** for breakthrough, **"Breakthrough++ Session"** for breakthrough_plus, **"Recovery Session"** for recovery, **"Second Chance Session"** for second_chance_session.
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"★ Session"** for starred, **"Veteran Session"** for veteran, **"Breakthrough Session"** for breakthrough, **"Breakthrough++ Session"** for breakthrough_plus, **"Recovery Session"** for recovery, **"Second Chance Session"** for second_chance_session.
 
 **Session size — how many questions will be asked:**
 
