@@ -117,8 +117,12 @@ describe('isSession', () => {
     expect(isSession({ ...validSession(), type: 'repetition' })).toBe(true)
   })
 
+  it('returns true for type "review"', () => {
+    expect(isSession({ ...validSession(), type: 'review' })).toBe(true)
+  })
+
   it('returns false when type is an unknown value', () => {
-    expect(isSession({ ...validSession(), type: 'review' })).toBe(false)
+    expect(isSession({ ...validSession(), type: 'something_else' })).toBe(false)
   })
 
   it('returns false when type is missing', () => {

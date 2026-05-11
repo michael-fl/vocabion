@@ -10,7 +10,7 @@
  * const result = await submitAnswer(session.id, wordId, ['table'])
  * ```
  */
-import type { Session, SessionDirection } from '../../shared/types/Session.ts'
+import type { Session, SessionDirection, SessionType } from '../../shared/types/Session.ts'
 
 const BASE = '/api/v1/session'
 
@@ -113,6 +113,42 @@ export async function createStarredSession(
 
   if (!res.ok) {
     throw new Error(`Failed to create starred session: ${res.status}`)
+  }
+
+  return res.json() as Promise<Session>
+}
+
+/** Availability info for a manual review session. */
+export interface ReviewAvailable {
+  available: boolean
+  sourceSessionId: string | null
+  sourceSessionType: SessionType | null
+  wordCount: number
+}
+
+/** Returns whether a review session can be started right now. */
+export async function getReviewAvailable(): Promise<ReviewAvailable> {
+  const res = await fetch(`${BASE}/review/available`)
+
+  if (!res.ok) {
+    throw new Error(`Failed to get review session availability: ${res.status}`)
+  }
+
+  return res.json() as Promise<ReviewAvailable>
+}
+
+/** Creates a new review session replaying the words of the last regular session. */
+export async function createReviewSession(
+  direction: SessionDirection = 'SOURCE_TO_TARGET',
+): Promise<Session> {
+  const res = await fetch(`${BASE}/review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ direction }),
+  })
+
+  if (!res.ok) {
+    throw new Error(`Failed to create review session: ${res.status}`)
   }
 
   return res.json() as Promise<Session>

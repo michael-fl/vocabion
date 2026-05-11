@@ -346,14 +346,21 @@ export function TrainingScreen({
   async function handleHint() {
     setRequestingHint(true)
 
+    // Hints are free in review sessions — no credit spend, no balance check.
+    const isReviewSession = currentSession.type === 'review'
+
     try {
-      await creditsApi.spendCredits(hintCost)
+      if (!isReviewSession) {
+        await creditsApi.spendCredits(hintCost)
+      }
       const shuffledTranslations = [...translations].sort(() => Math.random() - 0.5)
       setHints(shuffledTranslations.slice(0, requiredCount).map((t) => ({ text: generateHint(t), totalChars: countSignificantChars(t) })))
       setHintUpgraded(true)
       setAnswers(Array(requiredCount).fill('') as string[])
-      setSessionCreditsSpent((prev) => prev + hintCost)
-      onAnswerSubmitted?.()
+      if (!isReviewSession) {
+        setSessionCreditsSpent((prev) => prev + hintCost)
+        onAnswerSubmitted?.()
+      }
       firstInputRef.current?.focus()
     } catch {
       // Leave hints unchanged — button remains enabled to retry
@@ -364,6 +371,13 @@ export function TrainingScreen({
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
+
+    // Guard: once the session is completed, the summary transition is queued in a
+    // useEffect. Pressing Enter or re-clicking Submit during that window would
+    // resubmit an already-resolved word and produce a 400 from the backend.
+    if (currentSession.status === 'completed' || submittingRef.current) {
+      return
+    }
 
     const trimmed = answers
       .slice(0, requiredCount)
@@ -573,7 +587,9 @@ export function TrainingScreen({
                           ? 'Recovery Session'
                           : currentSession.type === 'starred'
                             ? '★ Session'
-                            : 'Learning Session'}
+                            : currentSession.type === 'review'
+                              ? 'Review Session'
+                              : 'Learning Session'}
         </h2>
         <p className={styles.meta}>{answered} of {total} answered</p>
       </div>
@@ -719,7 +735,7 @@ export function TrainingScreen({
         {error !== null && <p role="alert">{error}</p>}
 
         <div className={styles.formActions}>
-          <button type="submit" disabled={submitting}>
+          <button type="submit" disabled={submitting || currentSession.status === 'completed'}>
             Submit
           </button>
 
@@ -727,9 +743,13 @@ export function TrainingScreen({
             <button
               type="button"
               onClick={() => void handleHint()}
-              disabled={displayedBucket === 0 || credits === null || credits < hintCost || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint || currentSession.type === 'second_chance_session'}
+              disabled={displayedBucket === 0 || (currentSession.type !== 'review' && (credits === null || credits < hintCost)) || hintUpgraded || (displayedBucket > 1 && hints !== null) || requestingHint || currentSession.type === 'second_chance_session'}
             >
-              {displayedBucket === 0 ? 'Hint (auto)' : `Hint (${hintCost} credits)`}
+              {displayedBucket === 0
+                ? 'Hint (auto)'
+                : currentSession.type === 'review'
+                  ? 'Hint (free)'
+                  : `Hint (${hintCost} credits)`}
             </button>
           )}
 

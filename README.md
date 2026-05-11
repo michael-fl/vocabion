@@ -120,7 +120,7 @@ The table below shows the earliest possible time to reach each group, assuming e
 
 ### Session Types
 
-The app picks the session type automatically each time you start a new session. There are ten automatic session types in total. Nine are drawn from a **shuffled round-robin rotation**: the app cycles through all nine in a random order, skipping any that aren't eligible, and reshuffles when all nine have been considered. One additional type — **Second Chance** — fires before the rotation at the highest priority whenever due second-chance words exist. An eleventh type — the **★ Session** — can be started manually at any time via a dedicated button on the Home screen.
+The app picks the session type automatically each time you start a new session. There are ten automatic session types in total. Nine are drawn from a **shuffled round-robin rotation**: the app cycles through all nine in a random order, skipping any that aren't eligible, and reshuffles when all nine have been considered. One additional type — **Second Chance** — fires before the rotation at the highest priority whenever due second-chance words exist. Two further types — the **★ Session** and the **Review Session** — can be started manually at any time via dedicated buttons on the Home screen.
 
 #### Stress Session (~weekly)
 
@@ -363,6 +363,7 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Breakthrough++ | Rotation | ≥ 1 day cooldown | ≥ 48 due words in buckets 4+, at least 1 day since last Breakthrough++ |
 | Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
 | Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
+| Review | Manual | unlimited | At least one completed non-starred / non-review session exists in history |
 
 #### ★ Session (manual, once per day)
 
@@ -383,6 +384,23 @@ After completing a ★ Session with enough errors, the session summary screen of
   - **Replay 1** is offered after the original ★ Session if **25% or more** of answers were wrong or partial.
   - **Replay 2** is offered after Replay 1 if **at least 1** answer was wrong or partial.
   - After Replay 2, no further replay is offered.
+
+#### Review Session (manual, unlimited)
+
+A **Review Session** lets you replay all the words from your most recently completed regular session. It is started manually via the **"Start review session"** button on the Home screen, next to the ★ Session button.
+
+The session is a pure repetition exercise — **zero cost, zero gain**. It has no effect on SRS state, credits, or the daily streak.
+
+- **Word pool**: the originally selected words of the most recently completed session whose type is **not** `starred` and **not** `review`. Second-chance words that were appended during that session are excluded.
+- **Order**: random.
+- **No SRS effect**: bucket and `lastAskedAt` of every answered word remain unchanged — neither correct answers promote, nor wrong answers demote. The next regular SRS schedule is unaffected.
+- **No second-chance flow**: time-based wrong answers do not insert a W2 word (since SRS is unaffected anyway).
+- **No credit cost** for wrong or partial answers (virgin-word rule does not need to apply — everything is free).
+- **No credit gain**: no bucket-promotion bonus, no perfect-session bonus, no bucket-milestone bonus, no earned star.
+- **Hints are free** in a review session — no credit cost, no balance check.
+- **Does NOT count toward the daily streak**: completing a review session does not extend the streak, does not consume a pending streak-save, and does not award any streak credit or milestone reward. Otherwise the streak could be kept alive by spam-failing review sessions.
+- **Unlimited**: can be played as often as you like; that is the reason it pays no credits.
+- **Button availability**: enabled when there is at least one completed non-starred / non-review session in history and no other session is currently open.
 
 ---
 

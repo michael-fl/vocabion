@@ -78,6 +78,19 @@ export class SqliteSessionRepository implements SessionRepository {
     return row !== undefined ? rowToSession(row) : undefined
   }
 
+  findLastCompletedRegular(): Session | undefined {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM sessions
+         WHERE status = 'completed'
+           AND type NOT IN ('starred', 'review')
+         ORDER BY created_at DESC LIMIT 1`,
+      )
+      .get() as SessionRow | undefined
+
+    return row !== undefined ? rowToSession(row) : undefined
+  }
+
   delete(id: string): void {
     this.db.prepare('DELETE FROM sessions WHERE id = ?').run(id)
   }
@@ -113,18 +126,22 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   countRecentErrors(vocabId: string, sessionLimit: number): number {
-    // Among the N most recent completed sessions (globally), count how many
-    // contain an incorrect answer for the given word.
+    // Among the N most recent completed sessions (globally, excluding review
+    // sessions), count how many contain an incorrect answer for the given word.
+    // Review sessions are excluded so unlimited replays cannot inflate the
+    // recency-driven score.
     const result = this.db
       .prepare(
         `SELECT COUNT(*) AS cnt
          FROM sessions s, json_each(s.words) jw
          WHERE s.status = 'completed'
+           AND s.type != 'review'
            AND json_extract(jw.value, '$.vocabId') = ?
            AND json_extract(jw.value, '$.status') = 'incorrect'
            AND s.id IN (
              SELECT id FROM sessions
              WHERE status = 'completed'
+               AND type != 'review'
              ORDER BY created_at DESC
              LIMIT ?
            )`,

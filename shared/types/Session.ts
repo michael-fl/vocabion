@@ -19,7 +19,7 @@ export type { SessionWord }
 export type SessionDirection = 'SOURCE_TO_TARGET' | 'TARGET_TO_SOURCE'
 
 /** The type of a training session. */
-export type SessionType = 'normal' | 'repetition' | 'focus' | 'focus_quiz' | 'discovery' | 'starred' | 'stress' | 'veteran' | 'breakthrough' | 'breakthrough_plus' | 'second_chance_session' | 'recovery'
+export type SessionType = 'normal' | 'repetition' | 'focus' | 'focus_quiz' | 'discovery' | 'starred' | 'stress' | 'veteran' | 'breakthrough' | 'breakthrough_plus' | 'second_chance_session' | 'recovery' | 'review'
 
 /**
  * A training session. At most one session can be open at a time.
@@ -59,6 +59,9 @@ export interface Session {
    * - `breakthrough_plus` — intensive backlog cleanup of overdue time-based words (buckets
    *   4+), sorted highest bucket first. Fires at most once per day when ≥ 30 due words
    *   exist. Part of the automatic shuffle rotation.
+   * - `review` — manual replay of all words from the most recently completed regular
+   *   session (not `starred`, not `review`). No SRS effect, no credit cost or gain
+   *   (except hint costs); counts toward the daily streak. Unlimited replays.
    */
   type: SessionType
 
@@ -126,7 +129,7 @@ export function isSession(value: unknown): value is Session {
     return false
   }
 
-  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'focus_quiz' && type !== 'discovery' && type !== 'starred' && type !== 'stress' && type !== 'veteran' && type !== 'breakthrough' && type !== 'breakthrough_plus' && type !== 'second_chance_session' && type !== 'recovery') {
+  if (type !== 'normal' && type !== 'repetition' && type !== 'focus' && type !== 'focus_quiz' && type !== 'discovery' && type !== 'starred' && type !== 'stress' && type !== 'veteran' && type !== 'breakthrough' && type !== 'breakthrough_plus' && type !== 'second_chance_session' && type !== 'recovery' && type !== 'review') {
     return false
   }
 

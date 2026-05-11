@@ -504,6 +504,96 @@ export class SessionService {
   }
 
   /**
+   * Returns availability information for the manual Review Session button.
+   *
+   * A review session is available iff a "source session" exists — the most
+   * recently completed session whose type is neither `'starred'` nor `'review'`
+   * — and no other session is currently in progress with answered words.
+   * The streak-paused state also blocks availability, mirroring all other
+   * session types.
+   *
+   * `wordCount` reflects the original word count of the source session,
+   * excluding any second-chance words appended during it.
+   */
+  getReviewSessionAvailable(): { available: boolean; sourceSessionId: string | null; sourceSessionType: SessionType | null; wordCount: number } {
+    const isPaused = this.creditsRepo.getPauseState().active
+    const sessionInProgress = this.isSessionInProgress()
+    const source = this.sessionRepo.findLastCompletedRegular()
+
+    if (source === undefined) {
+      return { available: false, sourceSessionId: null, sourceSessionType: null, wordCount: 0 }
+    }
+
+    const wordCount = source.words.filter((w) => w.secondChanceFor === undefined).length
+
+    return {
+      available: !isPaused && !sessionInProgress && wordCount > 0,
+      sourceSessionId: source.id,
+      sourceSessionType: source.type,
+      wordCount,
+    }
+  }
+
+  /**
+   * Creates a manual Review Session that replays the words of the most
+   * recently completed regular session (`type` ≠ `'starred'`, `'review'`) in
+   * random order. Pure repetition — answers do not change SRS state, never
+   * cost or earn credits (except hint costs and the daily streak credit),
+   * and there is no second-chance flow.
+   *
+   * @throws {ApiError} 423 if the streak is paused.
+   * @throws {ApiError} 409 if a session is already open with answered words.
+   * @throws {ApiError} 404 if no source session exists.
+   * @throws {ApiError} 400 if the source session has no eligible words.
+   */
+  createReviewSession(direction: Session['direction']): Session {
+    if (this.creditsRepo.getPauseState().active) {
+      throw new ApiError(423, 'Cannot start a session while the streak is paused')
+    }
+
+    const existing = this.sessionRepo.findOpen()
+
+    if (existing !== undefined) {
+      if (this.isSessionInProgress(existing)) {
+        throw new ApiError(409, 'A training session is already open')
+      }
+
+      // Unstarted session — discard it so the review session can be created.
+      this.sessionRepo.delete(existing.id)
+    }
+
+    const source = this.sessionRepo.findLastCompletedRegular()
+
+    if (source === undefined) {
+      throw new ApiError(404, 'No completed regular session is available to review')
+    }
+
+    const sourceVocabIds = source.words
+      .filter((w) => w.secondChanceFor === undefined)
+      .map((w) => w.vocabId)
+
+    if (sourceVocabIds.length === 0) {
+      throw new ApiError(400, 'Source session has no reviewable words')
+    }
+
+    const shuffled = shuffleArray(sourceVocabIds)
+    const now = new Date()
+    const session: Session = {
+      id: crypto.randomUUID(),
+      direction,
+      type: 'review',
+      words: shuffled.map((vocabId) => ({ vocabId, status: 'pending' })),
+      status: 'open',
+      createdAt: now.toISOString(),
+      firstAnsweredAt: null,
+    }
+
+    this.sessionRepo.insert(session)
+
+    return session
+  }
+
+  /**
    * Creates a new session containing the same words as an existing completed
    * focus, focus_quiz, or starred session, reshuffled into a random order.
    *
@@ -660,9 +750,12 @@ export class SessionService {
     const now = new Date().toISOString()
 
     // Bridge a broken streak when the user answers the first question of a save-session.
+    // Review sessions are invisible to streak state (see below), so they must not
+    // consume a pending streak-save either — that would let the user "spend" the
+    // 200-credit save without doing any real practice.
     const wasFirstAnswer = session.words.every((w) => w.status === 'pending')
 
-    if (wasFirstAnswer && this.creditsRepo.isStreakSavePending()) {
+    if (wasFirstAnswer && session.type !== 'review' && this.creditsRepo.isStreakSavePending()) {
       const today = now.slice(0, 10)
       const yesterday = subtractDays(today, 1)
 
@@ -681,7 +774,14 @@ export class SessionService {
     const isStressHighStakes = session.type === 'stress' && session.stressHighStakes === true
     const stressFee = isStressHighStakes ? calcStressFee(session.words.length, this.creditsRepo.getBalance()) : undefined
 
-    if (session.type === 'second_chance_session') {
+    if (session.type === 'review') {
+      // Pure repetition: only the word status is updated. No bucket/score/
+      // lastAskedAt changes, no second-chance flow, no credit cost or gain.
+      outcome = correct
+        ? (checkResult.typos.length > 0 ? 'correct_typo' : 'correct')
+        : isPartial ? 'partial' : 'incorrect'
+      updatedWords[wordIndex] = { ...word, status: correct ? 'correct' : 'incorrect' }
+    } else if (session.type === 'second_chance_session') {
       const result = this.handleSecondChanceSessionWord(word, entry, updatedWords, wordIndex, now, correct, isPartial)
       outcome = result.outcome
       answerCost = result.answerCost
@@ -754,7 +854,9 @@ export class SessionService {
         updatedWords.every((w) => w.status === 'correct') &&
         updatedWords.every((w) => w.secondChanceFor === undefined)
 
-      if (isPerfect) {
+      // Review sessions never pay a perfect bonus — they pay nothing at all,
+      // since they can be replayed without limit.
+      if (isPerfect && updatedSession.type !== 'review') {
         if (updatedSession.type === 'stress') {
           perfectBonus = 100
         } else if (updatedSession.type === 'breakthrough_plus') {
@@ -774,41 +876,46 @@ export class SessionService {
       // the session was completed. This lets a cross-midnight session (started
       // yesterday, finished today) count for yesterday's streak. If the session
       // spanned more than 2 calendar days it is treated as a fresh start today.
-      const completionDate = now.slice(0, 10)
-      const sessionDate = updatedSession.firstAnsweredAt?.slice(0, 10) ?? completionDate
-      const spanDays = diffDays(sessionDate, completionDate)
-      const effectiveDate = spanDays > 1 ? completionDate : sessionDate
+      //
+      // Review sessions are excluded — they would let the user keep a streak
+      // alive by spam-failing reviews without any real learning.
+      if (updatedSession.type !== 'review') {
+        const completionDate = now.slice(0, 10)
+        const sessionDate = updatedSession.firstAnsweredAt?.slice(0, 10) ?? completionDate
+        const spanDays = diffDays(sessionDate, completionDate)
+        const effectiveDate = spanDays > 1 ? completionDate : sessionDate
 
-      const lastDate = this.creditsRepo.getLastSessionDate()
+        const lastDate = this.creditsRepo.getLastSessionDate()
 
-      if (lastDate !== effectiveDate) {
-        const yesterday = subtractDays(effectiveDate, 1)
-        const newStreak = lastDate === yesterday ? this.creditsRepo.getStreakCount() + 1 : 1
+        if (lastDate !== effectiveDate) {
+          const yesterday = subtractDays(effectiveDate, 1)
+          const newStreak = lastDate === yesterday ? this.creditsRepo.getStreakCount() + 1 : 1
 
-        this.creditsRepo.updateStreak(newStreak, effectiveDate)
+          this.creditsRepo.updateStreak(newStreak, effectiveDate)
 
-        if (newStreak >= 2) {
-          const milestone = checkMilestoneReached({
-            streakCount: newStreak,
-            weeksAwarded: this.creditsRepo.getStreakWeeksAwarded(),
-            monthsAwarded: this.creditsRepo.getStreakMonthsAwarded(),
-            streakStartDate: this.creditsRepo.getStreakStartDate(),
-            today: completionDate,
-          })
+          if (newStreak >= 2) {
+            const milestone = checkMilestoneReached({
+              streakCount: newStreak,
+              weeksAwarded: this.creditsRepo.getStreakWeeksAwarded(),
+              monthsAwarded: this.creditsRepo.getStreakMonthsAwarded(),
+              streakStartDate: this.creditsRepo.getStreakStartDate(),
+              today: completionDate,
+            })
 
-          if (milestone !== null) {
-            streakCredit = milestone.credits
-            milestoneLabel = milestone.label
-            this.creditsRepo.addBalance(streakCredit)
+            if (milestone !== null) {
+              streakCredit = milestone.credits
+              milestoneLabel = milestone.label
+              this.creditsRepo.addBalance(streakCredit)
 
-            if (milestone.type === 'week') {
-              this.creditsRepo.setStreakWeeksAwarded(this.creditsRepo.getStreakWeeksAwarded() + 1)
+              if (milestone.type === 'week') {
+                this.creditsRepo.setStreakWeeksAwarded(this.creditsRepo.getStreakWeeksAwarded() + 1)
+              } else {
+                this.creditsRepo.setStreakMonthsAwarded(this.creditsRepo.getStreakMonthsAwarded() + 1)
+              }
             } else {
-              this.creditsRepo.setStreakMonthsAwarded(this.creditsRepo.getStreakMonthsAwarded() + 1)
+              streakCredit = 1
+              this.creditsRepo.addBalance(streakCredit)
             }
-          } else {
-            streakCredit = 1
-            this.creditsRepo.addBalance(streakCredit)
           }
         }
       }
@@ -816,23 +923,26 @@ export class SessionService {
 
     // Recalculate and persist scores for all affected words.
     // When the session completes, all session words are now in completed history
-    // and every word's countRecentErrors may have changed.
-    const vocabIdsToRescore = sessionCompleted
-      ? [...new Set(updatedSession.words.map((w) => w.vocabId))]
-      : [vocabId, ...(word.secondChanceFor !== undefined ? [word.secondChanceFor] : [])]
+    // and every word's countRecentErrors may have changed. Skipped entirely for
+    // review sessions — they must not influence SRS state in any way.
+    if (session.type !== 'review') {
+      const vocabIdsToRescore = sessionCompleted
+        ? [...new Set(updatedSession.words.map((w) => w.vocabId))]
+        : [vocabId, ...(word.secondChanceFor !== undefined ? [word.secondChanceFor] : [])]
 
-    for (const id of vocabIdsToRescore) {
-      const e = this.vocabRepo.findById(id)
+      for (const id of vocabIdsToRescore) {
+        const e = this.vocabRepo.findById(id)
 
-      if (e !== undefined) {
-        const updatedScore = computeScore(e, this.sessionRepo.countRecentErrors(id, 10))
-        const updatedMaxScore = Math.max(e.maxScore, updatedScore)
-        const scoreChanged = updatedScore !== e.score || updatedMaxScore !== e.maxScore
+        if (e !== undefined) {
+          const updatedScore = computeScore(e, this.sessionRepo.countRecentErrors(id, 10))
+          const updatedMaxScore = Math.max(e.maxScore, updatedScore)
+          const scoreChanged = updatedScore !== e.score || updatedMaxScore !== e.maxScore
 
-        if (scoreChanged) {
-          const withScore: VocabEntry = { ...e, score: updatedScore, maxScore: updatedMaxScore }
+          if (scoreChanged) {
+            const withScore: VocabEntry = { ...e, score: updatedScore, maxScore: updatedMaxScore }
 
-          this.vocabRepo.update({ ...withScore, difficulty: computeDifficulty(withScore) })
+            this.vocabRepo.update({ ...withScore, difficulty: computeDifficulty(withScore) })
+          }
         }
       }
     }

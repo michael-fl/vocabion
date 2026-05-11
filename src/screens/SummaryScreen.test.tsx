@@ -232,3 +232,57 @@ describe('Focus Replay offer', () => {
     expect(screen.getByRole('button', { name: 'Play again' })).toBeInTheDocument()
   })
 })
+
+// ── Review session ────────────────────────────────────────────────────────────
+
+describe('SummaryScreen — review session', () => {
+  function makeReviewSession(): Session {
+    return makeSession({
+      type: 'review',
+      words: [
+        { vocabId: 'w1', status: 'correct' },
+        { vocabId: 'w2', status: 'incorrect' },
+      ],
+    })
+  }
+
+  it('shows a "Review Session complete" heading', () => {
+    render(<SummaryScreen session={makeReviewSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: 'Review Session complete' })).toBeInTheDocument()
+  })
+
+  it('does not show the "Credits earned", "Credits spent", or "Session cost" rows', () => {
+    render(<SummaryScreen session={makeReviewSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} />)
+
+    expect(screen.queryByText(/Credits earned/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Credits spent/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Session cost/)).not.toBeInTheDocument()
+  })
+
+  it('does not show the perfect-session bonus row even when perfectBonus > 0', () => {
+    render(<SummaryScreen session={makeReviewSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={20} streakCredit={0} onBack={vi.fn()} />)
+
+    expect(screen.queryByText(/Perfect session bonus/)).not.toBeInTheDocument()
+  })
+
+  it('shows an explanatory line stating review sessions pay no credits', () => {
+    render(<SummaryScreen session={makeReviewSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} />)
+
+    expect(screen.getByText(/No credit bonus for a review session/)).toBeInTheDocument()
+  })
+
+  it('does not show the daily streak bonus row for a review session', () => {
+    // Backend should never send streakCredit > 0 for a review session; defend
+    // the UI from accidentally bragging about a streak bonus that didn't happen.
+    render(<SummaryScreen session={makeReviewSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} />)
+
+    expect(screen.queryByText(/Daily streak bonus/)).not.toBeInTheDocument()
+  })
+
+  it('does not show the replay-on-summary offer for a review session even when onReplay is given', () => {
+    render(<SummaryScreen session={makeReviewSession()} sessionCost={0} creditsEarned={0} creditsSpent={0} perfectBonus={0} streakCredit={0} onBack={vi.fn()} onReplay={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Play again' })).not.toBeInTheDocument()
+  })
+})

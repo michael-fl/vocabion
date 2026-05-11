@@ -2307,6 +2307,380 @@ describe('createStarredSession', () => {
 
 })
 
+// ── getReviewSessionAvailable ─────────────────────────────────────────────────
+
+describe('getReviewSessionAvailable', () => {
+  it('returns available=false when no completed regular session exists', () => {
+    const result = service.getReviewSessionAvailable()
+
+    expect(result.available).toBe(false)
+    expect(result.sourceSessionId).toBeNull()
+    expect(result.wordCount).toBe(0)
+  })
+
+  it('returns the most recent regular session as source', () => {
+    const e1 = makeEntry()
+    const e2 = makeEntry()
+    vocabRepo.insert(e1); vocabRepo.insert(e2)
+
+    sessionRepo.insert(makeSession({
+      type: 'normal',
+      status: 'completed',
+      createdAt: '2026-04-01T00:00:00Z',
+      words: [
+        { vocabId: e1.id, status: 'correct' },
+        { vocabId: e2.id, status: 'incorrect' },
+      ],
+    }))
+
+    const result = service.getReviewSessionAvailable()
+
+    expect(result.available).toBe(true)
+    expect(result.wordCount).toBe(2)
+    expect(result.sourceSessionType).toBe('normal')
+  })
+
+  it('skips starred and review sessions when picking the source', () => {
+    const e = makeEntry()
+    vocabRepo.insert(e)
+
+    sessionRepo.insert(makeSession({
+      type: 'focus', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: e.id, status: 'correct' }],
+    }))
+    sessionRepo.insert(makeSession({
+      type: 'starred', status: 'completed', createdAt: '2026-04-01T00:00:00Z',
+      words: [{ vocabId: e.id, status: 'correct' }],
+    }))
+    sessionRepo.insert(makeSession({
+      type: 'review', status: 'completed', createdAt: '2026-05-01T00:00:00Z',
+      words: [{ vocabId: e.id, status: 'correct' }],
+    }))
+
+    const result = service.getReviewSessionAvailable()
+
+    expect(result.available).toBe(true)
+    expect(result.sourceSessionType).toBe('focus')
+  })
+
+  it('excludes second-chance words from wordCount', () => {
+    const w1 = makeEntry(); const w2 = makeEntry()
+    vocabRepo.insert(w1); vocabRepo.insert(w2)
+
+    sessionRepo.insert(makeSession({
+      type: 'normal',
+      status: 'completed',
+      words: [
+        { vocabId: w1.id, status: 'incorrect' },
+        { vocabId: w2.id, status: 'correct', secondChanceFor: w1.id },
+      ],
+    }))
+
+    expect(service.getReviewSessionAvailable().wordCount).toBe(1)
+  })
+
+  it('returns available=false when a session is in progress', () => {
+    const e = makeEntry(); vocabRepo.insert(e)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: e.id, status: 'correct' }],
+    }))
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'open', createdAt: '2026-04-01T00:00:00Z',
+      words: [{ vocabId: e.id, status: 'correct' }, { vocabId: e.id, status: 'pending' }],
+    }))
+
+    expect(service.getReviewSessionAvailable().available).toBe(false)
+  })
+
+  it('returns available=false when the game is paused', () => {
+    const e = makeEntry(); vocabRepo.insert(e)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed',
+      words: [{ vocabId: e.id, status: 'correct' }],
+    }))
+    creditsRepo.setPauseActive('2026-01-01')
+
+    expect(service.getReviewSessionAvailable().available).toBe(false)
+  })
+})
+
+// ── createReviewSession ───────────────────────────────────────────────────────
+
+describe('createReviewSession', () => {
+  function setupSourceSession(entries: VocabEntry[], type: Session['type'] = 'normal'): Session {
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    const source = makeSession({
+      type,
+      status: 'completed',
+      createdAt: '2026-04-01T00:00:00Z',
+      words: entries.map((e) => ({ vocabId: e.id, status: 'correct' as const })),
+    })
+
+    sessionRepo.insert(source)
+
+    return source
+  }
+
+  it('creates a review session containing the source session words', () => {
+    const entries = Array.from({ length: 5 }, () => makeEntry())
+
+    setupSourceSession(entries)
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    expect(review.type).toBe('review')
+    expect(review.status).toBe('open')
+    expect(review.words).toHaveLength(5)
+    expect(new Set(review.words.map((w) => w.vocabId))).toEqual(new Set(entries.map((e) => e.id)))
+  })
+
+  it('excludes second-chance words from the source session', () => {
+    const w1 = makeEntry(); const w2 = makeEntry()
+    vocabRepo.insert(w1); vocabRepo.insert(w2)
+
+    sessionRepo.insert(makeSession({
+      type: 'normal',
+      status: 'completed',
+      words: [
+        { vocabId: w1.id, status: 'incorrect' },
+        { vocabId: w2.id, status: 'correct', secondChanceFor: w1.id },
+      ],
+    }))
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    expect(review.words).toHaveLength(1)
+    expect(review.words[0].vocabId).toBe(w1.id)
+  })
+
+  it('throws 404 when no source session exists', () => {
+    expectApiError(() => service.createReviewSession('SOURCE_TO_TARGET'), 404)
+  })
+
+  it('throws 409 when an in-progress session exists', () => {
+    const entries = Array.from({ length: 3 }, () => makeEntry())
+
+    setupSourceSession(entries)
+    sessionRepo.insert(makeSession({
+      status: 'open',
+      createdAt: '2026-05-01T00:00:00Z',
+      words: [{ vocabId: 'x', status: 'correct' }, { vocabId: 'y', status: 'pending' }],
+    }))
+
+    expectApiError(() => service.createReviewSession('SOURCE_TO_TARGET'), 409)
+  })
+
+  it('discards an unstarted open session', () => {
+    const entries = Array.from({ length: 3 }, () => makeEntry())
+
+    setupSourceSession(entries)
+
+    const unstarted = makeSession({
+      status: 'open',
+      createdAt: '2026-05-01T00:00:00Z',
+      words: [{ vocabId: entries[0].id, status: 'pending' }],
+    })
+
+    sessionRepo.insert(unstarted)
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    expect(review.type).toBe('review')
+    expect(sessionRepo.findById(unstarted.id)).toBeUndefined()
+  })
+
+  it('throws 423 when the game is paused', () => {
+    const entries = Array.from({ length: 3 }, () => makeEntry())
+
+    setupSourceSession(entries)
+    creditsRepo.setPauseActive('2026-01-01')
+
+    expectApiError(() => service.createReviewSession('SOURCE_TO_TARGET'), 423)
+  })
+
+  it('preserves the requested direction independently of the source session', () => {
+    const entries = Array.from({ length: 3 }, () => makeEntry())
+
+    setupSourceSession(entries)
+
+    const review = service.createReviewSession('TARGET_TO_SOURCE')
+
+    expect(review.direction).toBe('TARGET_TO_SOURCE')
+  })
+
+  it('can be created repeatedly without daily limit', () => {
+    const entries = Array.from({ length: 3 }, () => makeEntry())
+
+    setupSourceSession(entries)
+
+    const r1 = service.createReviewSession('SOURCE_TO_TARGET')
+
+    for (const e of entries) { service.submitAnswer(r1.id, e.id, ['word']) }
+
+    // r1 is now completed; no cooldown blocks creating another.
+    const r2 = service.createReviewSession('SOURCE_TO_TARGET')
+
+    expect(r2.id).not.toBe(r1.id)
+    expect(r2.type).toBe('review')
+  })
+})
+
+// ── submitAnswer — review session ─────────────────────────────────────────────
+
+describe('submitAnswer — review session', () => {
+  it('does not change the bucket on a correct answer', () => {
+    const entry = makeEntry({ bucket: 4, lastAskedAt: '2025-12-01T00:00:00Z' })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    service.submitAnswer(review.id, entry.id, ['word'])
+
+    const updated = vocabRepo.findById(entry.id)
+    expect(updated?.bucket).toBe(4)
+    expect(updated?.lastAskedAt).toBe('2025-12-01T00:00:00Z')
+  })
+
+  it('does not reset the bucket on a wrong answer', () => {
+    const entry = makeEntry({ bucket: 5, lastAskedAt: '2025-12-01T00:00:00Z' })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    service.submitAnswer(review.id, entry.id, ['totally wrong'])
+
+    const updated = vocabRepo.findById(entry.id)
+    expect(updated?.bucket).toBe(5)
+    expect(updated?.lastAskedAt).toBe('2025-12-01T00:00:00Z')
+  })
+
+  it('does not deduct credits for a wrong answer', () => {
+    const entry = makeEntry({ bucket: 5, maxBucket: 5 })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+    creditsRepo.addBalance(100)
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    const result = service.submitAnswer(review.id, entry.id, ['wrong'])
+
+    expect(result.answerCost).toBe(0)
+    expect(creditsRepo.getBalance()).toBe(100)
+  })
+
+  it('does not award credits for a correct answer', () => {
+    // Word currently at bucket 1, max 1 — would normally earn +5 on promotion.
+    const entry = makeEntry({ bucket: 1, maxBucket: 1 })
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    const result = service.submitAnswer(review.id, entry.id, ['word'])
+
+    expect(result.creditsEarned).toBe(0)
+    expect(creditsRepo.getBalance()).toBe(0)
+  })
+
+  it('does not insert a second-chance word on a wrong time-bucket answer', () => {
+    const entry = makeEntry({ bucket: 5, lastAskedAt: '2025-12-01T00:00:00Z' })
+    const filler = makeEntry({ bucket: 4, lastAskedAt: '2025-12-01T00:00:00Z' })
+
+    vocabRepo.insert(entry); vocabRepo.insert(filler)
+    sessionRepo.insert(makeSession({
+      type: 'focus', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    const result = service.submitAnswer(review.id, entry.id, ['totally wrong'])
+
+    expect(result.outcome).toBe('incorrect')
+    const after = sessionRepo.findById(review.id)
+    expect(after?.words).toHaveLength(1)
+    expect(after?.words.every((w) => w.secondChanceFor === undefined)).toBe(true)
+  })
+
+  it('does not pay the perfect-session bonus', () => {
+    const entries = Array.from({ length: 5 }, () => makeEntry())
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: entries.map((e) => ({ vocabId: e.id, status: 'correct' as const })),
+    }))
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    let last
+    for (const e of entries) {
+      last = service.submitAnswer(review.id, e.id, ['word'])
+    }
+
+    expect(last?.perfectBonus).toBe(0)
+  })
+
+  it('does not extend the daily streak (cheat prevention — no learning required)', () => {
+    const entry = makeEntry()
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    // Spam-fail the review session.
+    const result = service.submitAnswer(review.id, entry.id, ['totally wrong'])
+
+    expect(creditsRepo.getStreakCount()).toBe(0)
+    expect(creditsRepo.getLastSessionDate()).toBeNull()
+    expect(result.streakCredit).toBe(0)
+    expect(result.milestoneLabel).toBeUndefined()
+  })
+
+  it('does not consume a pending streak-save on the first answer', () => {
+    const entry = makeEntry()
+
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+    creditsRepo.setStreakSavePending(true)
+
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+
+    service.submitAnswer(review.id, entry.id, ['word'])
+
+    // The pending save survives the review so a real session can still consume it.
+    expect(creditsRepo.isStreakSavePending()).toBe(true)
+  })
+})
+
 // ── Stress Session ─────────────────────────────────────────────────────────────
 
 describe('stress session — createSession', () => {

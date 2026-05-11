@@ -20,12 +20,19 @@ beforeEach(() => {
     markedCount: 0,
     alreadyDoneToday: false,
   })
+  vi.mocked(sessionApi.getReviewAvailable).mockResolvedValue({
+    available: false,
+    sourceSessionId: null,
+    sourceSessionType: null,
+    wordCount: 0,
+  })
 })
 
 vi.mock('../api/sessionApi.ts', () => ({
   getOpenSession: vi.fn(),
   createSession: vi.fn(),
   getStarredAvailable: vi.fn(),
+  getReviewAvailable: vi.fn(),
 }))
 
 vi.mock('../api/vocabApi.ts', () => ({

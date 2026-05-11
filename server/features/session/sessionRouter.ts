@@ -9,6 +9,8 @@
  * - `POST /:id/answer`                    → submit an answer for the current word
  * - `POST /:id/words/:vocabId/correct`    → retroactively mark a word as correct
  * - `POST /:id/replay`                    → create a replay from a completed focus or starred session
+ * - `GET  /review/available`              → get availability info for a manual review session
+ * - `POST /review`                        → create a manual review session of the last regular session
  *
  * @example
  * ```ts
@@ -18,7 +20,7 @@
 import { Router } from 'express'
 import type { Request, Response, NextFunction } from 'express'
 
-import { createSessionSchema, createStarredSessionSchema, submitAnswerSchema } from '../../validation/sessionSchemas.ts'
+import { createSessionSchema, createStarredSessionSchema, createReviewSessionSchema, submitAnswerSchema } from '../../validation/sessionSchemas.ts'
 import type { SessionService } from './sessionService.ts'
 
 export function createSessionRouter(service: SessionService): Router {
@@ -40,6 +42,27 @@ export function createSessionRouter(service: SessionService): Router {
 
     try {
       res.status(201).json(service.createStarredSession(result.data.direction))
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  // GET /review/available — must come before /:id routes to avoid param conflict
+  router.get('/review/available', (_req: Request, res: Response) => {
+    res.json(service.getReviewSessionAvailable())
+  })
+
+  // POST /review
+  router.post('/review', (req: Request, res: Response, next: NextFunction) => {
+    const result = createReviewSessionSchema.safeParse(req.body)
+
+    if (!result.success) {
+      res.status(400).json({ error: 'Validation failed', details: result.error.issues })
+      return
+    }
+
+    try {
+      res.status(201).json(service.createReviewSession(result.data.direction))
     } catch (err) {
       next(err)
     }

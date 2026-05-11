@@ -24,6 +24,13 @@ export interface SessionRepository {
   /** Returns the most recently completed session, or `undefined` if none exists. */
   findLastCompleted(): Session | undefined
 
+  /**
+   * Returns the most recently completed session whose type is neither
+   * `'starred'` nor `'review'` — i.e. the source session for a manual
+   * Review Session. Returns `undefined` when no such session exists.
+   */
+  findLastCompletedRegular(): Session | undefined
+
   /** Inserts a new session. Throws if a session with the same id already exists. */
   insert(session: Session): void
 

@@ -48,6 +48,16 @@ export class FakeSessionRepository implements SessionRepository {
     return last !== undefined ? { ...last, words: [...last.words] } : undefined
   }
 
+  findLastCompletedRegular(): Session | undefined {
+    const completed = [...this.store.values()]
+      .filter((s) => s.status === 'completed' && s.type !== 'starred' && s.type !== 'review')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+    const last = completed.at(0)
+
+    return last !== undefined ? { ...last, words: [...last.words] } : undefined
+  }
+
   delete(id: string): void {
     this.store.delete(id)
   }
@@ -62,7 +72,7 @@ export class FakeSessionRepository implements SessionRepository {
 
   countRecentErrors(vocabId: string, sessionLimit: number): number {
     const recentSessions = [...this.store.values()]
-      .filter((s) => s.status === 'completed')
+      .filter((s) => s.status === 'completed' && s.type !== 'review')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, sessionLimit)
 

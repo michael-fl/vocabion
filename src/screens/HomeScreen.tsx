@@ -32,7 +32,7 @@ function formatSessionDate(dateStr: string): string {
 }
 import type { Session } from '../../shared/types/Session.ts'
 import * as sessionApi from '../api/sessionApi.ts'
-import type { StarredAvailable } from '../api/sessionApi.ts'
+import type { StarredAvailable, ReviewAvailable } from '../api/sessionApi.ts'
 import * as vocabApi from '../api/vocabApi.ts'
 import * as streakApi from '../api/streakApi.ts'
 import * as starsApi from '../api/starsApi.ts'
@@ -63,6 +63,7 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
   // undefined = still loading; null = no open session
   const [openSession, setOpenSession] = useState<Session | null | undefined>(undefined)
   const [starredAvailable, setStarredAvailable] = useState<StarredAvailable | null>(null)
+  const [reviewAvailable, setReviewAvailable] = useState<ReviewAvailable | null>(null)
   const [starsOffer, setStarsOffer] = useState<StarsOffer | null>(null)
   const [hasVocab, setHasVocab] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
@@ -73,12 +74,14 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
     Promise.all([
       sessionApi.getOpenSession(),
       sessionApi.getStarredAvailable(),
+      sessionApi.getReviewAvailable(),
       starsApi.getStarsOffer(),
       vocabApi.listVocab(),
     ])
-      .then(([session, starred, offer, entries]) => {
+      .then(([session, starred, review, offer, entries]) => {
         setHasVocab(entries.length > 0)
         setStarredAvailable(starred)
+        setReviewAvailable(review)
 
         if (offer.shouldOffer) {
           setStarsOffer(offer)
@@ -172,6 +175,25 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
       onStartTraining(session, vocabMap)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to start starred session')
+      setLoading(false)
+    }
+  }
+
+  async function handleStartReview() {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const [session, entries] = await Promise.all([
+        sessionApi.createReviewSession(),
+        vocabApi.listVocab(),
+      ])
+
+      const vocabMap = new Map(entries.map((e) => [e.id, e]))
+
+      onStartTraining(session, vocabMap)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to start review session')
       setLoading(false)
     }
   }
@@ -312,6 +334,21 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
               disabled={loading || starredAvailable?.available !== true}
             >
               Start ★ session
+            </button>
+            <button
+              className={styles.secondaryButton}
+              onClick={() => void handleStartReview()}
+              disabled={loading || reviewAvailable?.available !== true}
+              title={
+                reviewAvailable?.available === true
+                  ? `Replay the ${String(reviewAvailable.wordCount)} words from your last regular session`
+                  : 'No completed regular session available to review'
+              }
+            >
+              Start review session
+              {reviewAvailable?.available === true && (
+                <span className={styles.btnHint}> ({reviewAvailable.wordCount} words)</span>
+              )}
             </button>
           </div>
         </div>

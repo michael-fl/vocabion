@@ -31,6 +31,14 @@ export const createStarredSessionSchema = z.object({
 
 export type CreateStarredSessionRequest = z.infer<typeof createStarredSessionSchema>
 
+// ── Create review session ──────────────────────────────────────────────────────
+
+export const createReviewSessionSchema = z.object({
+  direction: z.enum(['SOURCE_TO_TARGET', 'TARGET_TO_SOURCE']).default('SOURCE_TO_TARGET'),
+})
+
+export type CreateReviewSessionRequest = z.infer<typeof createReviewSessionSchema>
+
 // ── Submit answer ─────────────────────────────────────────────────────────────
 
 export const submitAnswerSchema = z.object({

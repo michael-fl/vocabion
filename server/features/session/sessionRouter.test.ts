@@ -280,3 +280,100 @@ describe('POST /:id/words/:vocabId/correct', () => {
     expect(res.status).toBe(400)
   })
 })
+
+// ── GET /review/available ─────────────────────────────────────────────────────
+
+describe('GET /review/available', () => {
+  it('returns availability info', async () => {
+    const { app, sessionRepo, vocabRepo } = makeTestApp()
+
+    const entry = makeEntry()
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const res = await supertest(app).get('/review/available')
+
+    expect(res.status).toBe(200)
+    const body = res.body as { available: boolean; sourceSessionType: string; wordCount: number }
+    expect(body.available).toBe(true)
+    expect(body.sourceSessionType).toBe('normal')
+    expect(body.wordCount).toBe(1)
+  })
+
+  it('reports unavailable when no source session exists', async () => {
+    const { app } = makeTestApp()
+
+    const res = await supertest(app).get('/review/available')
+
+    expect(res.status).toBe(200)
+    expect((res.body as { available: boolean }).available).toBe(false)
+  })
+})
+
+// ── POST /review ───────────────────────────────────────────────────────────────
+
+describe('POST /review', () => {
+  it('creates a review session and returns 201', async () => {
+    const { app, sessionRepo, vocabRepo } = makeTestApp()
+
+    const entries = Array.from({ length: 3 }, () => makeEntry())
+
+    for (const e of entries) { vocabRepo.insert(e) }
+
+    sessionRepo.insert(makeSession({
+      type: 'focus',
+      status: 'completed',
+      words: entries.map((e) => ({ vocabId: e.id, status: 'correct' as const })),
+    }))
+
+    const res = await supertest(app)
+      .post('/review')
+      .send({ direction: 'SOURCE_TO_TARGET' })
+
+    expect(res.status).toBe(201)
+    const body = res.body as Session
+    expect(body.type).toBe('review')
+    expect(body.words).toHaveLength(3)
+  })
+
+  it('returns 404 when no source session exists', async () => {
+    const { app } = makeTestApp()
+
+    const res = await supertest(app)
+      .post('/review')
+      .send({ direction: 'SOURCE_TO_TARGET' })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 400 on invalid direction', async () => {
+    const { app } = makeTestApp()
+
+    const res = await supertest(app)
+      .post('/review')
+      .send({ direction: 'INVALID' })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('defaults direction to SOURCE_TO_TARGET when omitted', async () => {
+    const { app, sessionRepo, vocabRepo } = makeTestApp()
+
+    const entry = makeEntry()
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const res = await supertest(app).post('/review').send({})
+
+    expect(res.status).toBe(201)
+    expect((res.body as Session).direction).toBe('SOURCE_TO_TARGET')
+  })
+})

@@ -222,3 +222,54 @@ describe('findLastCompleted', () => {
     expect(repo.findLastCompleted()?.type).toBe('repetition')
   })
 })
+
+// ── findLastCompletedRegular ──────────────────────────────────────────────────
+
+describe('findLastCompletedRegular', () => {
+  it('returns undefined when no completed sessions exist', () => {
+    expect(repo.findLastCompletedRegular()).toBeUndefined()
+  })
+
+  it('skips starred sessions', () => {
+    const regular = makeSession({ status: 'completed', type: 'normal', createdAt: '2026-01-01T00:00:00Z' })
+    const starred = makeSession({ status: 'completed', type: 'starred', createdAt: '2026-06-01T00:00:00Z' })
+
+    repo.insert(regular)
+    repo.insert(starred)
+
+    expect(repo.findLastCompletedRegular()?.id).toBe(regular.id)
+  })
+
+  it('skips review sessions', () => {
+    const regular = makeSession({ status: 'completed', type: 'focus', createdAt: '2026-01-01T00:00:00Z' })
+    const review = makeSession({ status: 'completed', type: 'review', createdAt: '2026-06-01T00:00:00Z' })
+
+    repo.insert(regular)
+    repo.insert(review)
+
+    expect(repo.findLastCompletedRegular()?.id).toBe(regular.id)
+  })
+
+  it('returns undefined when only starred and review sessions exist', () => {
+    repo.insert(makeSession({ status: 'completed', type: 'starred' }))
+    repo.insert(makeSession({ status: 'completed', type: 'review', createdAt: '2026-06-01T00:00:00Z' }))
+
+    expect(repo.findLastCompletedRegular()).toBeUndefined()
+  })
+
+  it('returns the most recent regular session when multiple exist', () => {
+    const older = makeSession({ status: 'completed', type: 'normal', createdAt: '2026-01-01T00:00:00Z' })
+    const newer = makeSession({ status: 'completed', type: 'focus', createdAt: '2026-06-01T00:00:00Z' })
+
+    repo.insert(older)
+    repo.insert(newer)
+
+    expect(repo.findLastCompletedRegular()?.id).toBe(newer.id)
+  })
+
+  it('ignores open sessions', () => {
+    repo.insert(makeSession({ status: 'open', type: 'normal' }))
+
+    expect(repo.findLastCompletedRegular()).toBeUndefined()
+  })
+})

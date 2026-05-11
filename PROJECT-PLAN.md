@@ -409,7 +409,7 @@ starting from bucket 4):
 
 **Session types:**
 
-There are eleven session types in total. Nine are chosen automatically via a **shuffled round-robin rotation**: `stress`, `discovery`, `focus`, `focus_quiz`, `veteran`, `breakthrough`, `breakthrough_plus`, `recovery`, `normal`. One fires before the rotation at highest priority: `second_chance`. One is triggered manually: `starred`. (`repetition` is a deprecated legacy value that can still appear in historical DB records but is never created.)
+There are twelve session types in total. Nine are chosen automatically via a **shuffled round-robin rotation**: `stress`, `discovery`, `focus`, `focus_quiz`, `veteran`, `breakthrough`, `breakthrough_plus`, `recovery`, `normal`. One fires before the rotation at highest priority: `second_chance`. Two are triggered manually: `starred` and `review`. (`repetition` is a deprecated legacy value that can still appear in historical DB records but is never created.)
 
 - `SessionService` maintains a shuffled rotation sequence over the nine automatic types. The rotation state (sequence, current index, last-played type) is **persisted in the `credits` table** (migration `035_rotation_state.sql`) so it survives server restarts.
 - On each `createSession` call the service advances the sequence index, calling `trySelectType()` for the current candidate. If the candidate's eligibility conditions are met, that session type is used. Otherwise the candidate is skipped and the next one in the sequence is tried.
@@ -502,7 +502,21 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
-The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"★ Session"** for starred, **"Veteran Session"** for veteran, **"Breakthrough Session"** for breakthrough, **"Breakthrough++ Session"** for breakthrough_plus, **"Recovery Session"** for recovery, **"Second Chance Session"** for second_chance_session.
+*Review sessions* — on-demand pure repetition of the most recently completed regular session, triggered manually via the "Start review session" button on the Home screen (next to the ★ session button).
+1. Word pool: the originally selected vocab IDs of the most recently completed session whose type is **not** `'starred'` and **not** `'review'`. Second-chance words appended during that session (`secondChanceFor !== undefined`) are excluded.
+2. Words are presented in **random order** (Fisher-Yates shuffle of the pool).
+3. **No SRS effect**: the answer-handling path skips bucket promotion/demotion and does not update `lastAskedAt` for any answered word. The next regular SRS schedule is unchanged.
+4. **No second-chance flow**: time-based wrong answers do not insert a W2 word.
+5. **No credit cost** for wrong or partial answers.
+6. **No credit gain**: no per-word `+5` bucket-promotion bonus, no perfect-session bonus, no bucket-milestone bonus, no earned-star award.
+7. **Hints are free** in a review session — `creditsApi.spendCredits` is not called, the credits-balance check is bypassed. Combined with the rest, this means a review session has **zero financial effect** in either direction.
+8. **Streak: no effect.** Review sessions deliberately do not update `last_session_date`, do not increment `streak_count`, do not consume a pending streak-save (`isStreakSavePending` is left untouched on the first answer), do not award `streakCredit`, and do not trigger streak milestones. Without this, a player could keep a streak alive by spam-failing review sessions — no learning required.
+9. **Unlimited**: no cooldown, no daily limit; can be replayed as often as the user wants.
+10. **Button availability** (`getReviewSessionAvailable()`): `available = true` iff at least one completed session exists in the DB whose type is neither `'starred'` nor `'review'`, and no other session is currently open. The source-session ID is exposed so the frontend can show which session would be replayed.
+11. An unstarted open session (0 answered words) is automatically discarded before the review session is created (analogous to the starred-session flow).
+12. Replay-on-summary mechanic does **not** apply — the user can simply start a new review session via the home button instead.
+
+The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"★ Session"** for starred, **"Veteran Session"** for veteran, **"Breakthrough Session"** for breakthrough, **"Breakthrough++ Session"** for breakthrough_plus, **"Recovery Session"** for recovery, **"Second Chance Session"** for second_chance_session, **"Review Session"** for review.
 
 **Session size — how many questions will be asked:**
 
@@ -1050,6 +1064,7 @@ Replace the current flat layout with a proper single-page app shell:
 | Theme system (Scholar / Slate / Forest, CSS variables, picker) | done |
 | Starred session (once-per-day session for all marked words, up to 100, score-sorted) | done |
 | Earned stars (+1 star when any word globally first enters Established/Veteran/Master/Legend, additive) | done |
+| Review session (manual, unlimited replay of last regular session, no SRS effect, no credits, no streak effect) | done |
 | Language-neutral rename (de/en → source/target throughout code and DB) | planned |
 
 ---
@@ -1707,3 +1722,77 @@ Migration `028_veteran_session.sql` adds one column to the `credits` table:
 - [x] `SessionService` tests for veteran session creation and completion
 - [x] `TrainingScreen`: show "Veteran Session" label
 - [x] Tests for all new/changed code
+
+---
+
+## Review Session Feature
+
+### Overview
+
+A second on-demand session (alongside the ★ Session) that lets the user replay all words from their most recently completed regular session. Pure repetition — no SRS effect, no credit cost, no credit gain — but it counts toward the daily streak. Can be replayed without limit; the absence of any reward is what justifies that.
+
+### Trigger Conditions
+
+Manual only — never appears in the rotation.
+
+The "Start review session" button is enabled when:
+- At least one completed session exists in the DB whose type is **not** `'starred'` and **not** `'review'` (the "source session").
+- No other session is currently open with answered words. (An unstarted open session is discarded automatically before the review session is created — same flow as starred sessions.)
+
+### Session Rules
+
+- **Word pool**: the original `vocabId` set of the source session, with any second-chance-only entries (`secondChanceFor !== undefined`) removed. No additional fill-up — the size of the review session is exactly the size of that pool.
+- **Order**: random (Fisher-Yates shuffle).
+- **No SRS effect** — for any answer in a review session, `submitAnswer()` short-circuits the bucket / `lastAskedAt` / `maxBucket` / `score` updates. The vocab entry is left untouched. Statistics counters that drive `score` (recent-error-count) are also not updated.
+- **No second-chance flow** — a fully wrong answer on a time-based word does **not** insert a W2 word. The outcome is simply "wrong" with no further effect.
+- **Costs**:
+  - Wrong / partial answers: free (no credit deduction, no virgin-word path).
+  - Hints: normal cost.
+- **Earnings**:
+  - No per-word `+5` bucket-promotion bonus.
+  - No perfect-session bonus.
+  - No bucket-milestone bonus.
+  - No earned-star award.
+  - **Yes**: daily streak bonus (`+1` credit, or applicable streak-milestone reward) when the review session is the first session of the calendar day.
+- **Streak bookkeeping**: `updateStreak(today)` runs on session completion exactly like for any other session type.
+
+### Data Model
+
+- `'review'` added to the `SessionType` union in `shared/types/Session.ts`.
+- DB migration that rebuilds the `sessions` table (or `ALTER`s the CHECK constraint) to add `'review'` to the allowed `type` values.
+- No new columns required. There is no `last_review_session_date` because the session has no daily limit.
+- The source session is identified at creation time by the most recent `completed` session whose `type NOT IN ('starred', 'review')`, ordered by `createdAt DESC`. Its ID is **not** persisted on the new review session — the review session stands on its own once created.
+
+### Backend Design
+
+- **`SessionRepository`** — add `findLastCompletedRegular(): Session | undefined` returning the most recent completed session whose type is neither `'starred'` nor `'review'`. (`findAll()` already exists; this is a focused query for performance.)
+- **`SessionService`**:
+  - `createReviewSession(direction)`: discards any unstarted open session, looks up the source session, builds the shuffled word list (excluding second-chance words), inserts a new open session of type `'review'`. Throws 404 if no source session exists, 409 if a session with answered words is open.
+  - `getReviewSessionAvailable(): { available: boolean, sourceSessionId: string | null, wordCount: number }` — exposes button state to the frontend.
+  - `submitAnswer()`: branch on `session.type === 'review'` — apply the validation outcome to the session word status only. Skip every SRS-mutating call (`vocabRepo.update`, `creditsRepo.addBalance` for promotions / milestones / perfect bonus, etc.), every wrong-answer cost, **and the entire streak block** (both first-answer bridging and completion-day extension). Review sessions are invisible to streak state — otherwise a player could keep a streak alive by spam-failing reviews.
+- **`sessionRouter`** — add:
+  - `GET  /api/v1/session/review/available` → `getReviewSessionAvailable()`
+  - `POST /api/v1/session/review` → `createReviewSession(direction)`
+
+### Frontend Design
+
+- **`HomeScreen`**: add a second "Start review session" button next to the existing "Start ★ session" button. The button is disabled with an explanatory tooltip when not available. The label may include the source-session type and word count, e.g. "Start review session (12 words from Focus Session)".
+- **`TrainingScreen`**: title `"Review Session"` for `session.type === 'review'`. Hint button enabled. No timer. Second-chance UI never triggers because the backend skips the W2 path.
+- **`SummaryScreen`**: hide credit-earning lines (`+5 bucket bonus`, `perfect bonus`, `bucket milestone`) — only show streak credit / milestone if applicable, plus the count of correct/partial/wrong answers and any spent hint credits. No "Play again" replay button (the user can simply press the home button to start another review session).
+
+### Implementation Checklist
+
+- [x] DB migration `039_review_session_type.sql`: extend `sessions.type` CHECK to include `'review'`
+- [x] `server/db/database.test.ts`: bump migration count 38 → 39
+- [x] `shared/types/Session.ts`: add `'review'` to `SessionType` (and the `isSession()` guard)
+- [x] `SessionRepository` interface + `SqliteSessionRepository` + `FakeSessionRepository`: `findLastCompletedRegular()`
+- [x] `countRecentErrors` (Sqlite + Fake): exclude review sessions so unlimited replays cannot inflate the score
+- [x] `SessionService.createReviewSession(direction)`
+- [x] `SessionService.getReviewSessionAvailable()`
+- [x] `SessionService.submitAnswer()`: short-circuit SRS / credit / streak logic when `session.type === 'review'` (no SRS effect, no credits earned or spent except hint costs, no streak extension or save-bridging)
+- [x] `sessionRouter`: `GET /api/v1/session/review/available`, `POST /api/v1/session/review`
+- [x] `src/api/sessionApi.ts`: typed wrappers for the two new endpoints
+- [x] `src/screens/HomeScreen.tsx`: render the second manual-session button; fetch availability on mount and after each session
+- [x] `src/screens/TrainingScreen.tsx`: title `"Review Session"`
+- [x] `src/screens/SummaryScreen.tsx`: suppress credit-earning lines for `review` sessions; no replay offer
+- [x] Tests for all new/changed code (selection helper, service, router, screens)

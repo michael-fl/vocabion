@@ -14,6 +14,8 @@ vi.mock('../api/sessionApi.ts', () => ({
   createSession: vi.fn(),
   getStarredAvailable: vi.fn(),
   createStarredSession: vi.fn(),
+  getReviewAvailable: vi.fn(),
+  createReviewSession: vi.fn(),
 }))
 
 vi.mock('../api/streakApi.ts', () => ({
@@ -69,6 +71,13 @@ beforeEach(() => {
     available: false,
     markedCount: 0,
     alreadyDoneToday: false,
+  })
+  // Default: review session not available (no completed regular session yet)
+  vi.mocked(sessionApi.getReviewAvailable).mockResolvedValue({
+    available: false,
+    sourceSessionId: null,
+    sourceSessionType: null,
+    wordCount: 0,
   })
   // Default: stars offer not shown (so it doesn't interfere with other tests)
   vi.mocked(starsApi.getStarsOffer).mockResolvedValue({
@@ -736,6 +745,81 @@ describe('HomeScreen — starred session', () => {
     await waitFor(() => {
       expect(vi.mocked(sessionApi.createStarredSession)).toHaveBeenCalledOnce()
       expect(onStartTraining).toHaveBeenCalledWith(starredSession, expect.any(Map))
+    })
+  })
+})
+
+// ── HomeScreen — review session ───────────────────────────────────────────────
+
+const reviewSession = {
+  id: 'review-1',
+  direction: 'SOURCE_TO_TARGET' as const,
+  type: 'review' as const,
+  words: [{ vocabId: 'entry-1', status: 'pending' as const }],
+  status: 'open' as const,
+  createdAt: '2026-01-01T00:00:00Z',
+  firstAnsweredAt: null,
+}
+
+describe('HomeScreen — review session', () => {
+  it('renders the "Start review session" button', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    expect(await screen.findByRole('button', { name: /Start review session/ })).toBeInTheDocument()
+  })
+
+  it('disables the button when no completed regular session exists', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(sessionApi.getReviewAvailable).mockResolvedValue({
+      available: false,
+      sourceSessionId: null,
+      sourceSessionType: null,
+      wordCount: 0,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    expect(await screen.findByRole('button', { name: /Start review session/ })).toBeDisabled()
+  })
+
+  it('enables the button when a regular source session exists and shows the word count', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(sessionApi.getReviewAvailable).mockResolvedValue({
+      available: true,
+      sourceSessionId: 'src-1',
+      sourceSessionType: 'focus',
+      wordCount: 12,
+    })
+
+    render(<HomeScreen onStartTraining={vi.fn()} />)
+
+    const btn = await screen.findByRole('button', { name: /Start review session/ })
+    expect(btn).toBeEnabled()
+    expect(btn.textContent).toMatch(/12 words/)
+  })
+
+  it('calls onStartTraining with a review session when the button is clicked', async () => {
+    vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
+    vi.mocked(sessionApi.getReviewAvailable).mockResolvedValue({
+      available: true,
+      sourceSessionId: 'src-1',
+      sourceSessionType: 'focus',
+      wordCount: 1,
+    })
+    vi.mocked(sessionApi.createReviewSession).mockResolvedValue(reviewSession)
+    vi.mocked(vocabApi.listVocab).mockResolvedValue([mockEntry])
+
+    const onStartTraining = vi.fn()
+
+    render(<HomeScreen onStartTraining={onStartTraining} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start review session/ }))
+
+    await waitFor(() => {
+      expect(vi.mocked(sessionApi.createReviewSession)).toHaveBeenCalledOnce()
+      expect(onStartTraining).toHaveBeenCalledWith(reviewSession, expect.any(Map))
     })
   })
 })

@@ -98,6 +98,17 @@ describe('TrainingScreen', () => {
     expect(screen.getByRole('heading', { name: '★ Session' })).toBeInTheDocument()
   })
 
+  it('shows "Review Session" title for a review session', () => {
+    const entry = makeEntry()
+    const session = makeSession({ type: 'review' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Review Session' })).toBeInTheDocument()
+  })
+
   it('shows the prompt word', () => {
     const entry = makeEntry({ source: 'Hund', target: ['dog'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
@@ -199,6 +210,56 @@ describe('TrainingScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Partially correct. Correct answers: bicycle, bike — → bucket 1')
+  })
+
+  it('does not re-submit when the form is submitted again after the session is completed', async () => {
+    // After the last word is answered, the session transitions to a 2-second
+    // status banner before navigating to the summary. Pressing Enter or clicking
+    // Submit during that window must not produce a second backend call — that
+    // would resubmit an already-resolved word and trigger a 400.
+    const entry = makeEntry({ target: ['table'] })
+    const session = makeSession()
+    const completedSession: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+      status: 'completed',
+    }
+
+    vi.mocked(sessionApi.submitAnswer).mockResolvedValue({
+      correct: false,
+      outcome: 'incorrect',
+      sessionCompleted: true,
+      answerCost: 0,
+      creditsEarned: 0,
+      perfectBonus: 0,
+      bucketMilestoneBonus: 0,
+      streakCredit: 0,
+      creditsSpent: 0,
+      session: completedSession,
+      newBucket: 1,
+    })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={5000} />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Your answer:'), { target: { value: 'wrong' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    })
+
+    // Re-clicking after the response has been processed must be a no-op.
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    // Form-level submit (e.g. Enter key) must also be ignored.
+    const form = screen.getByLabelText('Your answer:').closest('form')
+
+    if (form !== null) {
+      fireEvent.submit(form)
+    }
+
+    expect(vi.mocked(sessionApi.submitAnswer)).toHaveBeenCalledOnce()
   })
 
   it('shows incorrect status with the correct answer after a wrong answer', async () => {
@@ -525,6 +586,34 @@ describe('auto-hint', () => {
 
     const btn = screen.getByRole('button', { name: 'Hint (10 credits)' })
     expect(btn).toBeEnabled()
+  })
+
+  it('shows "Hint (free)" in a review session and enables it even with zero balance', () => {
+    const entry = makeEntry({ source: 'Tisch', target: ['table'], bucket: 1 })
+    const session = makeSession({ type: 'review' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} credits={0} correctFeedbackDelayMs={0} />,
+    )
+
+    const btn = screen.getByRole('button', { name: 'Hint (free)' })
+    expect(btn).toBeEnabled()
+  })
+
+  it('does not spend credits when the hint button is clicked in a review session', async () => {
+    const entry = makeEntry({ source: 'Tisch', target: ['table'], bucket: 1 })
+    const session = makeSession({ type: 'review' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} credits={0} correctFeedbackDelayMs={0} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hint (free)' }))
+
+    // No backend spend call; the answer field is reset and the hint placeholder appears.
+    await waitFor(() => {
+      expect(vi.mocked(creditsApi.spendCredits)).not.toHaveBeenCalled()
+    })
   })
 })
 

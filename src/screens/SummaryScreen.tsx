@@ -68,7 +68,11 @@ export interface SummaryScreenProps {
 
 /** Renders a summary of a completed training session. */
 export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpent, perfectBonus, streakCredit, milestoneLabel, bucketMilestoneBonus = 0, onReplay, replayCount = 0, remainingDueCount, onNextChapter, onBack }: SummaryScreenProps) {
-  const sessionLabel = session.type === 'stress' ? 'Stress Session complete' : 'Session complete'
+  const sessionLabel =
+    session.type === 'stress' ? 'Stress Session complete' :
+    session.type === 'review' ? 'Review Session complete' :
+    'Session complete'
+  const isReview = session.type === 'review'
   const originalWords = session.words.filter((w) => w.secondChanceFor === undefined)
   const secondChanceWords = session.words.filter((w) => w.secondChanceFor !== undefined)
 
@@ -84,7 +88,9 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
 
   let showReplayOffer = false
 
-  if ((session.type === 'focus' || session.type === 'focus_quiz' || session.type === 'starred') && onReplay !== undefined) {
+  // Review sessions can be re-launched from the home screen as often as the
+  // user wants, so no replay-on-summary offer is shown for them.
+  if (!isReview && (session.type === 'focus' || session.type === 'focus_quiz' || session.type === 'starred') && onReplay !== undefined) {
     if (replayCount === 0) {
       showReplayOffer = errorRate >= REPLAY_ERROR_THRESHOLD
     } else if (replayCount === 1) {
@@ -134,33 +140,45 @@ export function SummaryScreen({ session, sessionCost, creditsEarned, creditsSpen
         <h2 className={styles.cardHeading}>Credits</h2>
 
         <div className={styles.statRowGroup}>
-          <p className={styles.statRow}>
-            Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
-          </p>
+          {!isReview && (
+            <p className={styles.statRow}>
+              Credits earned: +{creditsEarned} credit{creditsEarned !== 1 ? 's' : ''}
+            </p>
+          )}
 
-          <p className={styles.statRow}>
-            Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
-          </p>
+          {!isReview && (
+            <p className={styles.statRow}>
+              Credits spent: −{creditsSpent} credit{creditsSpent !== 1 ? 's' : ''}
+            </p>
+          )}
 
-          <p className={styles.statRow}>
-            Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
-          </p>
+          {!isReview && (
+            <p className={styles.statRow}>
+              Session cost: −{sessionCost} credit{sessionCost !== 1 ? 's' : ''}
+            </p>
+          )}
 
-          {perfectBonus > 0 && (
+          {!isReview && perfectBonus > 0 && (
             <p className={styles.statRow}>
               Perfect session bonus: +{perfectBonus} credits
             </p>
           )}
 
-          {streakCredit > 0 && milestoneLabel !== undefined && (
+          {!isReview && streakCredit > 0 && milestoneLabel !== undefined && (
             <p className={styles.statRow}>
               Streak milestone: {milestoneLabel}! +{streakCredit} credits
             </p>
           )}
 
-          {streakCredit > 0 && milestoneLabel === undefined && (
+          {!isReview && streakCredit > 0 && milestoneLabel === undefined && (
             <p className={styles.statRow}>
               Daily streak bonus: +{streakCredit} credits
+            </p>
+          )}
+
+          {isReview && (
+            <p className={styles.statRow}>
+              No credit bonus for a review session — replay as often as you like. Review sessions do not extend your daily streak.
             </p>
           )}
         </div>
