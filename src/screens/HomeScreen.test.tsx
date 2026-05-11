@@ -784,7 +784,7 @@ describe('HomeScreen — review session', () => {
     expect(await screen.findByRole('button', { name: /Start review session/ })).toBeDisabled()
   })
 
-  it('enables the button when a regular source session exists and shows the word count', async () => {
+  it('enables the button when a regular source session exists', async () => {
     vi.mocked(sessionApi.getOpenSession).mockResolvedValue(null)
     vi.mocked(sessionApi.getReviewAvailable).mockResolvedValue({
       available: true,
@@ -797,7 +797,9 @@ describe('HomeScreen — review session', () => {
 
     const btn = await screen.findByRole('button', { name: /Start review session/ })
     expect(btn).toBeEnabled()
-    expect(btn.textContent).toMatch(/12 words/)
+    // Word count belongs in the tooltip, not the button label.
+    expect(btn.getAttribute('title')).toMatch(/12 words/)
+    expect(btn.textContent).not.toMatch(/12/)
   })
 
   it('calls onStartTraining with a review session when the button is clicked', async () => {

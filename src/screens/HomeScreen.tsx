@@ -346,9 +346,6 @@ export function HomeScreen({ onStartTraining, onStreakRefresh, onCreditsRefresh,
               }
             >
               Start review session
-              {reviewAvailable?.available === true && (
-                <span className={styles.btnHint}> ({reviewAvailable.wordCount} words)</span>
-              )}
             </button>
           </div>
         </div>

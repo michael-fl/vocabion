@@ -89,11 +89,6 @@
   cursor: default;
 }
 
-.btnHint {
-  font-weight: 400;
-  opacity: 0.75;
-}
-
 .pauseBox {
   display: flex;
   flex-direction: column;
