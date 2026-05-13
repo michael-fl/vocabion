@@ -2340,7 +2340,7 @@ describe('getReviewSessionAvailable', () => {
     expect(result.sourceSessionType).toBe('normal')
   })
 
-  it('skips starred and review sessions when picking the source', () => {
+  it('skips starred, review, and second-chance sessions when picking the source', () => {
     const e = makeEntry()
     vocabRepo.insert(e)
 
@@ -2354,6 +2354,10 @@ describe('getReviewSessionAvailable', () => {
     }))
     sessionRepo.insert(makeSession({
       type: 'review', status: 'completed', createdAt: '2026-05-01T00:00:00Z',
+      words: [{ vocabId: e.id, status: 'correct' }],
+    }))
+    sessionRepo.insert(makeSession({
+      type: 'second_chance_session', status: 'completed', createdAt: '2026-06-01T00:00:00Z',
       words: [{ vocabId: e.id, status: 'correct' }],
     }))
 
@@ -2524,6 +2528,63 @@ describe('createReviewSession', () => {
 
     expect(r2.id).not.toBe(r1.id)
     expect(r2.type).toBe('review')
+  })
+})
+
+// ── abortReviewSession ────────────────────────────────────────────────────────
+
+describe('abortReviewSession', () => {
+  function createReview(): { reviewId: string } {
+    const entries = Array.from({ length: 3 }, () => makeEntry())
+    for (const e of entries) { vocabRepo.insert(e) }
+    sessionRepo.insert(makeSession({
+      type: 'normal', status: 'completed', createdAt: '2026-01-01T00:00:00Z',
+      words: entries.map((e) => ({ vocabId: e.id, status: 'correct' as const })),
+    }))
+    const review = service.createReviewSession('SOURCE_TO_TARGET')
+    return { reviewId: review.id }
+  }
+
+  it('deletes the open review session', () => {
+    const { reviewId } = createReview()
+
+    service.abortReviewSession(reviewId)
+
+    expect(sessionRepo.findById(reviewId)).toBeUndefined()
+  })
+
+  it('throws 404 when the session does not exist', () => {
+    expectApiError(() => { service.abortReviewSession('no-such-session') }, 404)
+  })
+
+  it('throws 400 when the session is not a review session', () => {
+    const session = makeSession({ type: 'normal', status: 'open' })
+    sessionRepo.insert(session)
+
+    expectApiError(() => { service.abortReviewSession(session.id) }, 400)
+    // Session must remain untouched.
+    expect(sessionRepo.findById(session.id)).toBeDefined()
+  })
+
+  it('throws 400 when the review session is already completed', () => {
+    const { reviewId } = createReview()
+    const review = sessionRepo.findById(reviewId)
+    if (review !== undefined) {
+      sessionRepo.update({ ...review, status: 'completed' })
+    }
+
+    expectApiError(() => { service.abortReviewSession(reviewId) }, 400)
+  })
+
+  it('does not affect the source session used for future reviews', () => {
+    const { reviewId } = createReview()
+
+    service.abortReviewSession(reviewId)
+
+    // The source (normal) session is still findable.
+    const next = service.getReviewSessionAvailable()
+    expect(next.available).toBe(true)
+    expect(next.sourceSessionType).toBe('normal')
   })
 })
 

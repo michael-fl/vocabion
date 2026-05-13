@@ -11,6 +11,7 @@
  * - `POST /:id/replay`                    → create a replay from a completed focus or starred session
  * - `GET  /review/available`              → get availability info for a manual review session
  * - `POST /review`                        → create a manual review session of the last regular session
+ * - `POST /:id/abort`                     → abort (delete) an open review session
  *
  * @example
  * ```ts
@@ -139,6 +140,16 @@ export function createSessionRouter(service: SessionService): Router {
   router.post('/:id/next-chapter', (req: Request, res: Response, next: NextFunction) => {
     try {
       res.status(201).json(service.createNextChapterSession(req.params.id))
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  // POST /:id/abort — only valid for review sessions
+  router.post('/:id/abort', (req: Request, res: Response, next: NextFunction) => {
+    try {
+      service.abortReviewSession(req.params.id)
+      res.status(204).end()
     } catch (err) {
       next(err)
     }

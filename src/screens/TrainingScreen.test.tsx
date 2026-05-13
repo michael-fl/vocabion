@@ -615,6 +615,44 @@ describe('auto-hint', () => {
       expect(vi.mocked(creditsApi.spendCredits)).not.toHaveBeenCalled()
     })
   })
+
+  it('shows the Abort button for review sessions and calls onAbort when clicked', () => {
+    const entry = makeEntry()
+    const session = makeSession({ type: 'review' })
+    const onAbort = vi.fn()
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} onAbort={onAbort} correctFeedbackDelayMs={0} />,
+    )
+
+    const btn = screen.getByRole('button', { name: 'Abort session' })
+    expect(btn).toBeInTheDocument()
+
+    fireEvent.click(btn)
+    expect(onAbort).toHaveBeenCalledOnce()
+  })
+
+  it('does not show the Abort button for non-review sessions', () => {
+    const entry = makeEntry()
+    const session = makeSession({ type: 'normal' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} onAbort={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Abort session' })).not.toBeInTheDocument()
+  })
+
+  it('does not show the Abort button when onAbort is not provided even for a review session', () => {
+    const entry = makeEntry()
+    const session = makeSession({ type: 'review' })
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={vi.fn()} correctFeedbackDelayMs={0} />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Abort session' })).not.toBeInTheDocument()
+  })
 })
 
 // ── Add alternative button ────────────────────────────────────────────────────

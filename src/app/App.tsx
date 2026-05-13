@@ -25,7 +25,7 @@ import type { Session } from '../../shared/types/Session.ts'
 import type { VocabEntry } from '../../shared/types/VocabEntry.ts'
 import { getCreditsInfo } from '../api/creditsApi.ts'
 import { getStreak } from '../api/streakApi.ts'
-import { createReplaySession, createNextChapterSession, BREAKTHROUGH_PLUS_NEXT_CHAPTER_MIN_WORDS } from '../api/sessionApi.ts'
+import { createReplaySession, createNextChapterSession, abortReviewSession, BREAKTHROUGH_PLUS_NEXT_CHAPTER_MIN_WORDS } from '../api/sessionApi.ts'
 import { listVocab } from '../api/vocabApi.ts'
 import type { StreakInfo } from '../api/streakApi.ts'
 import { useTheme } from '../hooks/useTheme.ts'
@@ -133,12 +133,27 @@ function App() {
         )
       }
 
+      const trainingSession = screen.session
+
+      async function handleAbort() {
+        try {
+          await abortReviewSession(trainingSession.id)
+        } catch {
+          // If the abort fails (already deleted, network error, …) we still
+          // navigate home — staying on a stale training screen is worse than
+          // a silent failure.
+        }
+
+        setScreen({ name: 'home' })
+      }
+
       return (
         <TrainingScreen
           session={screen.session}
           vocabMap={screen.vocabMap}
           onComplete={handleTrainingComplete}
           onAnswerSubmitted={refreshCredits}
+          onAbort={screen.session.type === 'review' ? () => { void handleAbort() } : undefined}
           credits={credits}
         />
       )

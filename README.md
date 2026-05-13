@@ -363,7 +363,7 @@ When a time-based word (bucket 4+) goes through the in-session second-chance flo
 | Breakthrough++ | Rotation | ≥ 1 day cooldown | ≥ 48 due words in buckets 4+, at least 1 day since last Breakthrough++ |
 | Recovery | Rotation | rotation | ≥ 5 words with maxBucket ≥ 6 and regression ≥ 2 buckets |
 | Normal | Rotation (fallback) | rotation | Always eligible — at least one word in vocabulary |
-| Review | Manual | unlimited | At least one completed non-starred / non-review session exists in history |
+| Review | Manual | unlimited | At least one completed regular learning session exists in history (excludes ★, Review, and Second Chance) |
 
 #### ★ Session (manual, once per day)
 
@@ -391,16 +391,17 @@ A **Review Session** lets you replay all the words from your most recently compl
 
 The session is a pure repetition exercise — **zero cost, zero gain**. It has no effect on SRS state, credits, or the daily streak.
 
-- **Word pool**: the originally selected words of the most recently completed session whose type is **not** `starred` and **not** `review`. Second-chance words that were appended during that session are excluded.
+- **Word pool**: the originally selected words of the most recently completed regular learning session — curated / special-purpose types (`starred`, `review`, `second_chance_session`) are excluded so a Review always replays real learning content. Second-chance words that were appended during that session are excluded too.
 - **Order**: random.
 - **No SRS effect**: bucket and `lastAskedAt` of every answered word remain unchanged — neither correct answers promote, nor wrong answers demote. The next regular SRS schedule is unaffected.
 - **No second-chance flow**: time-based wrong answers do not insert a W2 word (since SRS is unaffected anyway).
 - **No credit cost** for wrong or partial answers (virgin-word rule does not need to apply — everything is free).
 - **No credit gain**: no bucket-promotion bonus, no perfect-session bonus, no bucket-milestone bonus, no earned star.
 - **Hints are free** in a review session — no credit cost, no balance check.
+- **Abort button**: an "Abort session" button is shown next to the Hint button **only** in review sessions. It discards the in-progress session immediately and returns to the Home screen — no SRS, credit, or streak effect (there is nothing to lose). The button is hidden for every other session type, where mid-session abort would throw away genuine progress.
 - **Does NOT count toward the daily streak**: completing a review session does not extend the streak, does not consume a pending streak-save, and does not award any streak credit or milestone reward. Otherwise the streak could be kept alive by spam-failing review sessions.
 - **Unlimited**: can be played as often as you like; that is the reason it pays no credits.
-- **Button availability**: enabled when there is at least one completed non-starred / non-review session in history and no other session is currently open.
+- **Button availability**: enabled when there is at least one completed regular learning session in history (excludes ★ / Review / Second Chance) and no other session is currently open.
 
 ---
 

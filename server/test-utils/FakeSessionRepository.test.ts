@@ -148,14 +148,16 @@ describe('FakeSessionRepository — findLastCompletedRegular', () => {
     expect(repo.findLastCompletedRegular()).toBeUndefined()
   })
 
-  it('skips starred and review sessions', () => {
+  it('skips starred, review, and second-chance sessions', () => {
     const regular = makeSession({ status: 'completed', type: 'normal', createdAt: '2026-01-01T00:00:00Z' })
     const starred = makeSession({ status: 'completed', type: 'starred', createdAt: '2026-06-01T00:00:00Z' })
     const review = makeSession({ status: 'completed', type: 'review', createdAt: '2026-07-01T00:00:00Z' })
+    const sc = makeSession({ status: 'completed', type: 'second_chance_session', createdAt: '2026-08-01T00:00:00Z' })
 
     repo.insert(regular)
     repo.insert(starred)
     repo.insert(review)
+    repo.insert(sc)
 
     expect(repo.findLastCompletedRegular()?.id).toBe(regular.id)
   })

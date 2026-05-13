@@ -250,9 +250,20 @@ describe('findLastCompletedRegular', () => {
     expect(repo.findLastCompletedRegular()?.id).toBe(regular.id)
   })
 
-  it('returns undefined when only starred and review sessions exist', () => {
+  it('skips second-chance sessions', () => {
+    const regular = makeSession({ status: 'completed', type: 'focus', createdAt: '2026-01-01T00:00:00Z' })
+    const sc = makeSession({ status: 'completed', type: 'second_chance_session', createdAt: '2026-06-01T00:00:00Z' })
+
+    repo.insert(regular)
+    repo.insert(sc)
+
+    expect(repo.findLastCompletedRegular()?.id).toBe(regular.id)
+  })
+
+  it('returns undefined when only curated / special sessions exist', () => {
     repo.insert(makeSession({ status: 'completed', type: 'starred' }))
     repo.insert(makeSession({ status: 'completed', type: 'review', createdAt: '2026-06-01T00:00:00Z' }))
+    repo.insert(makeSession({ status: 'completed', type: 'second_chance_session', createdAt: '2026-06-15T00:00:00Z' }))
 
     expect(repo.findLastCompletedRegular()).toBeUndefined()
   })

@@ -377,3 +377,46 @@ describe('POST /review', () => {
     expect((res.body as Session).direction).toBe('SOURCE_TO_TARGET')
   })
 })
+
+// ── POST /:id/abort ────────────────────────────────────────────────────────────
+
+describe('POST /:id/abort', () => {
+  it('returns 204 and deletes the open review session', async () => {
+    const { app, sessionRepo, vocabRepo } = makeTestApp()
+
+    const entry = makeEntry()
+    vocabRepo.insert(entry)
+    sessionRepo.insert(makeSession({
+      type: 'normal',
+      status: 'completed',
+      words: [{ vocabId: entry.id, status: 'correct' }],
+    }))
+
+    const createRes = await supertest(app).post('/review').send({})
+    const reviewId = (createRes.body as Session).id
+
+    const res = await supertest(app).post(`/${reviewId}/abort`)
+
+    expect(res.status).toBe(204)
+    expect(sessionRepo.findById(reviewId)).toBeUndefined()
+  })
+
+  it('returns 404 when the session does not exist', async () => {
+    const { app } = makeTestApp()
+
+    const res = await supertest(app).post('/no-such-session/abort')
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 400 when the session is not a review session', async () => {
+    const { app, sessionRepo } = makeTestApp()
+
+    const session = makeSession({ type: 'normal', status: 'open' })
+    sessionRepo.insert(session)
+
+    const res = await supertest(app).post(`/${session.id}/abort`)
+
+    expect(res.status).toBe(400)
+  })
+})

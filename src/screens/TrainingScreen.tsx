@@ -42,6 +42,13 @@ export interface TrainingScreenProps {
   onComplete: (session: Session, sessionCost: number, creditsEarned: number, creditsSpent: number, perfectBonus: number, streakCredit: number, milestoneLabel: string | undefined, bucketMilestoneBonus: number, remainingDueCount?: number) => void
   /** Called after each successful answer submission. Use to refresh external state such as credits. */
   onAnswerSubmitted?: () => void
+  /**
+   * Called when the user aborts an open review session. Only used for
+   * `session.type === 'review'`; the Abort button is hidden for every other
+   * type. The handler is responsible for performing the backend abort call
+   * and navigating away from the training screen.
+   */
+  onAbort?: () => void
   /** Current credit balance. When provided, enables the hint button when balance ≥ 10. */
   credits?: number | null
   /** Milliseconds to show a correct-answer banner before auto-advancing. Defaults to 2000. Override in tests with 0. */
@@ -166,6 +173,7 @@ export function TrainingScreen({
   vocabMap,
   onComplete,
   onAnswerSubmitted,
+  onAbort,
   credits = null,
   correctFeedbackDelayMs = 2000,
 }: TrainingScreenProps) {
@@ -760,6 +768,16 @@ export function TrainingScreen({
               disabled={submitting || pushBacksRemaining <= 0}
             >
               Push back ({pushBacksRemaining} left)
+            </button>
+          )}
+
+          {currentSession.type === 'review' && onAbort !== undefined && (
+            <button
+              type="button"
+              onClick={onAbort}
+              disabled={submitting}
+            >
+              Abort session
             </button>
           )}
         </div>

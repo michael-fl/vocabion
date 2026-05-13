@@ -594,6 +594,37 @@ export class SessionService {
   }
 
   /**
+   * Aborts an open Review Session by deleting it from the database.
+   *
+   * Review sessions have no SRS / credit / streak side effects, so an early
+   * abort simply discards the in-progress session — no record is kept and the
+   * user is free to start a new review immediately.
+   *
+   * Restricted to `review` to avoid accidentally throwing away progress in a
+   * regular session, where answered words have already updated SRS state.
+   *
+   * @throws {ApiError} 404 if the session is not found.
+   * @throws {ApiError} 400 if the session is not of type `review` or is already completed.
+   */
+  abortReviewSession(sessionId: string): void {
+    const session = this.sessionRepo.findById(sessionId)
+
+    if (session === undefined) {
+      throw new ApiError(404, `Session not found: ${sessionId}`)
+    }
+
+    if (session.type !== 'review') {
+      throw new ApiError(400, 'Only review sessions can be aborted')
+    }
+
+    if (session.status !== 'open') {
+      throw new ApiError(400, 'Session is already completed')
+    }
+
+    this.sessionRepo.delete(sessionId)
+  }
+
+  /**
    * Creates a new session containing the same words as an existing completed
    * focus, focus_quiz, or starred session, reshuffled into a random order.
    *

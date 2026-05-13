@@ -503,7 +503,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 `createStarredSession(direction)` in `SessionService` handles all of the above. `getStarredSessionAvailable()` exposes availability state to the frontend.
 
 *Review sessions* — on-demand pure repetition of the most recently completed regular session, triggered manually via the "Start review session" button on the Home screen (next to the ★ session button).
-1. Word pool: the originally selected vocab IDs of the most recently completed session whose type is **not** `'starred'` and **not** `'review'`. Second-chance words appended during that session (`secondChanceFor !== undefined`) are excluded.
+1. Word pool: the originally selected vocab IDs of the most recently completed session whose type is **not** `'starred'`, **not** `'review'`, and **not** `'second_chance_session'` — i.e. a real learning session, not a curated re-evaluation. Second-chance words appended during that session (`secondChanceFor !== undefined`) are excluded.
 2. Words are presented in **random order** (Fisher-Yates shuffle of the pool).
 3. **No SRS effect**: the answer-handling path skips bucket promotion/demotion and does not update `lastAskedAt` for any answered word. The next regular SRS schedule is unchanged.
 4. **No second-chance flow**: time-based wrong answers do not insert a W2 word.
@@ -515,6 +515,7 @@ An optional `shuffleFn` constructor parameter (default: Fisher-Yates) allows tes
 10. **Button availability** (`getReviewSessionAvailable()`): `available = true` iff at least one completed session exists in the DB whose type is neither `'starred'` nor `'review'`, and no other session is currently open. The source-session ID is exposed so the frontend can show which session would be replayed.
 11. An unstarted open session (0 answered words) is automatically discarded before the review session is created (analogous to the starred-session flow).
 12. Replay-on-summary mechanic does **not** apply — the user can simply start a new review session via the home button instead.
+13. **Abort button** in the training screen (next to Hint) — only visible for `session.type === 'review'`. Calls `POST /api/v1/session/:id/abort`, which deletes the in-progress session on the backend, then navigates straight to Home (no summary, no streak update, no credit move). The button is intentionally hidden for every other session type to prevent accidentally throwing away real progress.
 
 The session title shown in the UI reflects the type: **"Learning Session"** for normal, **"Focus Session"** for focus, **"Focus Quiz"** for focus_quiz, **"Discovery Quiz"** for discovery, **"Stress Session"** for stress, **"★ Session"** for starred, **"Veteran Session"** for veteran, **"Breakthrough Session"** for breakthrough, **"Breakthrough++ Session"** for breakthrough_plus, **"Recovery Session"** for recovery, **"Second Chance Session"** for second_chance_session, **"Review Session"** for review.
 
@@ -1736,7 +1737,7 @@ A second on-demand session (alongside the ★ Session) that lets the user replay
 Manual only — never appears in the rotation.
 
 The "Start review session" button is enabled when:
-- At least one completed session exists in the DB whose type is **not** `'starred'` and **not** `'review'` (the "source session").
+- At least one completed session exists in the DB whose type is a regular learning session — i.e. **not** `'starred'`, **not** `'review'`, and **not** `'second_chance_session'` (the "source session").
 - No other session is currently open with answered words. (An unstarted open session is discarded automatically before the review session is created — same flow as starred sessions.)
 
 ### Session Rules

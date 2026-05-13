@@ -154,6 +154,20 @@ export async function createReviewSession(
   return res.json() as Promise<Session>
 }
 
+/**
+ * Aborts an open review session. Discards the in-progress session entirely —
+ * no record is kept. Only valid for sessions of type `review`.
+ */
+export async function abortReviewSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${BASE}/${sessionId}/abort`, {
+    method: 'POST',
+  })
+
+  if (!res.ok) {
+    throw new Error(`Failed to abort review session: ${res.status}`)
+  }
+}
+
 /** Creates a new training session with the given direction and word count. */
 export async function createSession(
   direction: SessionDirection = 'SOURCE_TO_TARGET',

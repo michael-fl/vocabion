@@ -50,7 +50,12 @@ export class FakeSessionRepository implements SessionRepository {
 
   findLastCompletedRegular(): Session | undefined {
     const completed = [...this.store.values()]
-      .filter((s) => s.status === 'completed' && s.type !== 'starred' && s.type !== 'review')
+      .filter((s) =>
+        s.status === 'completed' &&
+        s.type !== 'starred' &&
+        s.type !== 'review' &&
+        s.type !== 'second_chance_session',
+      )
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
     const last = completed.at(0)

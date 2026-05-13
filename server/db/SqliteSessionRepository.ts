@@ -79,11 +79,14 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   findLastCompletedRegular(): Session | undefined {
+    // Excludes curated / special-purpose session types so that a Review Session
+    // replays a real learning session, never the resolution of a previous
+    // second-chance bucket, a starred snapshot, or another review.
     const row = this.db
       .prepare(
         `SELECT * FROM sessions
          WHERE status = 'completed'
-           AND type NOT IN ('starred', 'review')
+           AND type NOT IN ('starred', 'review', 'second_chance_session')
          ORDER BY created_at DESC LIMIT 1`,
       )
       .get() as SessionRow | undefined

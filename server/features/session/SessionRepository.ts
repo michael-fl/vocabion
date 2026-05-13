@@ -25,8 +25,9 @@ export interface SessionRepository {
   findLastCompleted(): Session | undefined
 
   /**
-   * Returns the most recently completed session whose type is neither
-   * `'starred'` nor `'review'` — i.e. the source session for a manual
+   * Returns the most recently completed session whose type is a regular
+   * learning session — i.e. not `'starred'`, `'review'`, or
+   * `'second_chance_session'`. Used to pick the source session for a manual
    * Review Session. Returns `undefined` when no such session exists.
    */
   findLastCompletedRegular(): Session | undefined
