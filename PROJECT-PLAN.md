@@ -685,7 +685,7 @@ The user earns credits each time a word reaches a new personal highest bucket fo
 | 0 | auto-shown (2 chars), free — no paid button |
 | 1 | auto-shown (1 char), free — paid button enabled: 10 credits → shows 2 chars |
 | 2–3 | 10 credits |
-| n ≥ 4 | min(10 × (n − 2), 30) credits — capped at 30 (bucket 4 → 20, bucket 5+ → 30) |
+| n ≥ 4 | 10 × (n − 2) credits — no cap (bucket 4 → 20, 6 → 40, 10 → 80, 14 → 120) |
 
 **Session cost:** **1 credit is deducted immediately per incorrectly answered word** (including second-chance words), at the moment the wrong answer is submitted — mirroring how credits are earned immediately for correct answers. If the balance is 0 the deduction is skipped — the balance never goes negative. The session summary shows credits earned, credits spent on hints, and the total session cost (accumulated wrong-answer deductions). **Exceptions — wrong answers are free for:**
 - **Discovery sessions** — entirely free, no credit deductions.

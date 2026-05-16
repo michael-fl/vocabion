@@ -26,8 +26,10 @@ describe('getHintCost', () => {
   it('returns 10 for bucket 3', () => { expect(getHintCost(3)).toBe(10) })
   it('returns 20 for bucket 4', () => { expect(getHintCost(4)).toBe(20) })
   it('returns 30 for bucket 5', () => { expect(getHintCost(5)).toBe(30) })
-  it('returns 30 for bucket 6 (capped)', () => { expect(getHintCost(6)).toBe(30) })
-  it('returns 30 for bucket 7 (capped)', () => { expect(getHintCost(7)).toBe(30) })
+  it('returns 40 for bucket 6 (no cap)', () => { expect(getHintCost(6)).toBe(40) })
+  it('returns 50 for bucket 7 (no cap)', () => { expect(getHintCost(7)).toBe(50) })
+  it('returns 80 for bucket 10', () => { expect(getHintCost(10)).toBe(80) })
+  it('returns 120 for bucket 14 (Legend)', () => { expect(getHintCost(14)).toBe(120) })
 })
 
 describe('generateHint', () => {

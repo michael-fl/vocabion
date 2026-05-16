@@ -27,20 +27,22 @@ export function countSignificantChars(s: string): number {
 /**
  * Returns the credit cost of a hint for a word at the given SRS bucket.
  *
- * - Bucket 0: 1 credit (likely a new word)
+ * - Bucket 0: 1 credit (likely a new word — UI disables the paid button)
  * - Buckets 1–3: 10 credits (flat rate)
- * - Bucket n ≥ 4: min(10 × (n − 2), 30) credits (capped at 30)
+ * - Bucket n ≥ 4: 10 × (n − 2) credits — scales without cap so a hint on a
+ *   well-mastered word costs proportionally more (bucket 4 → 20, bucket 6 → 40,
+ *   bucket 10 → 80, bucket 14 → 120, …).
  *
  * @example
  * getHintCost(0)  // → 1
  * getHintCost(3)  // → 10
  * getHintCost(4)  // → 20
- * getHintCost(5)  // → 30
- * getHintCost(6)  // → 30  (capped)
+ * getHintCost(6)  // → 40
+ * getHintCost(14) // → 120
  */
 export function getHintCost(bucket: number): number {
   if (bucket === 0) { return 1 }
-  return bucket <= 3 ? 10 : Math.min(10 * (bucket - 2), 30)
+  return bucket <= 3 ? 10 : 10 * (bucket - 2)
 }
 
 /**

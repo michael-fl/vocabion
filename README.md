@@ -490,7 +490,7 @@ Each word only earns the credit for a given bucket level once — falling back a
 
 | How | Cost |
 |---|---|
-| Hint during a session | 10 credits in buckets 1–3; min(10 × (n − 2), 30) credits in buckets 4+ (see [Hints](#hints)) |
+| Hint during a session | 10 credits in buckets 1–3; 10 × (n − 2) credits in buckets 4+ (see [Hints](#hints)) |
 | Wrong answer (free in discovery sessions and for virgin words — see below) | 1 credit |
 | Partially correct answer (non-stress session) | free |
 | Wrong answer in a stress session (balance ≥ 500 at start) | floor(min(1000, balance) ÷ session size) credits, rounded to nearest even number |
@@ -534,7 +534,7 @@ During a session you can reveal a hint for the current word. The hint shows the 
 - Bucket 1: hint is free and shown automatically — reveals the first **1 character** per word. You can also pay **10 credits** to upgrade to a 2-character hint.
 - Buckets 2–3: 10 credits.
 
-- Buckets 4+: cost increases with bucket level, capped at **30 credits**.
+- Buckets 4+: cost scales with bucket level — **10 × (n − 2)** credits (bucket 4 → 20, bucket 6 → 40, bucket 10 → 80, bucket 14 → 120, …). No upper cap, so hints on well-mastered words are intentionally expensive.
 - Using a hint disqualifies the session from the perfect-session bonus.
 - The hint resets with every new word.
 
