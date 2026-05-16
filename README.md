@@ -490,7 +490,7 @@ Each word only earns the credit for a given bucket level once — falling back a
 
 | How | Cost |
 |---|---|
-| Hint during a session | 10–(n−2)×10 credits depending on bucket |
+| Hint during a session | 10 credits in buckets 1–3; min(10 × (n − 2), 30) credits in buckets 4+ (see [Hints](#hints)) |
 | Wrong answer (free in discovery sessions and for virgin words — see below) | 1 credit |
 | Partially correct answer (non-stress session) | free |
 | Wrong answer in a stress session (balance ≥ 500 at start) | floor(min(1000, balance) ÷ session size) credits, rounded to nearest even number |
