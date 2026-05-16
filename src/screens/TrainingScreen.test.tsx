@@ -109,6 +109,117 @@ describe('TrainingScreen', () => {
     expect(screen.getByRole('heading', { name: 'Review Session' })).toBeInTheDocument()
   })
 
+  it('threads remainingDueCount through to onComplete for breakthrough_plus', async () => {
+    // Repro for: after a Breakthrough++ chapter, the SummaryScreen must receive
+    // the remainingDueCount value so the "Play next chapter" button can be shown.
+    const entry = makeEntry({ source: 'Tisch', target: ['table'] })
+    const session = makeSession({ type: 'breakthrough_plus', chapterNumber: 3 })
+    const completedSession: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'correct' }],
+      status: 'completed',
+    }
+
+    vi.mocked(sessionApi.submitAnswer).mockResolvedValue({
+      correct: true,
+      outcome: 'correct',
+      sessionCompleted: true,
+      session: completedSession,
+      newBucket: 7,
+      answerCost: 0,
+      creditsEarned: 0,
+      perfectBonus: 0,
+      bucketMilestoneBonus: 0,
+      streakCredit: 0,
+      remainingDueCount: 95,
+    })
+
+    const onComplete = vi.fn()
+
+    render(
+      <TrainingScreen session={session} vocabMap={makeVocabMap(entry)} onComplete={onComplete} correctFeedbackDelayMs={0} />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Your answer:'), { target: { value: 'table' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalledOnce()
+    })
+
+    // 9th argument must be the remainingDueCount returned by the backend.
+    const args = onComplete.mock.calls[0]
+    expect(args[8]).toBe(95)
+  })
+
+  it('preserves remainingDueCount when the user accepts an add-alternative on the LAST word of a chapter', async () => {
+    // After a Breakthrough++ chapter's last answer was wrong, the user may
+    // click "Add as alternative" during the 2-second feedback window. The
+    // resulting session-completed transition must still pass remainingDueCount
+    // to onComplete — otherwise the SummaryScreen can't render the next-chapter
+    // button. Bug found during investigation of the missing-button report.
+    const entry = makeEntry({ source: 'Tisch', target: ['table'] })
+    const session = makeSession({ type: 'breakthrough_plus', chapterNumber: 3 })
+    const completedAfterSubmit: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'incorrect' }],
+      status: 'completed',
+    }
+    const completedAfterAdd: Session = {
+      ...session,
+      words: [{ vocabId: entry.id, status: 'correct' }],
+      status: 'completed',
+    }
+
+    vi.mocked(sessionApi.submitAnswer).mockResolvedValue({
+      correct: false,
+      outcome: 'incorrect',
+      sessionCompleted: true,
+      session: completedAfterSubmit,
+      newBucket: 1,
+      answerCost: 1,
+      creditsEarned: 0,
+      perfectBonus: 0,
+      bucketMilestoneBonus: 0,
+      streakCredit: 0,
+      remainingDueCount: 87,
+    })
+    vi.mocked(vocabApi.addOrMergeVocab).mockResolvedValue({ entry, merged: false })
+    vi.mocked(vocabApi.setVocabBucket).mockResolvedValue(undefined)
+    vi.mocked(sessionApi.markWordCorrect).mockResolvedValue(completedAfterAdd)
+    vi.mocked(creditsApi.refundCredits).mockResolvedValue(undefined)
+
+    const onComplete = vi.fn()
+
+    render(
+      <TrainingScreen
+        session={session}
+        vocabMap={makeVocabMap(entry)}
+        onComplete={onComplete}
+        // 50 s so the auto-onComplete from the wrong-answer timeout does NOT
+        // fire before our Add-alternative click. Real bug exists in the
+        // markWordCorrect → onComplete path, not the timer path.
+        correctFeedbackDelayMs={50_000}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Your answer:'), { target: { value: 'wrong' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Add "wrong" as alternative' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add "wrong" as alternative' }))
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalled()
+    })
+
+    const args = onComplete.mock.calls[0]
+    expect(args[8]).toBe(87)
+  })
+
   it('shows the prompt word', () => {
     const entry = makeEntry({ source: 'Hund', target: ['dog'] })
     const session = makeSession({ words: [{ vocabId: entry.id, status: 'pending' }] })
@@ -1207,6 +1318,8 @@ describe('add alternative button', () => {
         expect.anything(),
         undefined,
         expect.anything(),
+        // 9th arg: remainingDueCount — undefined for non-breakthrough_plus sessions.
+        undefined,
       )
     })
   })

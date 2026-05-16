@@ -547,7 +547,12 @@ export function TrainingScreen({
 
         if (currentWordGone) {
           if (updatedSession.status === 'completed') {
-            onComplete(updatedSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus)
+            // Pass through sessionRemainingDueCount so the Breakthrough++ summary
+            // can still offer "Play next chapter". markWordCorrect doesn't return
+            // an updated count, but the value captured at the last submitAnswer
+            // is the closest valid figure — bucket-restoring an already-wrong
+            // word never makes more or fewer B4+ words due.
+            onComplete(updatedSession, completedSessionCost, sessionCreditsEarned, sessionCreditsSpent, sessionPerfectBonus, sessionStreakCredit, sessionMilestoneLabel, sessionBucketMilestoneBonus, sessionRemainingDueCount)
             return
           }
 

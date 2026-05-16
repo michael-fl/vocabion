@@ -3384,6 +3384,50 @@ describe('breakthrough_plus session — answer scoring', () => {
     // Tomorrow or later (> today)
     expect(newDueAt !== null && newDueAt > today).toBe(true)
   })
+
+  it('reports a large remainingDueCount across three consecutive chapters when many due words exist', () => {
+    // Reproduces user report: 3 chapters played, no further "Play next chapter"
+    // button — even though the due-B4+ pool is much larger than the chapter size.
+    // Use bucket 6 (interval 2 weeks) so a freshly-promoted-to-bucket-7 word is
+    // clearly not due in the residual count, but all 100 input words are due now.
+    const past = '2026-01-01T00:00:00.000Z'
+    const dueWords = Array.from({ length: 100 }, (_, i) =>
+      makeEntry({ bucket: 6, lastAskedAt: past, source: `w${i}`, target: [`t${i}`] }),
+    )
+
+    for (const e of dueWords) { vocabRepo.insert(e) }
+
+    function playChapter(session: Session): number | undefined {
+      let lastResult
+      for (const w of session.words) {
+        const entry = vocabRepo.findById(w.vocabId)
+        if (entry === undefined) { continue }
+        const target = entry.target[0] ?? ''
+        lastResult = service.submitAnswer(session.id, entry.id, [target])
+      }
+      return lastResult?.remainingDueCount
+    }
+
+    // Chapter 1 — directly inserted as a breakthrough_plus session.
+    const chapter1 = makeBreakthroughPlusSession(dueWords.slice(0, 24))
+
+    sessionRepo.insert(chapter1)
+    const remainingAfterCh1 = playChapter(chapter1)
+
+    expect(remainingAfterCh1).toBeDefined()
+    // 100 minus 24 just played; words promoted to bucket 7 not due → still ≥ 60.
+    expect(remainingAfterCh1).toBeGreaterThanOrEqual(60)
+
+    // Chapter 2 via the public follow-up API.
+    const chapter2 = service.createNextChapterSession(chapter1.id)
+    const remainingAfterCh2 = playChapter(chapter2)
+    expect(remainingAfterCh2).toBeGreaterThanOrEqual(30)
+
+    // Chapter 3 — the user's report point.
+    const chapter3 = service.createNextChapterSession(chapter2.id)
+    const remainingAfterCh3 = playChapter(chapter3)
+    expect(remainingAfterCh3).toBeGreaterThanOrEqual(12)
+  })
 })
 
 // ── createReplaySession ───────────────────────────────────────────────────────
